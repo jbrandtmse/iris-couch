@@ -1,0 +1,22 @@
+# IRIS reference library — InterSystems system classes, not part of this project
+irislib/
+
+# Reference source (Apache CouchDB, etc.) — for local lookup only
+sources/
+
+# BMAD framework installation — user/workstation-wide tooling, not project source
+_bmad/
+
+# Claude Code — exclude local settings and session history; keep rules and skills
+.claude/settings.local.json
+.claude/projects/
+
+# VS Code local editor settings
+.vscode/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
