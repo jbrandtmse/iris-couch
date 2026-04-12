@@ -26,6 +26,7 @@ ClassMethod Create(pName As %String) As %Status
         ; Initialize metadata subscripts
         Set ^IRISCouch.DB(pName, "created") = $ZDateTime($Horolog, 3)
         Set ^IRISCouch.DB(pName, "doc_count") = 0
+        Set ^IRISCouch.DB(pName, "doc_del_count") = 0
         Set ^IRISCouch.DB(pName, "update_seq") = 0
         Set ^IRISCouch.DB(pName, "disk_size") = 0
         Set ^IRISCouch.DB(pName, "purge_seq") = 0
@@ -116,7 +117,8 @@ ClassMethod GetInfo(pName As %String) As %DynamicObject
         Set result = {}
         Do result.%Set("db_name", pName)
         Do result.%Set("doc_count", tDocCount, "number")
-        Do result.%Set("doc_del_count", 0, "number")
+        Set tDocDelCount = +$Get(^IRISCouch.DB(pName, "doc_del_count"))
+        Do result.%Set("doc_del_count", tDocDelCount, "number")
         Do result.%Set("update_seq", tUpdateSeq, "number")
         Do result.%Set("purge_seq", tPurgeSeq, "number")
         Do result.%Set("compact_running", 0, "boolean")

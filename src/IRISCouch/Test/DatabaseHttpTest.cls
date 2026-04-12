@@ -33,6 +33,11 @@ Method OnAfterOneTest() As %Status
     Kill ^IRISCouch.Tree("maintdb")
     Kill ^IRISCouch.Changes("maintdb")
     Kill ^IRISCouch.Seq("maintdb")
+    Kill ^IRISCouch.DB("testlifecycle")
+    Kill ^IRISCouch.Docs("testlifecycle")
+    Kill ^IRISCouch.Tree("testlifecycle")
+    Kill ^IRISCouch.Changes("testlifecycle")
+    Kill ^IRISCouch.Seq("testlifecycle")
     Quit $$$OK
 }
 
@@ -267,6 +272,82 @@ Method TestMaintenanceNotFoundHttp()
     Do $$$AssertEquals(tStatus, 404, "GET /nonexistent/_revs_limit returns HTTP 404")
     Do $$$AssertTrue($IsObject(tBody), "Response body is a JSON object")
     Do $$$AssertEquals(tBody.error, "not_found", "Error slug is not_found")
+}
+
+/// <p>Story 3.0 AC #1: Full database lifecycle integration test.</p>
+/// <p>Exercises the complete workflow: create, get info, list all_dbs,
+/// set/get revs_limit, compact, ensure_full_commit, delete, verify gone.</p>
+Method TestDatabaseLifecycle()
+{
+    ; Ensure clean state
+    Kill ^IRISCouch.DB("testlifecycle")
+    Kill ^IRISCouch.Docs("testlifecycle")
+    Kill ^IRISCouch.Tree("testlifecycle")
+    Kill ^IRISCouch.Changes("testlifecycle")
+    Kill ^IRISCouch.Seq("testlifecycle")
+
+    ; Step 1: PUT /testlifecycle -> 201 (create database)
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testlifecycle", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "Lifecycle: PUT /testlifecycle request completed")
+    Do $$$AssertEquals(tStatus, 201, "Lifecycle: PUT /testlifecycle returns 201")
+    Do $$$AssertTrue(tBody.ok, "Lifecycle: PUT response contains ok: true")
+
+    ; Step 2: GET /testlifecycle -> 200 (get info, verify doc_count=0, doc_del_count=0)
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/testlifecycle", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "Lifecycle: GET /testlifecycle request completed")
+    Do $$$AssertEquals(tStatus, 200, "Lifecycle: GET /testlifecycle returns 200")
+    Do $$$AssertEquals(tBody."db_name", "testlifecycle", "Lifecycle: db_name is testlifecycle")
+    Do $$$AssertEquals(tBody."doc_count", 0, "Lifecycle: doc_count is 0")
+    Do $$$AssertEquals(tBody."doc_del_count", 0, "Lifecycle: doc_del_count is 0 (as number)")
+
+    ; Step 3: GET /_all_dbs -> 200 (contains "testlifecycle")
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/_all_dbs", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "Lifecycle: GET /_all_dbs request completed")
+    Do $$$AssertEquals(tStatus, 200, "Lifecycle: GET /_all_dbs returns 200")
+    ; Search for testlifecycle in the array
+    Set tFound = 0
+    For tI = 0:1:tBody.%Size()-1 {
+        If tBody.%Get(tI) = "testlifecycle" {
+            Set tFound = 1
+            Quit
+        }
+    }
+    Do $$$AssertTrue(tFound, "Lifecycle: _all_dbs contains testlifecycle")
+
+    ; Step 4: PUT /testlifecycle/_revs_limit with body "500" -> 200
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testlifecycle/_revs_limit", .tStatus, .tBody, "500")
+    Do $$$AssertStatusOK(tSC, "Lifecycle: PUT /_revs_limit request completed")
+    Do $$$AssertEquals(tStatus, 200, "Lifecycle: PUT /_revs_limit returns 200")
+
+    ; Step 5: GET /testlifecycle/_revs_limit -> 200, returns 500
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/testlifecycle/_revs_limit", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "Lifecycle: GET /_revs_limit request completed")
+    Do $$$AssertEquals(tStatus, 200, "Lifecycle: GET /_revs_limit returns 200")
+    Do $$$AssertEquals(tBody, 500, "Lifecycle: revs_limit is 500 after PUT")
+
+    ; Step 6: POST /testlifecycle/_compact -> 202
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("POST", "/testlifecycle/_compact", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "Lifecycle: POST /_compact request completed")
+    Do $$$AssertEquals(tStatus, 202, "Lifecycle: POST /_compact returns 202")
+    Do $$$AssertTrue(tBody.ok, "Lifecycle: compact response contains ok: true")
+
+    ; Step 7: POST /testlifecycle/_ensure_full_commit -> 201
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("POST", "/testlifecycle/_ensure_full_commit", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "Lifecycle: POST /_ensure_full_commit request completed")
+    Do $$$AssertEquals(tStatus, 201, "Lifecycle: POST /_ensure_full_commit returns 201")
+    Do $$$AssertTrue(tBody.ok, "Lifecycle: ensure_full_commit response contains ok: true")
+
+    ; Step 8: DELETE /testlifecycle -> 200
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("DELETE", "/testlifecycle", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "Lifecycle: DELETE /testlifecycle request completed")
+    Do $$$AssertEquals(tStatus, 200, "Lifecycle: DELETE /testlifecycle returns 200")
+    Do $$$AssertTrue(tBody.ok, "Lifecycle: delete response contains ok: true")
+
+    ; Step 9: GET /testlifecycle -> 404 (verify deleted)
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/testlifecycle", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "Lifecycle: GET /testlifecycle after delete request completed")
+    Do $$$AssertEquals(tStatus, 404, "Lifecycle: GET /testlifecycle returns 404 after delete")
+    Do $$$AssertEquals(tBody.error, "not_found", "Lifecycle: error slug is not_found after delete")
 }
 
 }
