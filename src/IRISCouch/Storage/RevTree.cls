@@ -1,11 +1,12 @@
 /// <p>Storage layer for IRISCouch revision tree operations.</p>
 /// <p>Manages the revision tree structure stored in <code>^IRISCouch.Tree</code>.
 /// Tracks parent-child revision relationships, leaf nodes with depth,
-/// and the cached winning revision.</p>
+/// deleted leaf markers, and the cached winning revision.</p>
 /// <h4>Global Structure:</h4>
 /// <ul>
 /// <li><code>^IRISCouch.Tree(db, docId, "R", rev)</code> - Child to parent pointer (empty string for root)</li>
 /// <li><code>^IRISCouch.Tree(db, docId, "L", rev)</code> - Leaf node with depth value</li>
+/// <li><code>^IRISCouch.Tree(db, docId, "D", rev)</code> - Deleted leaf marker (1 if deleted)</li>
 /// <li><code>^IRISCouch.Tree(db, docId, "W")</code> - Cached winning revision</li>
 /// </ul>
 Class IRISCouch.Storage.RevTree Extends %RegisteredObject
@@ -55,6 +56,8 @@ ClassMethod AddChild(pDB As %String, pDocId As %String, pParentRev As %String, p
         Set tParentDepth = +$Get(^IRISCouch.Tree(pDB, pDocId, "L", pParentRev))
         ; Remove parent from leaf index
         Kill ^IRISCouch.Tree(pDB, pDocId, "L", pParentRev)
+        ; Also remove parent deleted marker if it had one (no longer a leaf)
+        Kill ^IRISCouch.Tree(pDB, pDocId, "D", pParentRev)
         ; Add child as leaf at parent depth + 1
         Set ^IRISCouch.Tree(pDB, pDocId, "L", pChildRev) = tParentDepth + 1
         ; Recompute winner
@@ -80,8 +83,8 @@ ClassMethod GetWinner(pDB As %String, pDocId As %String) As %String
 
 /// <p>Recompute and cache the winning revision for a document.</p>
 /// <p>Iterates all leaf nodes in <code>^IRISCouch.Tree(pDB, pDocId, "L")</code>
-/// and selects the winner by: (1) highest depth, (2) lexicographic rev hash tiebreak.
-/// For Story 3.1, no deleted leafs exist, so deletion status is not considered.</p>
+/// and selects the winner by CouchDB algorithm:
+/// (1) live beats deleted, (2) highest depth, (3) lexicographic rev hash tiebreak.</p>
 /// @param pDB The database name
 /// @param pDocId The document identifier
 /// @return %Status
@@ -91,16 +94,19 @@ ClassMethod RecomputeWinner(pDB As %String, pDocId As %String) As %Status
     Try {
         Set tWinnerRev = ""
         Set tWinnerDepth = 0
+        Set tWinnerDeleted = 1
         ; Iterate all leaf nodes
         Set tRev = ""
         For {
             Set tRev = $Order(^IRISCouch.Tree(pDB, pDocId, "L", tRev))
             Quit:tRev=""
             Set tDepth = +$Get(^IRISCouch.Tree(pDB, pDocId, "L", tRev))
-            ; Winner selection: highest depth, then lexicographic tiebreak
-            If (tDepth > tWinnerDepth) || ((tDepth = tWinnerDepth) && (tRev > tWinnerRev)) {
+            Set tDeleted = +$Get(^IRISCouch.Tree(pDB, pDocId, "D", tRev))
+            ; Winner selection: live beats deleted, then depth, then lex tiebreak
+            If (tWinnerRev = "") || ('tDeleted && tWinnerDeleted) || ((tDeleted = tWinnerDeleted) && ((tDepth > tWinnerDepth) || ((tDepth = tWinnerDepth) && (tRev > tWinnerRev)))) {
                 Set tWinnerRev = tRev
                 Set tWinnerDepth = tDepth
+                Set tWinnerDeleted = tDeleted
             }
         }
         Set ^IRISCouch.Tree(pDB, pDocId, "W") = tWinnerRev

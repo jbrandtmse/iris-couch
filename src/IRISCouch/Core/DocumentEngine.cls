@@ -1,6 +1,7 @@
 /// <p>Single write orchestrator for IRISCouch document operations.</p>
-/// <p>All document writes MUST go through <method>Save</method> to ensure
-/// atomicity via <code>TSTART</code>/<code>TCOMMIT</code> (NFR-R2).
+/// <p>All document writes MUST go through <method>Save</method> or
+/// <method>SaveDeleted</method> to ensure atomicity via
+/// <code>TSTART</code>/<code>TCOMMIT</code> (NFR-R2).
 /// Coordinates storage, revision tree, changes feed, and metadata updates
 /// within a single transaction.</p>
 Class IRISCouch.Core.DocumentEngine Extends %RegisteredObject
@@ -61,7 +62,6 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
             Quit
         }
         ; 3. Record change in changes feed
-        ; TODO: Epic 4 - Replace with IRISCouch.Storage.Changes class
         Set tSeq = $Increment(^IRISCouch.Seq(pDB))
         Set ^IRISCouch.Changes(pDB, tSeq) = $ListBuild(pDocId, tNewRev)
         ; 4. Update database metadata
@@ -70,10 +70,79 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
             Set tCount = $Increment(^IRISCouch.DB(pDB, "doc_count"))
         }
         Set ^IRISCouch.DB(pDB, "update_seq") = tSeq
-        ; TODO: Step 5 - Projection.UpdateWinners (future epic)
-        ; TODO: Step 6 - Projection.UpdateMangoIndexes (future epic)
-        ; TODO: Step 7 - Attachment.Store (future epic)
-        ; TODO: Step 8 - Audit.EmitDocWrite (future epic)
+        ; Commit transaction
+        TCOMMIT
+        Quit
+    }
+    Catch ex {
+        If tInTrans { TROLLBACK  Set tInTrans = 0 }
+        Set tNewRev = ""
+        Quit
+    }
+    Quit tNewRev
+}
+
+/// <p>Delete a document by creating a tombstone revision.</p>
+/// <p>Creates a new revision with <code>{"_deleted":true}</code> as the body,
+/// marks the leaf as deleted in the revision tree, decrements
+/// <code>doc_count</code>, and increments <code>doc_del_count</code>.</p>
+/// <h4>Transaction steps:</h4>
+/// <ol>
+/// <li>Mint tombstone revision with pDeleted=1</li>
+/// <li>Write tombstone body</li>
+/// <li>Mark leaf as deleted in revision tree</li>
+/// <li>Extend revision tree (AddChild recomputes winner with deletion awareness)</li>
+/// <li>Record change in changes feed</li>
+/// <li>Update database metadata (decrement doc_count, increment doc_del_count)</li>
+/// </ol>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pParentRev The parent revision string (must be the current winner)
+/// @return %String The new tombstone revision string on success, empty string on failure
+ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String) As %String
+{
+    Set tNewRev = ""
+    Set tInTrans = 0
+    Try {
+        ; Validate database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Quit
+        }
+        ; Determine generation from parent
+        Set tGeneration = +$Piece(pParentRev, "-", 1) + 1
+        ; Tombstone body
+        Set tTombstoneBody = "{""_deleted"":true}"
+        ; Mint rev with pDeleted=1
+        Set tNewRev = ##class(IRISCouch.Core.RevHash).MintRev(tGeneration, tTombstoneBody, pParentRev, 1)
+        If tNewRev = "" Quit
+        ; Begin transaction
+        TSTART
+        Set tInTrans = 1
+        ; 1. Write tombstone body
+        Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, tNewRev, tTombstoneBody)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 2. Mark leaf as deleted BEFORE AddChild so RecomputeWinner sees it
+        Set ^IRISCouch.Tree(pDB, pDocId, "D", tNewRev) = 1
+        ; 3. Extend revision tree (AddChild calls RecomputeWinner internally)
+        Set tSC = ##class(IRISCouch.Storage.RevTree).AddChild(pDB, pDocId, pParentRev, tNewRev)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 4. Record change in changes feed
+        Set tSeq = $Increment(^IRISCouch.Seq(pDB))
+        Set ^IRISCouch.Changes(pDB, tSeq) = $ListBuild(pDocId, tNewRev)
+        ; 5. Update database metadata
+        ; Decrement doc_count
+        Set tCount = $Increment(^IRISCouch.DB(pDB, "doc_count"), -1)
+        ; Increment doc_del_count
+        Set tDelCount = $Increment(^IRISCouch.DB(pDB, "doc_del_count"))
+        Set ^IRISCouch.DB(pDB, "update_seq") = tSeq
         ; Commit transaction
         TCOMMIT
         Quit

@@ -28,9 +28,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
   <Route Url="/:db" Method="DELETE" Call="HandleDatabaseDelete" />
   <Route Url="/:db" Method="GET" Call="HandleDatabaseInfo" />
-  <!-- Document endpoints - MUST be after /:db routes (Story 3.1) -->
+  <!-- Document endpoints - MUST be after /:db routes (Story 3.1, 3.2) -->
   <Route Url="/:db/:docid" Method="PUT" Call="HandleDocumentPut" />
   <Route Url="/:db/:docid" Method="GET" Call="HandleDocumentGet" />
+  <Route Url="/:db/:docid" Method="DELETE" Call="HandleDocumentDelete" />
   <!-- Welcome endpoint (catch-all for GET /) -->
   <Route Url="/" Method="GET" Call="HandleWelcome" />
 </Routes>
@@ -112,6 +113,12 @@ ClassMethod HandleDocumentPut(pDB As %String, pDocId As %String) As %Status
 ClassMethod HandleDocumentGet(pDB As %String, pDocId As %String) As %Status
 {
     Quit ##class(IRISCouch.API.DocumentHandler).HandleGet(pDB, pDocId)
+}
+
+/// <p>Dispatch DELETE /:db/:docid to DocumentHandler (delete document).</p>
+ClassMethod HandleDocumentDelete(pDB As %String, pDocId As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DocumentHandler).HandleDelete(pDB, pDocId)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>

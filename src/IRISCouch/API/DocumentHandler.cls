@@ -1,7 +1,8 @@
 /// <p>HTTP handler for document CRUD operations.</p>
 /// <p>Handles <code>POST /{db}</code> (create with server-generated ID),
-/// <code>PUT /{db}/{docid}</code> (create with client-specified ID),
-/// and <code>GET /{db}/{docid}</code> (retrieve document).
+/// <code>PUT /{db}/{docid}</code> (create/update with client-specified ID),
+/// <code>GET /{db}/{docid}</code> (retrieve document),
+/// and <code>DELETE /{db}/{docid}</code> (delete document with tombstone).
 /// Delegates to <class>IRISCouch.Core.DocumentEngine</class> for writes
 /// and <class>IRISCouch.Storage.Document</class> for reads.</p>
 Class IRISCouch.API.DocumentHandler Extends %RegisteredObject
@@ -38,11 +39,18 @@ ClassMethod HandlePost(pDB As %String) As %Status
             Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
             Quit
         }
+        ; Validate underscore fields
+        Set tValErr = ..ValidateFields(tBody)
+        If tValErr '= "" {
+            Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#DOCVALIDATION, "Bad special document member: " _ tValErr)
+            Quit
+        }
         ; POST always generates a server UUID — ignore any client _id
         Set tDocId = ##class(IRISCouch.Util.UUID).Generate()
         ; Remove metadata fields before storing
         If tBody.%IsDefined("_id") Do tBody.%Remove("_id")
         If tBody.%IsDefined("_rev") Do tBody.%Remove("_rev")
+        If tBody.%IsDefined("_deleted") Do tBody.%Remove("_deleted")
         ; Save document
         Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tBody.%ToJSON())
         If tNewRev = "" {
@@ -64,10 +72,10 @@ ClassMethod HandlePost(pDB As %String) As %Status
     Quit $$$OK
 }
 
-/// <p>Handle <code>PUT /{db}/{docid}</code> — create a document with client-specified ID.</p>
-/// <p>For Story 3.1, only handles the <b>create</b> case where the document does not yet
-/// exist and no <code>_rev</code> is provided. If the document already exists and no
-/// <code>_rev</code> is provided, returns 409 Conflict.</p>
+/// <p>Handle <code>PUT /{db}/{docid}</code> — create or update a document with client-specified ID.</p>
+/// <p>Supports document creation (no <code>_rev</code>), updates with optimistic
+/// concurrency checking (<code>_rev</code> must match current winner), and deletion
+/// via <code>_deleted:true</code> in the body.</p>
 /// @param pDB The database name from the URL path
 /// @param pDocId The document identifier from the URL path
 /// @return %Status
@@ -96,6 +104,12 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
             Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
             Quit
         }
+        ; Validate underscore fields
+        Set tValErr = ..ValidateFields(tBody)
+        If tValErr '= "" {
+            Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#DOCVALIDATION, "Bad special document member: " _ tValErr)
+            Quit
+        }
         ; Extract _rev from body or query param
         Set tRev = ""
         If tBody.%IsDefined("_rev") {
@@ -104,15 +118,52 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
         If (tRev = "") && ($Data(%request.Data("rev", 1))) {
             Set tRev = $Get(%request.Data("rev", 1))
         }
-        ; Check conflict: document exists but no _rev provided
-        If ##class(IRISCouch.Storage.Document).Exists(pDB, pDocId) && (tRev = "") {
-            Do ##class(IRISCouch.Util.Error).Render(409, ##class(IRISCouch.Util.Error).#CONFLICT, "Document update conflict.")
+        ; Optimistic concurrency check for updates
+        If ##class(IRISCouch.Storage.Document).Exists(pDB, pDocId) {
+            If tRev = "" {
+                ; Doc exists but no _rev provided — 409
+                Do ##class(IRISCouch.Util.Error).Render(409, ##class(IRISCouch.Util.Error).#CONFLICT, "Document update conflict.")
+                Quit
+            }
+            ; Verify _rev matches current winner
+            Set tCurrentWinner = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, pDocId)
+            If tRev '= tCurrentWinner {
+                Do ##class(IRISCouch.Util.Error).Render(409, ##class(IRISCouch.Util.Error).#CONFLICT, "Document update conflict.")
+                Quit
+            }
+        }
+        ; Check for _deleted:true — delegate to delete path
+        Set tDeleted = 0
+        If tBody.%IsDefined("_deleted") {
+            If tBody.%Get("_deleted") = "true" || (tBody.%Get("_deleted") = 1) {
+                Set tDeleted = 1
+            }
+        }
+        If tDeleted {
+            ; Delete via PUT requires existing doc with valid _rev
+            If tRev = "" {
+                Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "missing")
+                Quit
+            }
+            ; Delete via PUT with _deleted:true
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, pDocId, tRev)
+            If tNewRev = "" {
+                Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: delete via put error")
+                Quit
+            }
+            ; Return 200 OK for deletion
+            Set tResp = {}
+            Do tResp.%Set("ok", 1, "boolean")
+            Do tResp.%Set("id", pDocId)
+            Do tResp.%Set("rev", tNewRev)
+            Do ##class(IRISCouch.Util.Response).JSON(tResp)
             Quit
         }
         ; Remove metadata fields before storing
         If tBody.%IsDefined("_id") Do tBody.%Remove("_id")
         If tBody.%IsDefined("_rev") Do tBody.%Remove("_rev")
-        ; Save document (for Story 3.1: create case only, parentRev is empty)
+        If tBody.%IsDefined("_deleted") Do tBody.%Remove("_deleted")
+        ; Save document
         Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, pDocId, tBody.%ToJSON(), tRev)
         If tNewRev = "" {
             Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: save error")
@@ -133,10 +184,66 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
     Quit $$$OK
 }
 
+/// <p>Handle <code>DELETE /{db}/{docid}</code> — delete a document producing a tombstone.</p>
+/// <p>Requires the <code>rev</code> query parameter matching the current winning revision.
+/// Creates a tombstone revision via <method>DocumentEngine.SaveDeleted</method>.</p>
+/// @param pDB The database name from the URL path
+/// @param pDocId The document identifier from the URL path
+/// @return %Status
+ClassMethod HandleDelete(pDB As %String, pDocId As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        ; Check database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "Database does not exist.")
+            Quit
+        }
+        ; Check document exists
+        If '##class(IRISCouch.Storage.Document).Exists(pDB, pDocId) {
+            Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "missing")
+            Quit
+        }
+        ; Get rev from query param — required for DELETE
+        Set tRev = ""
+        If $Data(%request.Data("rev", 1)) {
+            Set tRev = $Get(%request.Data("rev", 1))
+        }
+        If tRev = "" {
+            Do ##class(IRISCouch.Util.Error).Render(409, ##class(IRISCouch.Util.Error).#CONFLICT, "Document update conflict.")
+            Quit
+        }
+        ; Verify rev matches current winner
+        Set tCurrentWinner = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, pDocId)
+        If tRev '= tCurrentWinner {
+            Do ##class(IRISCouch.Util.Error).Render(409, ##class(IRISCouch.Util.Error).#CONFLICT, "Document update conflict.")
+            Quit
+        }
+        ; Create tombstone
+        Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, pDocId, tRev)
+        If tNewRev = "" {
+            Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: delete error")
+            Quit
+        }
+        ; Return 200 OK
+        Set tResp = {}
+        Do tResp.%Set("ok", 1, "boolean")
+        Do tResp.%Set("id", pDocId)
+        Do tResp.%Set("rev", tNewRev)
+        Do ##class(IRISCouch.Util.Response).JSON(tResp)
+        Quit
+    }
+    Catch ex {
+        Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: delete error", ex)
+        Quit
+    }
+    Quit $$$OK
+}
+
 /// <p>Handle <code>GET /{db}/{docid}</code> — retrieve a document.</p>
 /// <p>If the <code>rev</code> query parameter is specified, returns that specific
 /// revision. Otherwise, returns the winning revision. Injects <code>_id</code>
-/// and <code>_rev</code> into the response body.</p>
+/// and <code>_rev</code> into the response body. Returns 404 for deleted documents.</p>
 /// @param pDB The database name from the URL path
 /// @param pDocId The document identifier from the URL path
 /// @return %Status
@@ -161,6 +268,11 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
                 Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "missing")
                 Quit
             }
+        }
+        ; Check if the winning revision is deleted (tombstone)
+        If +$Get(^IRISCouch.Tree(pDB, pDocId, "D", tRev)) {
+            Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "deleted")
+            Quit
         }
         ; Read document body
         Set tBodyStr = ##class(IRISCouch.Storage.Document).Read(pDB, pDocId, tRev)
@@ -187,6 +299,27 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
         Quit
     }
     Quit $$$OK
+}
+
+/// <p>Validate that a document body contains no disallowed underscore-prefixed fields.</p>
+/// <p>CouchDB reserves fields starting with underscore. Only <code>_id</code>,
+/// <code>_rev</code>, <code>_deleted</code>, <code>_revisions</code>, and
+/// <code>_attachments</code> are allowed at the top level.</p>
+/// @param pBody The parsed JSON body as %DynamicObject
+/// @return %String Empty string if valid, or the bad field name (e.g., "_foo") if invalid
+ClassMethod ValidateFields(pBody As %DynamicObject) As %String
+{
+    Set tResult = ""
+    Set tIter = pBody.%GetIterator()
+    While tIter.%GetNext(.tKey, .tValue) {
+        If $Extract(tKey, 1) = "_" {
+            If (tKey '= "_id") && (tKey '= "_rev") && (tKey '= "_deleted") && (tKey '= "_revisions") && (tKey '= "_attachments") {
+                Set tResult = tKey
+                Quit
+            }
+        }
+    }
+    Quit tResult
 }
 
 }

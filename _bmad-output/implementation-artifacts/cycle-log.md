@@ -161,3 +161,10 @@
 - **Code Review:** PASSED. 0 critical/high/medium. 3 items dismissed as noise. 0 deferred.
 - **Commit:** `417817f` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T24:00:00Z — Story 3.1: Single Document Create & Read
+- **Create Story:** Story file created at `3-1-single-document-create-and-read.md`
+- **Development:** All 9 tasks completed. 7 files created (Storage/Document.cls, Storage/RevTree.cls, Core/RevHash.cls, Core/DocumentEngine.cls, API/DocumentHandler.cls, Test/DocumentTest.cls, Test/DocumentHttpTest.cls), 1 modified (Router.cls). 66 tests pass (49 existing + 17 new), 0 regressions.
+- **Code Review:** PASSED. 1 high auto-resolved (TROLLBACK guard in DocumentEngine), 1 medium auto-resolved (JSON parse validation in HandlePost/HandlePut). 2 low deferred (parent rev validation, doc ID underscore prefix).
+- **Commit:** `ec4a679` pushed to origin/main
+- **Status:** done
