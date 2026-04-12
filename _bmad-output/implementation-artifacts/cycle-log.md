@@ -196,3 +196,24 @@
 - **Code Review:** PASSED. 1 high auto-resolved (Quit/While dual HTTP response bug in HandleBulkDocs). 1 low deferred (race condition on doc_count). 2 dismissed.
 - **Commit:** `840555e` pushed to origin/main
 - **Status:** done
+
+### 2026-04-13T05:00:00Z — Story 3.6: All Documents View
+- **Create Story:** Story file created at `3-6-all-documents-view.md`
+- **Development:** All 8 tasks completed. 3 files modified (DocumentHandler.cls, Router.cls, Document.cls), 2 files created (AllDocsTest.cls, AllDocsHttpTest.cls). 122 tests pass (112+ existing + 10 new), 0 regressions.
+- **Code Review:** PASSED. 1 medium auto-resolved (storage encapsulation — direct global access replaced with CountNonDeleted). 1 low deferred (local_seq missing field). 2 dismissed.
+- **Commit:** `4e97c02` pushed to origin/main
+- **Status:** done
+
+### 2026-04-13T05:30:00Z — Epic 3 Complete
+- All 7 stories done (3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6)
+- **Total files created:** 14 new classes (Storage/Document, Storage/RevTree, Core/RevHash, Core/DocumentEngine, API/DocumentHandler, plus 9 test classes)
+- **Total files modified:** Router.cls, Error.cls, Storage/Database.cls, HttpIntegrationTest, deferred-work.md
+- **Total tests:** 122 passing, 0 failures across 20 test classes
+- **Deferred items:** ~9 new items added to deferred-work.md (all low/medium severity)
+
+### 2026-04-13T06:00:00Z — Retrospective Complete
+- Retro document: `epic-3-retro-2026-04-13.md`
+- Epic 2 retro action items: 3/3 completed (all fulfilled in Story 3.0)
+- 3 action items for Epic 4, 6 deferred items, 6 lessons codified
+- Storage encapsulation feedback saved to memory
+- Epic 3 retrospective status: done
