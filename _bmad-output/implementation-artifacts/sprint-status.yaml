@@ -43,13 +43,13 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # Epic 1: Project Foundation & Server Identity
-  epic-1: in-progress
+  epic-1: done
   1-1-configuration-system-and-package-scaffold: done
   1-2-http-router-and-couchdb-welcome-endpoint: done
   1-3-uuid-generation-endpoint: done
   1-4-error-envelope-and-consistent-error-responses: done
   1-5-manual-objectscript-import-installation: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   # Epic 2: Database Lifecycle Management
   epic-2: backlog
