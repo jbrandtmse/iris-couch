@@ -168,3 +168,10 @@
 - **Code Review:** PASSED. 1 high auto-resolved (TROLLBACK guard in DocumentEngine), 1 medium auto-resolved (JSON parse validation in HandlePost/HandlePut). 2 low deferred (parent rev validation, doc ID underscore prefix).
 - **Commit:** `ec4a679` pushed to origin/main
 - **Status:** done
+
+### 2026-04-13T01:00:00Z — Story 3.2: Document Update, Delete & Optimistic Concurrency
+- **Create Story:** Story file created at `3-2-document-update-delete-and-optimistic-concurrency.md`
+- **Development:** All 8 tasks completed. 4 files modified (DocumentHandler.cls, DocumentEngine.cls, RevTree.cls, Router.cls), 2 files created (DocumentUpdateTest.cls, DocumentUpdateHttpTest.cls). 86 tests pass (75 existing + 11 new), 0 regressions.
+- **Code Review:** PASSED. 1 high auto-resolved (_deleted:true on non-existent doc guard), 1 medium auto-resolved (D marker before AddChild to fix RecomputeWinner ordering). 1 low deferred (double-delete doc_count negative).
+- **Commit:** `dd3068f` pushed to origin/main
+- **Status:** done

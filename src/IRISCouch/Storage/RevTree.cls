@@ -71,6 +71,55 @@ ClassMethod AddChild(pDB As %String, pDocId As %String, pParentRev As %String, p
     Quit tSC
 }
 
+/// <p>Add a branch revision to an existing revision tree without removing the parent from the leaf index.</p>
+/// <p>Unlike <method>AddChild</method>, this method keeps the parent as a leaf node, creating a
+/// conflict branch. Used by replication (<code>new_edits=false</code>) and for test setup.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pParentRev The parent revision string
+/// @param pChildRev The new child revision string
+/// @return %Status
+ClassMethod AddBranch(pDB As %String, pDocId As %String, pParentRev As %String, pChildRev As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        ; Record parent pointer
+        Set ^IRISCouch.Tree(pDB, pDocId, "R", pChildRev) = pParentRev
+        ; Get parent depth — check leaf index first, then walk R-chain if not a leaf
+        Set tParentDepth = +$Get(^IRISCouch.Tree(pDB, pDocId, "L", pParentRev))
+        If tParentDepth = 0 {
+            ; Parent is not a leaf — compute depth by walking R-chain
+            Set tWalkRev = pParentRev
+            Set tParentDepth = 0
+            For {
+                Quit:tWalkRev=""
+                Set tParentDepth = tParentDepth + 1
+                Set tWalkRev = $Get(^IRISCouch.Tree(pDB, pDocId, "R", tWalkRev))
+            }
+        }
+        ; Add child as leaf at parent depth + 1 (do NOT remove parent from leaf index)
+        Set ^IRISCouch.Tree(pDB, pDocId, "L", pChildRev) = tParentDepth + 1
+        ; Recompute winner
+        Set tSC = ..RecomputeWinner(pDB, pDocId)
+        Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+        Quit
+    }
+    Quit tSC
+}
+
+/// <p>Check if a revision is marked as deleted.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pRev The revision string
+/// @return %Boolean 1 if deleted, 0 otherwise
+ClassMethod IsDeleted(pDB As %String, pDocId As %String, pRev As %String) As %Boolean
+{
+    Quit +$Get(^IRISCouch.Tree(pDB, pDocId, "D", pRev))
+}
+
 /// <p>Get the winning revision for a document.</p>
 /// <p>Returns the cached winning revision from <code>^IRISCouch.Tree(pDB, pDocId, "W")</code>.</p>
 /// @param pDB The database name
@@ -79,6 +128,97 @@ ClassMethod AddChild(pDB As %String, pDocId As %String, pParentRev As %String, p
 ClassMethod GetWinner(pDB As %String, pDocId As %String) As %String
 {
     Quit $Get(^IRISCouch.Tree(pDB, pDocId, "W"))
+}
+
+/// <p>Get all non-winning, non-deleted leaf revisions (conflicts).</p>
+/// <p>Returns a <class>%DynamicArray</class> of revision strings that are leaves,
+/// not the winner, and not deleted. Empty array if no conflicts.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @return %DynamicArray Array of conflicting revision strings
+ClassMethod GetConflicts(pDB As %String, pDocId As %String) As %DynamicArray
+{
+    Set tConflicts = []
+    Set tWinner = ..GetWinner(pDB, pDocId)
+    Set tRev = ""
+    For {
+        Set tRev = $Order(^IRISCouch.Tree(pDB, pDocId, "L", tRev))
+        Quit:tRev=""
+        ; Skip the winner
+        If tRev = tWinner Continue
+        ; Skip deleted leaves
+        If +$Get(^IRISCouch.Tree(pDB, pDocId, "D", tRev)) Continue
+        Do tConflicts.%Push(tRev)
+    }
+    Quit tConflicts
+}
+
+/// <p>Get the revision history path from a specific revision to the root.</p>
+/// <p>Returns a <class>%DynamicObject</class> with <code>start</code> (generation integer)
+/// and <code>ids</code> (array of hex hashes from newest to oldest).</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pRev The revision to trace from
+/// @return %DynamicObject {"start":N,"ids":["hash1","hash2",...]}
+ClassMethod GetRevisions(pDB As %String, pDocId As %String, pRev As %String) As %DynamicObject
+{
+    Set tIds = []
+    Set tRev = pRev
+    For {
+        Quit:tRev=""
+        Do tIds.%Push($Piece(tRev, "-", 2))
+        Set tRev = $Get(^IRISCouch.Tree(pDB, pDocId, "R", tRev))
+    }
+    Set tResult = {}
+    Do tResult.%Set("start", +$Piece(pRev, "-", 1), "number")
+    Do tResult.%Set("ids", tIds)
+    Quit tResult
+}
+
+/// <p>Get revision info with status for each revision in the path.</p>
+/// <p>Returns a <class>%DynamicArray</class> of objects with <code>rev</code> and
+/// <code>status</code> (<code>available</code>, <code>deleted</code>, or <code>missing</code>).</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pRev The revision to trace from
+/// @return %DynamicArray [{"rev":"N-hash","status":"available|missing|deleted"},...]
+ClassMethod GetRevsInfo(pDB As %String, pDocId As %String, pRev As %String) As %DynamicArray
+{
+    Set tResult = []
+    Set tRev = pRev
+    For {
+        Quit:tRev=""
+        Set tInfo = {}
+        Do tInfo.%Set("rev", tRev)
+        ; Determine status
+        If +$Get(^IRISCouch.Tree(pDB, pDocId, "D", tRev)) {
+            Do tInfo.%Set("status", "deleted")
+        } ElseIf $Data(^IRISCouch.Docs(pDB, pDocId, tRev)) {
+            Do tInfo.%Set("status", "available")
+        } Else {
+            Do tInfo.%Set("status", "missing")
+        }
+        Do tResult.%Push(tInfo)
+        Set tRev = $Get(^IRISCouch.Tree(pDB, pDocId, "R", tRev))
+    }
+    Quit tResult
+}
+
+/// <p>Get all leaf revision strings (including deleted).</p>
+/// <p>Returns a <class>%DynamicArray</class> of all leaf revision strings.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @return %DynamicArray Array of all leaf revision strings
+ClassMethod GetLeafRevs(pDB As %String, pDocId As %String) As %DynamicArray
+{
+    Set tLeaves = []
+    Set tRev = ""
+    For {
+        Set tRev = $Order(^IRISCouch.Tree(pDB, pDocId, "L", tRev))
+        Quit:tRev=""
+        Do tLeaves.%Push(tRev)
+    }
+    Quit tLeaves
 }
 
 /// <p>Recompute and cache the winning revision for a document.</p>
@@ -103,7 +243,7 @@ ClassMethod RecomputeWinner(pDB As %String, pDocId As %String) As %Status
             Set tDepth = +$Get(^IRISCouch.Tree(pDB, pDocId, "L", tRev))
             Set tDeleted = +$Get(^IRISCouch.Tree(pDB, pDocId, "D", tRev))
             ; Winner selection: live beats deleted, then depth, then lex tiebreak
-            If (tWinnerRev = "") || ('tDeleted && tWinnerDeleted) || ((tDeleted = tWinnerDeleted) && ((tDepth > tWinnerDepth) || ((tDepth = tWinnerDepth) && (tRev > tWinnerRev)))) {
+            If (tWinnerRev = "") || ('tDeleted && tWinnerDeleted) || ((tDeleted = tWinnerDeleted) && ((tDepth > tWinnerDepth) || ((tDepth = tWinnerDepth) && (tRev ] tWinnerRev)))) {
                 Set tWinnerRev = tRev
                 Set tWinnerDepth = tDepth
                 Set tWinnerDeleted = tDeleted

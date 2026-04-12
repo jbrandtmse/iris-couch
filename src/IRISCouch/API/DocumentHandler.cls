@@ -256,6 +256,55 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
             Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "Database does not exist.")
             Quit
         }
+        ; Check for open_revs parameter — changes entire response format
+        Set tOpenRevs = ""
+        If $Data(%request.Data("open_revs", 1)) {
+            Set tOpenRevs = $Get(%request.Data("open_revs", 1))
+        }
+        If tOpenRevs '= "" {
+            ; Verify document exists (any revision) before processing open_revs
+            If '##class(IRISCouch.Storage.Document).Exists(pDB, pDocId) {
+                Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "missing")
+                Quit
+            }
+            ; Handle open_revs: return array of leaf or specified revisions
+            Set tResultArr = []
+            If tOpenRevs = "all" {
+                Set tRevArray = ##class(IRISCouch.Storage.RevTree).GetLeafRevs(pDB, pDocId)
+            } Else {
+                Try {
+                    Set tRevArray = ##class(%DynamicArray).%FromJSON(tOpenRevs)
+                } Catch tParseEx {
+                    Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid open_revs value")
+                    Quit
+                }
+            }
+            Set tI = 0
+            While tI < tRevArray.%Size() {
+                Set tLeafRev = tRevArray.%Get(tI)
+                Set tLeafBody = ##class(IRISCouch.Storage.Document).Read(pDB, pDocId, tLeafRev)
+                If tLeafBody '= "" {
+                    Set tLeafObj = ##class(%DynamicObject).%FromJSON(tLeafBody)
+                    Set tDocObj = {}
+                    Do tDocObj.%Set("_id", pDocId)
+                    Do tDocObj.%Set("_rev", tLeafRev)
+                    Set tDocIter = tLeafObj.%GetIterator()
+                    While tDocIter.%GetNext(.tDocKey, .tDocVal) {
+                        Do tDocObj.%Set(tDocKey, tDocVal)
+                    }
+                    Set tEntry = {}
+                    Do tEntry.%Set("ok", tDocObj)
+                    Do tResultArr.%Push(tEntry)
+                } Else {
+                    Set tEntry = {}
+                    Do tEntry.%Set("missing", tLeafRev)
+                    Do tResultArr.%Push(tEntry)
+                }
+                Set tI = tI + 1
+            }
+            Do ##class(IRISCouch.Util.Response).JSON(tResultArr)
+            Quit
+        }
         ; Check for specific rev query parameter
         Set tRev = ""
         If $Data(%request.Data("rev", 1)) {
@@ -269,8 +318,8 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
                 Quit
             }
         }
-        ; Check if the winning revision is deleted (tombstone)
-        If +$Get(^IRISCouch.Tree(pDB, pDocId, "D", tRev)) {
+        ; Check if the revision is deleted (tombstone) — use RevTree.IsDeleted for encapsulation
+        If ##class(IRISCouch.Storage.RevTree).IsDeleted(pDB, pDocId, tRev) {
             Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "deleted")
             Quit
         }
@@ -289,6 +338,21 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
         Set tIter = tStoredObj.%GetIterator()
         While tIter.%GetNext(.tKey, .tValue) {
             Do tRespObj.%Set(tKey, tValue)
+        }
+        ; Add _conflicts if requested
+        If $Get(%request.Data("conflicts", 1)) = "true" {
+            Set tConflicts = ##class(IRISCouch.Storage.RevTree).GetConflicts(pDB, pDocId)
+            Do tRespObj.%Set("_conflicts", tConflicts)
+        }
+        ; Add _revisions if requested
+        If $Get(%request.Data("revs", 1)) = "true" {
+            Set tRevisions = ##class(IRISCouch.Storage.RevTree).GetRevisions(pDB, pDocId, tRev)
+            Do tRespObj.%Set("_revisions", tRevisions)
+        }
+        ; Add _revs_info if requested
+        If $Get(%request.Data("revs_info", 1)) = "true" {
+            Set tRevsInfo = ##class(IRISCouch.Storage.RevTree).GetRevsInfo(pDB, pDocId, tRev)
+            Do tRespObj.%Set("_revs_info", tRevsInfo)
         }
         ; Return 200 OK
         Do ##class(IRISCouch.Util.Response).JSON(tRespObj)

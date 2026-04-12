@@ -39,3 +39,7 @@
 ## Deferred from: code review of 3-2-document-update-delete-and-optimistic-concurrency (2026-04-12)
 
 - **doc_count can go negative on double-delete via engine API** [DocumentEngine.cls:SaveDeleted] -- If SaveDeleted is called on a document that has already been deleted (e.g., via direct engine call bypassing handler), doc_count is decremented again, potentially going negative. The handler layer prevents this via exists + rev match checks, but the engine has no internal guard. Low risk since the API layer blocks this path. Address if engine methods are exposed to other callers.
+
+## Deferred from: code review of 3-3-revision-tree-and-conflict-management (2026-04-12)
+
+- **No unit test for `deleted` or `missing` status in GetRevsInfo** [RevTreeTest.cls] -- TestGetRevsInfo only covers the `available` status path. The `deleted` and `missing` status branches in GetRevsInfo are not exercised by unit tests. Add test cases that create a deleted revision and a pruned/missing revision to verify all three status paths. Not a code bug, but incomplete test coverage.
