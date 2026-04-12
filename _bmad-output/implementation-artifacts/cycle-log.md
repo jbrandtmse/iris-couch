@@ -91,3 +91,10 @@
   - **Dropped:** None
 - Story 2.0 created: `2-0-epic-1-deferred-cleanup.md`
 - Epic 2 status updated to `in-progress`
+
+### 2026-04-12T18:30:00Z — Story 2.0: Epic 1 Deferred Cleanup
+- **Create Story:** Story file created at `2-0-epic-1-deferred-cleanup.md`
+- **Development:** All 4 tasks completed. 1 file modified (ServerHandler.cls), 1 created (HttpIntegrationTest.cls). 30 tests pass (26 existing + 4 new), 0 regressions.
+- **Code Review:** PASSED. 0 critical/high/medium. 3 low items deferred (hardcoded creds, hardcoded server/port, no early-return guard in tests).
+- **Commit:** `af024d2` pushed to origin/main
+- **Status:** done

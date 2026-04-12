@@ -17,6 +17,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Routes>
   <!-- Server-level endpoints (Story 1.2, 1.3) -->
   <Route Url="/_uuids" Method="GET" Call="HandleUUIDs" />
+  <!-- Database endpoints - MUST be after underscore-prefixed routes (Story 2.1) -->
+  <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
+  <Route Url="/:db" Method="DELETE" Call="HandleDatabaseDelete" />
+  <!-- Welcome endpoint (catch-all for GET /) -->
   <Route Url="/" Method="GET" Call="HandleWelcome" />
 </Routes>
 }
@@ -31,6 +35,18 @@ ClassMethod HandleWelcome() As %Status
 ClassMethod HandleUUIDs() As %Status
 {
     Quit ##class(IRISCouch.API.ServerHandler).HandleUUIDs()
+}
+
+/// <p>Dispatch PUT /:db to DatabaseHandler.</p>
+ClassMethod HandleDatabaseCreate(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DatabaseHandler).HandleCreate(pDB)
+}
+
+/// <p>Dispatch DELETE /:db to DatabaseHandler.</p>
+ClassMethod HandleDatabaseDelete(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DatabaseHandler).HandleDelete(pDB)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>

@@ -92,28 +92,29 @@ Method TestUUIDsEndpoint()
     Do $$$AssertEquals($Length(tUUID), 32, "UUID is 32 characters long")
 }
 
-/// <p>Verify GET /nonexistent returns 404 with not_found error.</p>
-/// <p>Validates that unmatched routes return proper CouchDB-compatible error envelopes.</p>
+/// <p>Verify GET /nonexistent returns 405 since /:db routes exist for PUT/DELETE.</p>
+/// <p>After Story 2.1, /:db captures all non-system paths. GET is not a supported
+/// method on database endpoints, so 405 Method Not Allowed is returned.</p>
 Method TestNotFoundEndpoint()
 {
     Set tSC = ..MakeRequest("GET", "/nonexistent", .tStatus, .tBody)
     Do $$$AssertStatusOK(tSC, "GET /nonexistent request completed successfully")
-    Do $$$AssertEquals(tStatus, 404, "GET /nonexistent returns HTTP 404")
+    Do $$$AssertEquals(tStatus, 405, "GET /nonexistent returns HTTP 405 (/:db route exists but GET not supported)")
     Do $$$AssertTrue($IsObject(tBody), "Response body is a JSON object")
-    Do $$$AssertEquals(tBody.error, "not_found", "Error slug is not_found")
+    Do $$$AssertEquals(tBody.error, "method_not_allowed", "Error slug is method_not_allowed")
 }
 
-/// <p>Verify parameterized route pattern does not break routing.</p>
-/// <p>Confirms that a request to a database-like path (e.g., /testdb123)
-/// returns 404 since no database handler exists yet, validating that
-/// the :db capture pattern does not cause routing errors.</p>
+/// <p>Verify parameterized route pattern works with database endpoints.</p>
+/// <p>Confirms that a GET request to a database-like path (e.g., /testdb123)
+/// returns 405 since PUT/DELETE are the only supported methods on /:db.
+/// This validates that the :db capture pattern is functioning correctly.</p>
 Method TestParameterizedRoutePattern()
 {
     Set tSC = ..MakeRequest("GET", "/testdb123", .tStatus, .tBody)
     Do $$$AssertStatusOK(tSC, "GET /testdb123 request completed successfully")
-    Do $$$AssertEquals(tStatus, 404, "GET /testdb123 returns HTTP 404 (no db handler yet)")
+    Do $$$AssertEquals(tStatus, 405, "GET /testdb123 returns HTTP 405 (/:db exists but GET not supported)")
     Do $$$AssertTrue($IsObject(tBody), "Response body is a JSON object")
-    Do $$$AssertEquals(tBody.error, "not_found", "Error slug is not_found for unhandled db route")
+    Do $$$AssertEquals(tBody.error, "method_not_allowed", "Error slug is method_not_allowed for GET on db route")
 }
 
 }

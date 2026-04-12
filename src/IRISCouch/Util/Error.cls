@@ -42,6 +42,9 @@ Parameter PRECONDITIONFAILED = "precondition_failed";
 /// <p>Error slug: Projection backpressure limit reached</p>
 Parameter PROJECTIONBACKPRESSURE = "projection_backpressure";
 
+/// <p>Error slug: Illegal database name</p>
+Parameter ILLEGALDATABASENAME = "illegal_database_name";
+
 /// <p>Error slug: Internal server error</p>
 Parameter SERVERERROR = "server_error";
 
