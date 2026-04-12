@@ -126,7 +126,12 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
             Quit
         }
         ; 2. Mark leaf as deleted BEFORE AddChild so RecomputeWinner sees it
-        Set ^IRISCouch.Tree(pDB, pDocId, "D", tNewRev) = 1
+        Set tSC = ##class(IRISCouch.Storage.RevTree).MarkDeleted(pDB, pDocId, tNewRev)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
         ; 3. Extend revision tree (AddChild calls RecomputeWinner internally)
         Set tSC = ##class(IRISCouch.Storage.RevTree).AddChild(pDB, pDocId, pParentRev, tNewRev)
         If $$$ISERR(tSC) {
@@ -189,7 +194,7 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
             Quit
         }
         ; Idempotency check: if rev already exists in tree, skip silently
-        If $Data(^IRISCouch.Tree(pDB, pDocId, "R", pRev)) > 0 {
+        If ##class(IRISCouch.Storage.RevTree).RevExists(pDB, pDocId, pRev) {
             Quit
         }
         ; Build ancestry chain from _revisions object
@@ -209,7 +214,7 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
             Do tRevChain.%Push(pRev)
         }
         ; Check if this is a genuinely new document (no prior tree existed)
-        Set tIsNewDoc = '$Data(^IRISCouch.Tree(pDB, pDocId))
+        Set tIsNewDoc = '##class(IRISCouch.Storage.RevTree).TreeExists(pDB, pDocId)
         ; Begin transaction
         TSTART
         Set tInTrans = 1

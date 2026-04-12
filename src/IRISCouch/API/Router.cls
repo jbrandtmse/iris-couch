@@ -125,28 +125,28 @@ ClassMethod HandleDocumentDelete(pDB As %String, pDocId As %String) As %Status
     Quit ##class(IRISCouch.API.DocumentHandler).HandleDelete(pDB, pDocId)
 }
 
-/// <p>Dispatch POST /:db/_bulk_docs to DocumentHandler.</p>
+/// <p>Dispatch POST /:db/_bulk_docs to BulkHandler.</p>
 ClassMethod HandleBulkDocs(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DocumentHandler).HandleBulkDocs(pDB)
+    Quit ##class(IRISCouch.API.BulkHandler).HandleBulkDocs(pDB)
 }
 
-/// <p>Dispatch POST /:db/_bulk_get to DocumentHandler.</p>
+/// <p>Dispatch POST /:db/_bulk_get to BulkHandler.</p>
 ClassMethod HandleBulkGet(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DocumentHandler).HandleBulkGet(pDB)
+    Quit ##class(IRISCouch.API.BulkHandler).HandleBulkGet(pDB)
 }
 
-/// <p>Dispatch GET /:db/_all_docs to DocumentHandler.</p>
+/// <p>Dispatch GET /:db/_all_docs to AllDocsHandler.</p>
 ClassMethod HandleAllDocs(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DocumentHandler).HandleAllDocs(pDB)
+    Quit ##class(IRISCouch.API.AllDocsHandler).HandleAllDocs(pDB)
 }
 
-/// <p>Dispatch POST /:db/_all_docs to DocumentHandler.</p>
+/// <p>Dispatch POST /:db/_all_docs to AllDocsHandler.</p>
 ClassMethod HandleAllDocsPost(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DocumentHandler).HandleAllDocsPost(pDB)
+    Quit ##class(IRISCouch.API.AllDocsHandler).HandleAllDocsPost(pDB)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>

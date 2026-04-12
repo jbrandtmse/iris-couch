@@ -110,6 +110,37 @@ ClassMethod AddBranch(pDB As %String, pDocId As %String, pParentRev As %String, 
     Quit tSC
 }
 
+/// <p>Mark a leaf revision as deleted in the revision tree.</p>
+/// <p>Sets the D-marker for the specified revision.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pRev The revision string to mark as deleted
+/// @return %Status
+ClassMethod MarkDeleted(pDB As %String, pDocId As %String, pRev As %String) As %Status
+{
+    Set ^IRISCouch.Tree(pDB, pDocId, "D", pRev) = 1
+    Quit $$$OK
+}
+
+/// <p>Check if a revision exists in the revision tree (has an R-node).</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pRev The revision string to check
+/// @return %Boolean 1 if the revision exists, 0 otherwise
+ClassMethod RevExists(pDB As %String, pDocId As %String, pRev As %String) As %Boolean
+{
+    Quit $Data(^IRISCouch.Tree(pDB, pDocId, "R", pRev)) > 0
+}
+
+/// <p>Check if a revision tree exists for a document.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @return %Boolean 1 if the tree exists, 0 otherwise
+ClassMethod TreeExists(pDB As %String, pDocId As %String) As %Boolean
+{
+    Quit $Data(^IRISCouch.Tree(pDB, pDocId)) > 0
+}
+
 /// <p>Check if a revision is marked as deleted.</p>
 /// @param pDB The database name
 /// @param pDocId The document identifier

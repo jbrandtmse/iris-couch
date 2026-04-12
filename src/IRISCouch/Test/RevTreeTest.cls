@@ -184,4 +184,70 @@ Method TestGetLeafRevs()
     Do $$$AssertEquals(tLeaves.%Size(), 3, "GetLeafRevs returns 3 leaves")
 }
 
+/// <p>AC #8: GetRevsInfo returns "deleted" status for revisions with D-marker.</p>
+Method TestGetRevsInfoDeleted()
+{
+    Set tDB = "testrevtreedb"
+    Set tDocId = "revinfodoc"
+    Set tRev1 = "1-aaaa0000000000000000000000000000"
+    Set tRev2 = "2-bbbb0000000000000000000000000000"
+    ; Init tree with root revision and write body
+    Set tSC = ##class(IRISCouch.Storage.RevTree).Init(tDB, tDocId, tRev1)
+    Do $$$AssertStatusOK(tSC, "Init returns OK")
+    Set tSC = ##class(IRISCouch.Storage.Document).Write(tDB, tDocId, tRev1, "{""v"":1}")
+    Do $$$AssertStatusOK(tSC, "Write rev1 body OK")
+    ; Add child rev2 and mark as deleted
+    Set tSC = ##class(IRISCouch.Storage.RevTree).AddChild(tDB, tDocId, tRev1, tRev2)
+    Do $$$AssertStatusOK(tSC, "AddChild rev2 OK")
+    Set tSC = ##class(IRISCouch.Storage.RevTree).MarkDeleted(tDB, tDocId, tRev2)
+    Do $$$AssertStatusOK(tSC, "MarkDeleted rev2 OK")
+    Set tSC = ##class(IRISCouch.Storage.Document).Write(tDB, tDocId, tRev2, "{""_deleted"":true}")
+    Do $$$AssertStatusOK(tSC, "Write rev2 tombstone body OK")
+    ; GetRevsInfo from rev2
+    Set tRevsInfo = ##class(IRISCouch.Storage.RevTree).GetRevsInfo(tDB, tDocId, tRev2)
+    Do $$$AssertTrue($IsObject(tRevsInfo), "GetRevsInfo returns object")
+    Do $$$AssertEquals(tRevsInfo.%Size(), 2, "RevsInfo has 2 entries")
+    ; First entry is rev2, should be deleted
+    Set tInfo0 = tRevsInfo.%Get(0)
+    Do $$$AssertEquals(tInfo0.rev, tRev2, "First entry is rev2")
+    Do $$$AssertEquals(tInfo0.status, "deleted", "Rev2 status is deleted")
+    ; Second entry is rev1, should be available
+    Set tInfo1 = tRevsInfo.%Get(1)
+    Do $$$AssertEquals(tInfo1.rev, tRev1, "Second entry is rev1")
+    Do $$$AssertEquals(tInfo1.status, "available", "Rev1 status is available")
+}
+
+/// <p>AC #8: GetRevsInfo returns "missing" status for revisions without a body in ^IRISCouch.Docs.</p>
+Method TestGetRevsInfoMissing()
+{
+    Set tDB = "testrevtreedb"
+    Set tDocId = "revinfomissing"
+    Set tRev1 = "1-aaaa0000000000000000000000000000"
+    Set tRev2 = "2-bbbb0000000000000000000000000000"
+    ; Init tree with root revision — write body for rev1 then kill it to simulate missing
+    Set tSC = ##class(IRISCouch.Storage.RevTree).Init(tDB, tDocId, tRev1)
+    Do $$$AssertStatusOK(tSC, "Init returns OK")
+    Set tSC = ##class(IRISCouch.Storage.Document).Write(tDB, tDocId, tRev1, "{""v"":1}")
+    Do $$$AssertStatusOK(tSC, "Write rev1 body OK")
+    ; Add child rev2 with body
+    Set tSC = ##class(IRISCouch.Storage.RevTree).AddChild(tDB, tDocId, tRev1, tRev2)
+    Do $$$AssertStatusOK(tSC, "AddChild rev2 OK")
+    Set tSC = ##class(IRISCouch.Storage.Document).Write(tDB, tDocId, tRev2, "{""v"":2}")
+    Do $$$AssertStatusOK(tSC, "Write rev2 body OK")
+    ; Kill rev1 body to simulate missing (e.g., compaction removed it)
+    Kill ^IRISCouch.Docs(tDB, tDocId, tRev1)
+    ; GetRevsInfo from rev2
+    Set tRevsInfo = ##class(IRISCouch.Storage.RevTree).GetRevsInfo(tDB, tDocId, tRev2)
+    Do $$$AssertTrue($IsObject(tRevsInfo), "GetRevsInfo returns object")
+    Do $$$AssertEquals(tRevsInfo.%Size(), 2, "RevsInfo has 2 entries")
+    ; First entry is rev2, should be available
+    Set tInfo0 = tRevsInfo.%Get(0)
+    Do $$$AssertEquals(tInfo0.rev, tRev2, "First entry is rev2")
+    Do $$$AssertEquals(tInfo0.status, "available", "Rev2 status is available")
+    ; Second entry is rev1, should be missing (body was killed)
+    Set tInfo1 = tRevsInfo.%Get(1)
+    Do $$$AssertEquals(tInfo1.rev, tRev1, "Second entry is rev1")
+    Do $$$AssertEquals(tInfo1.status, "missing", "Rev1 status is missing")
+}
+
 }
