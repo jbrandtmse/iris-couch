@@ -27,6 +27,8 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db/_all_docs" Method="POST" Call="HandleAllDocsPost" />
   <Route Url="/:db/_bulk_docs" Method="POST" Call="HandleBulkDocs" />
   <Route Url="/:db/_bulk_get" Method="POST" Call="HandleBulkGet" />
+  <Route Url="/:db/_changes" Method="GET" Call="HandleChangesGet" />
+  <Route Url="/:db/_changes" Method="POST" Call="HandleChangesPost" />
   <!-- Database endpoints - MUST be after underscore-prefixed routes (Story 2.1, 2.2) -->
   <Route Url="/:db" Method="POST" Call="HandleDocumentPost" />
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
@@ -147,6 +149,18 @@ ClassMethod HandleAllDocs(pDB As %String) As %Status
 ClassMethod HandleAllDocsPost(pDB As %String) As %Status
 {
     Quit ##class(IRISCouch.API.AllDocsHandler).HandleAllDocsPost(pDB)
+}
+
+/// <p>Dispatch GET /:db/_changes to ChangesHandler.</p>
+ClassMethod HandleChangesGet(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.ChangesHandler).HandleChanges(pDB)
+}
+
+/// <p>Dispatch POST /:db/_changes to ChangesHandler.</p>
+ClassMethod HandleChangesPost(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.ChangesHandler).HandleChanges(pDB)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>

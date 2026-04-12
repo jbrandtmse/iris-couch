@@ -217,3 +217,32 @@
 - 3 action items for Epic 4, 6 deferred items, 6 lessons codified
 - Storage encapsulation feedback saved to memory
 - Epic 3 retrospective status: done
+
+---
+
+## Epic 4: Real-Time Change Tracking
+
+### 2026-04-12T07:00:00Z — Cycle started
+- **Scope:** Epic 4, Stories 4.0 (deferred cleanup) through 4.3
+- **Sprint status:** All Epic 4 stories at `backlog`
+
+### 2026-04-12T07:00:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml confirmed current (14 epics, 56+ stories tracked)
+- Epic 4 stories confirmed: 4.1, 4.2, 4.3 (plus 4.0 cleanup from retro)
+- No issues surfaced
+
+### 2026-04-12T07:05:00Z — Phase 0.5: Retrospective Review & Story 4.0
+- Epic 3 retrospective found: `epic-3-retro-2026-04-13.md`
+- Triaged all action items:
+  - **Included in 4.0:** Split DocumentHandler, Quit-in-loop guideline, GetRevsInfo test coverage, 5 storage encapsulation violations
+  - **Deferred:** 6 items (doc_count negative, race condition, local_seq omitted, empty id, repetitive construction, underscore prefix)
+  - **Dropped:** None
+- Story 4.0 created: `4-0-epic-3-deferred-cleanup.md`
+- Epic 4 status updated to `in-progress`
+
+### 2026-04-12T07:30:00Z — Story 4.0: Epic 3 Deferred Cleanup
+- **Create Story:** Story file created at `4-0-epic-3-deferred-cleanup.md`
+- **Development:** All 10 tasks completed. 3 files created (Storage/Changes.cls, API/BulkHandler.cls, API/AllDocsHandler.cls), 5 modified (RevTree.cls, DocumentEngine.cls, DocumentHandler.cls, Router.cls, RevTreeTest.cls). DocumentHandler reduced 1009→396 lines. 124 tests pass (122 existing + 2 new), 0 regressions.
+- **Code Review:** PASSED. 0 critical/high/medium. 3 pre-existing low items deferred. 0 auto-resolved.
+- **Commit:** `7c58b1b` pushed to origin/main
+- **Status:** done

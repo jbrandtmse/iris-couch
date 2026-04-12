@@ -70,3 +70,7 @@
 - **RevTree.GetRevsInfo accesses ^IRISCouch.Docs directly** [RevTree.cls:227] -- `$Data(^IRISCouch.Docs(pDB, pDocId, tRev))` is a cross-storage-domain access. RevTree (Storage.RevTree) checks a global belonging to Storage.Document. Should call `Storage.Document.RevBodyExists(pDB, pDocId, pRev)` or similar. Pre-existing from Story 3.3.
 - **DocumentEngine direct global access to ^IRISCouch.Changes/Seq/DB** [DocumentEngine.cls:65-72,143-150,234-241] -- Save, SaveDeleted, and SaveWithHistory all write directly to ^IRISCouch.Changes, ^IRISCouch.Seq, and ^IRISCouch.DB globals. Should be encapsulated through Storage.Changes and Storage.Database methods. Pre-existing from Stories 3.1/3.2/3.5.
 - **Inner try/catch Quit in HandleBulkDocs new_edits path** [BulkHandler.cls:36] -- When JSON parse fails in the inner try/catch (line 34-38), the Quit exits only the inner catch, then execution falls through to the normal new_edits=true path (line 103+). The response may be incorrect. Pre-existing from Story 3.5.
+
+## Deferred from: code review of 4-1-normal-changes-feed (2026-04-12)
+
+- **No test for unsupported feed mode 400 response** [ChangesHandler.cls:87-90] -- The handler returns 400 for feed modes other than "normal" (e.g., longpoll, continuous), but no unit or HTTP test exercises this path. Minor coverage gap; add when Story 4.2 (longpoll) is implemented.
