@@ -23,6 +23,8 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db/_revs_limit" Method="PUT" Call="HandleRevsLimitPut" />
   <Route Url="/:db/_compact" Method="POST" Call="HandleCompact" />
   <Route Url="/:db/_ensure_full_commit" Method="POST" Call="HandleEnsureFullCommit" />
+  <Route Url="/:db/_bulk_docs" Method="POST" Call="HandleBulkDocs" />
+  <Route Url="/:db/_bulk_get" Method="POST" Call="HandleBulkGet" />
   <!-- Database endpoints - MUST be after underscore-prefixed routes (Story 2.1, 2.2) -->
   <Route Url="/:db" Method="POST" Call="HandleDocumentPost" />
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
@@ -119,6 +121,18 @@ ClassMethod HandleDocumentGet(pDB As %String, pDocId As %String) As %Status
 ClassMethod HandleDocumentDelete(pDB As %String, pDocId As %String) As %Status
 {
     Quit ##class(IRISCouch.API.DocumentHandler).HandleDelete(pDB, pDocId)
+}
+
+/// <p>Dispatch POST /:db/_bulk_docs to DocumentHandler.</p>
+ClassMethod HandleBulkDocs(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DocumentHandler).HandleBulkDocs(pDB)
+}
+
+/// <p>Dispatch POST /:db/_bulk_get to DocumentHandler.</p>
+ClassMethod HandleBulkGet(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DocumentHandler).HandleBulkGet(pDB)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>

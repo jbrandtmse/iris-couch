@@ -175,3 +175,10 @@
 - **Code Review:** PASSED. 1 high auto-resolved (_deleted:true on non-existent doc guard), 1 medium auto-resolved (D marker before AddChild to fix RecomputeWinner ordering). 1 low deferred (double-delete doc_count negative).
 - **Commit:** `dd3068f` pushed to origin/main
 - **Status:** done
+
+### 2026-04-13T02:00:00Z — Story 3.3: Revision Tree & Conflict Management
+- **Create Story:** Story file created at `3-3-revision-tree-and-conflict-management.md`
+- **Development:** All 9 tasks completed. 2 files modified (RevTree.cls, DocumentHandler.cls), 2 files created (RevTreeTest.cls, RevTreeHttpTest.cls). 97 tests pass (86 existing + 11 new), 0 regressions. Fixed latent RecomputeWinner tiebreak bug (> to ] operator).
+- **Code Review:** PASSED. 1 medium auto-resolved (open_revs 404 for non-existent docs), 1 medium deferred (missing test coverage for deleted/missing revs_info statuses). 3 low dismissed.
+- **Commit:** `4ffcb09` pushed to origin/main
+- **Status:** done

@@ -43,3 +43,8 @@
 ## Deferred from: code review of 3-3-revision-tree-and-conflict-management (2026-04-12)
 
 - **No unit test for `deleted` or `missing` status in GetRevsInfo** [RevTreeTest.cls] -- TestGetRevsInfo only covers the `available` status path. The `deleted` and `missing` status branches in GetRevsInfo are not exercised by unit tests. Add test cases that create a deleted revision and a pruned/missing revision to verify all three status paths. Not a code bug, but incomplete test coverage.
+
+## Deferred from: code review of 3-4-bulk-document-operations (2026-04-12)
+
+- **HandleBulkGet silently skips docs with empty id** [DocumentHandler.cls:596] -- When a `_bulk_get` request contains a doc entry with no `id` field or an empty `id`, the code silently skips it with `Continue`. The response array will have fewer entries than the request array. Not in AC and CouchDB behavior for this edge case is unspecified. Consider returning an error entry for malformed doc requests.
+- **Repetitive error-entry construction in HandleBulkDocs** [DocumentHandler.cls:433-530] -- Each error case in the bulk docs loop constructs a nearly identical `tEntry` object with `id`, `error`, `reason` fields. Could be extracted to a helper method for readability and maintainability. Not a bug, code quality improvement.

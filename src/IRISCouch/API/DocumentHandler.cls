@@ -365,6 +365,310 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
     Quit $$$OK
 }
 
+/// <p>Handle <code>POST /{db}/_bulk_docs</code> — create or update multiple documents in a single request.</p>
+/// <p>Each document is processed independently through <method>DocumentEngine.Save</method>.
+/// A conflict in one document does NOT fail the entire batch. The response array
+/// has one entry per input document, in the same order.</p>
+/// @param pDB The database name from the URL path
+/// @return %Status
+ClassMethod HandleBulkDocs(pDB As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        ; Check database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "Database does not exist.")
+            Quit
+        }
+        ; Read JSON body
+        Set tContent = ""
+        If $IsObject(%request.Content) {
+            Set tContent = %request.Content.Read()
+        }
+        If tContent = "" {
+            Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Request body is empty or missing.")
+            Quit
+        }
+        ; Parse body
+        Try {
+            Set tBody = ##class(%DynamicObject).%FromJSON(tContent)
+        } Catch tParseEx {
+            Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
+            Quit
+        }
+        ; Check for new_edits=false — defer to Story 3.5
+        If tBody.%IsDefined("new_edits") {
+            If (tBody.%Get("new_edits") = "false") || (tBody.%Get("new_edits") = 0) {
+                Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "new_edits=false not yet implemented")
+                Quit
+            }
+        }
+        ; Extract docs array
+        If 'tBody.%IsDefined("docs") || (tBody.%GetTypeOf("docs") '= "array") {
+            Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Request body must contain a ""docs"" array.")
+            Quit
+        }
+        Set tDocs = tBody.%Get("docs")
+        Set tResults = []
+        Set tI = 0
+        While tI < tDocs.%Size() {
+            Set tDoc = tDocs.%Get(tI)
+            Set tI = tI + 1
+            ; Extract _id or generate UUID
+            Set tDocId = ""
+            If tDoc.%IsDefined("_id") {
+                Set tDocId = tDoc.%Get("_id")
+            }
+            If tDocId = "" {
+                Set tDocId = ##class(IRISCouch.Util.UUID).Generate()
+            }
+            ; Extract _rev
+            Set tRev = ""
+            If tDoc.%IsDefined("_rev") {
+                Set tRev = tDoc.%Get("_rev")
+            }
+            ; Validate underscore fields
+            Set tValErr = ..ValidateFields(tDoc)
+            If tValErr '= "" {
+                Set tEntry = {}
+                Do tEntry.%Set("id", tDocId)
+                Do tEntry.%Set("error", "bad_request")
+                Do tEntry.%Set("reason", "Bad special document member: " _ tValErr)
+                Do tResults.%Push(tEntry)
+                Continue
+            }
+            ; Check for _deleted:true
+            Set tDeleted = 0
+            If tDoc.%IsDefined("_deleted") {
+                If (tDoc.%Get("_deleted") = "true") || (tDoc.%Get("_deleted") = 1) {
+                    Set tDeleted = 1
+                }
+            }
+            If tDeleted {
+                ; Need a valid _rev to delete
+                If tRev = "" {
+                    Set tEntry = {}
+                    Do tEntry.%Set("id", tDocId)
+                    Do tEntry.%Set("error", "conflict")
+                    Do tEntry.%Set("reason", "Document update conflict.")
+                    Do tResults.%Push(tEntry)
+                    Continue
+                }
+                ; Verify doc exists and rev matches winner
+                If '##class(IRISCouch.Storage.Document).Exists(pDB, tDocId) {
+                    Set tEntry = {}
+                    Do tEntry.%Set("id", tDocId)
+                    Do tEntry.%Set("error", "not_found")
+                    Do tEntry.%Set("reason", "missing")
+                    Do tResults.%Push(tEntry)
+                    Continue
+                }
+                Set tCurrentWinner = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, tDocId)
+                If tRev '= tCurrentWinner {
+                    Set tEntry = {}
+                    Do tEntry.%Set("id", tDocId)
+                    Do tEntry.%Set("error", "conflict")
+                    Do tEntry.%Set("reason", "Document update conflict.")
+                    Do tResults.%Push(tEntry)
+                    Continue
+                }
+                Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, tDocId, tRev)
+                If tNewRev = "" {
+                    Set tEntry = {}
+                    Do tEntry.%Set("id", tDocId)
+                    Do tEntry.%Set("error", "conflict")
+                    Do tEntry.%Set("reason", "Document update conflict.")
+                    Do tResults.%Push(tEntry)
+                    Continue
+                }
+                Set tEntry = {}
+                Do tEntry.%Set("ok", 1, "boolean")
+                Do tEntry.%Set("id", tDocId)
+                Do tEntry.%Set("rev", tNewRev)
+                Do tResults.%Push(tEntry)
+                Continue
+            }
+            ; Optimistic concurrency: if doc exists
+            If ##class(IRISCouch.Storage.Document).Exists(pDB, tDocId) {
+                If tRev = "" {
+                    ; Doc exists but no _rev provided — conflict
+                    Set tEntry = {}
+                    Do tEntry.%Set("id", tDocId)
+                    Do tEntry.%Set("error", "conflict")
+                    Do tEntry.%Set("reason", "Document update conflict.")
+                    Do tResults.%Push(tEntry)
+                    Continue
+                }
+                ; Verify _rev matches current winner
+                Set tCurrentWinner = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, tDocId)
+                If tRev '= tCurrentWinner {
+                    Set tEntry = {}
+                    Do tEntry.%Set("id", tDocId)
+                    Do tEntry.%Set("error", "conflict")
+                    Do tEntry.%Set("reason", "Document update conflict.")
+                    Do tResults.%Push(tEntry)
+                    Continue
+                }
+            }
+            ; Remove metadata fields before saving
+            If tDoc.%IsDefined("_id") Do tDoc.%Remove("_id")
+            If tDoc.%IsDefined("_rev") Do tDoc.%Remove("_rev")
+            If tDoc.%IsDefined("_deleted") Do tDoc.%Remove("_deleted")
+            ; Save document
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tDoc.%ToJSON(), tRev)
+            If tNewRev = "" {
+                Set tEntry = {}
+                Do tEntry.%Set("id", tDocId)
+                Do tEntry.%Set("error", "conflict")
+                Do tEntry.%Set("reason", "Document update conflict.")
+                Do tResults.%Push(tEntry)
+                Continue
+            }
+            Set tEntry = {}
+            Do tEntry.%Set("ok", 1, "boolean")
+            Do tEntry.%Set("id", tDocId)
+            Do tEntry.%Set("rev", tNewRev)
+            Do tResults.%Push(tEntry)
+        }
+        ; Return 201 with results array
+        Do ##class(IRISCouch.Util.Response).JSONStatus(201, tResults)
+        Quit
+    }
+    Catch ex {
+        Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: bulk_docs error", ex)
+        Quit
+    }
+    Quit $$$OK
+}
+
+/// <p>Handle <code>POST /{db}/_bulk_get</code> — retrieve multiple documents by ID in a single request.</p>
+/// <p>Returns a results array with each document or an error entry for missing documents.
+/// Supports <code>?revs=true</code> to include revision history.</p>
+/// @param pDB The database name from the URL path
+/// @return %Status
+ClassMethod HandleBulkGet(pDB As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        ; Check database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "Database does not exist.")
+            Quit
+        }
+        ; Read JSON body
+        Set tContent = ""
+        If $IsObject(%request.Content) {
+            Set tContent = %request.Content.Read()
+        }
+        If tContent = "" {
+            Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Request body is empty or missing.")
+            Quit
+        }
+        ; Parse body
+        Try {
+            Set tBody = ##class(%DynamicObject).%FromJSON(tContent)
+        } Catch tParseEx {
+            Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
+            Quit
+        }
+        ; Extract docs array
+        If 'tBody.%IsDefined("docs") || (tBody.%GetTypeOf("docs") '= "array") {
+            Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Request body must contain a ""docs"" array.")
+            Quit
+        }
+        Set tDocs = tBody.%Get("docs")
+        ; Check for revs=true query parameter
+        Set tRevsFlag = 0
+        If $Get(%request.Data("revs", 1)) = "true" {
+            Set tRevsFlag = 1
+        }
+        Set tResults = []
+        Set tI = 0
+        While tI < tDocs.%Size() {
+            Set tDocReq = tDocs.%Get(tI)
+            Set tI = tI + 1
+            ; Extract id (required)
+            Set tDocId = ""
+            If tDocReq.%IsDefined("id") {
+                Set tDocId = tDocReq.%Get("id")
+            }
+            If tDocId = "" {
+                Continue
+            }
+            ; Extract rev (optional — specific revision)
+            Set tRev = ""
+            If tDocReq.%IsDefined("rev") {
+                Set tRev = tDocReq.%Get("rev")
+            }
+            ; If no rev, get the winning revision
+            If tRev = "" {
+                Set tRev = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, tDocId)
+            }
+            ; Check if the revision is deleted
+            Set tIsDeleted = 0
+            If tRev '= "" {
+                Set tIsDeleted = ##class(IRISCouch.Storage.RevTree).IsDeleted(pDB, tDocId, tRev)
+            }
+            ; Read document body
+            Set tBodyStr = ""
+            If (tRev '= "") && ('tIsDeleted) {
+                Set tBodyStr = ##class(IRISCouch.Storage.Document).Read(pDB, tDocId, tRev)
+            }
+            Set tResultEntry = {}
+            Do tResultEntry.%Set("id", tDocId)
+            If tBodyStr '= "" {
+                ; Document found — build ok entry
+                Set tDocObj = {}
+                Do tDocObj.%Set("_id", tDocId)
+                Do tDocObj.%Set("_rev", tRev)
+                ; If revs=true, add _revisions
+                If tRevsFlag {
+                    Set tRevisions = ##class(IRISCouch.Storage.RevTree).GetRevisions(pDB, tDocId, tRev)
+                    Do tDocObj.%Set("_revisions", tRevisions)
+                }
+                ; Copy stored fields
+                Set tStoredObj = ##class(%DynamicObject).%FromJSON(tBodyStr)
+                Set tIter = tStoredObj.%GetIterator()
+                While tIter.%GetNext(.tKey, .tValue) {
+                    Do tDocObj.%Set(tKey, tValue)
+                }
+                Set tDocsArr = []
+                Set tOkEntry = {}
+                Do tOkEntry.%Set("ok", tDocObj)
+                Do tDocsArr.%Push(tOkEntry)
+                Do tResultEntry.%Set("docs", tDocsArr)
+            } Else {
+                ; Document not found — build error entry
+                Set tErrObj = {}
+                Do tErrObj.%Set("id", tDocId)
+                If tRev '= "" {
+                    Do tErrObj.%Set("rev", tRev)
+                } Else {
+                    Do tErrObj.%Set("rev", "undefined")
+                }
+                Do tErrObj.%Set("error", "not_found")
+                Do tErrObj.%Set("reason", "missing")
+                Set tDocsArr = []
+                Set tErrWrapper = {}
+                Do tErrWrapper.%Set("error", tErrObj)
+                Do tDocsArr.%Push(tErrWrapper)
+                Do tResultEntry.%Set("docs", tDocsArr)
+            }
+            Do tResults.%Push(tResultEntry)
+        }
+        ; Return 200 with wrapper
+        Set tWrapper = {}
+        Do tWrapper.%Set("results", tResults)
+        Do ##class(IRISCouch.Util.Response).JSON(tWrapper)
+        Quit
+    }
+    Catch ex {
+        Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: bulk_get error", ex)
+        Quit
+    }
+    Quit $$$OK
+}
+
 /// <p>Validate that a document body contains no disallowed underscore-prefixed fields.</p>
 /// <p>CouchDB reserves fields starting with underscore. Only <code>_id</code>,
 /// <code>_rev</code>, <code>_deleted</code>, <code>_revisions</code>, and
