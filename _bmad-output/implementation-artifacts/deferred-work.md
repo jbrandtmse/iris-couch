@@ -56,3 +56,11 @@
 ## Deferred from: code review of 3-6-all-documents-view (2026-04-12)
 
 - **_local_seq field omitted when no changes entry found for document** [DocumentHandler.cls:370] -- When `local_seq=true` is requested on GET /{db}/{docid}, if no matching entry is found in ^IRISCouch.Changes, the _local_seq field is simply not included in the response. CouchDB always returns _local_seq when the parameter is specified. Acceptable for alpha; address when changes feed coverage is hardened.
+
+## Deferred from: Epic 3 retrospective — Storage Encapsulation Violations (2026-04-13)
+
+- **HandleGet local_seq scans ^IRISCouch.Changes directly** [DocumentHandler.cls:362-364] -- The `local_seq=true` path in HandleGet iterates `^IRISCouch.Changes(pDB)` directly via `$Order` and reads entries. Should be encapsulated in a `Storage.Changes.GetDocSeq(pDB, pDocId)` method (or similar). Fix when `Storage.Changes` class is created in Epic 4.
+- **HandleAllDocs iterates ^IRISCouch.Docs directly (9 lines)** [DocumentHandler.cls:798-876] -- HandleAllDocs and its key-range/pagination logic directly iterates `^IRISCouch.Docs(pDB)` via `$Order` and `$Data`. Should be encapsulated in a `Storage.Document.ListDocIds(pDB, pStartKey, pEndKey, pDirection)` iterator method or similar. Fix in Story 4.0 when DocumentHandler is split.
+- **DocumentEngine.SaveDeleted sets ^IRISCouch.Tree D-marker directly** [DocumentEngine.cls:129] -- `Set ^IRISCouch.Tree(pDB, pDocId, "D", tNewRev) = 1` bypasses RevTree. Should use a `RevTree.MarkDeleted(pDB, pDocId, pRev)` method. Fix in Story 4.0.
+- **DocumentEngine.SaveWithHistory checks ^IRISCouch.Tree for idempotency** [DocumentEngine.cls:192] -- `$Data(^IRISCouch.Tree(pDB, pDocId, "R", pRev))` check should use a `RevTree.RevExists(pDB, pDocId, pRev)` method. Fix in Story 4.0.
+- **DocumentEngine.SaveWithHistory checks ^IRISCouch.Tree for new-doc detection** [DocumentEngine.cls:212] -- `$Data(^IRISCouch.Tree(pDB, pDocId))` check should use a `RevTree.TreeExists(pDB, pDocId)` method. Fix in Story 4.0.
