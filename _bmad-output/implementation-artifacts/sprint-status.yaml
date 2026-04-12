@@ -35,10 +35,10 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-12
+last_updated: 2026-04-13
 last_review: 2026-04-12
 last_story_in_progress:
-last_story_completed: 3-5-replication-format-bulk-writes
+last_story_completed: 3-6-all-documents-view
 last_story_created: 3-1-single-document-create-and-read
 project: iris-couch
 project_key: NOKEY
@@ -71,7 +71,7 @@ development_status:
   3-3-revision-tree-and-conflict-management: done
   3-4-bulk-document-operations: done
   3-5-replication-format-bulk-writes: done
-  3-6-all-documents-view: backlog
+  3-6-all-documents-view: done
   epic-3-retrospective: optional
 
   # Epic 4: Real-Time Change Tracking

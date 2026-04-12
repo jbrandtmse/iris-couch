@@ -39,6 +39,16 @@ ClassMethod Read(pDB As %String, pDocId As %String, pRev As %String) As %String
     Quit $Get(^IRISCouch.Docs(pDB, pDocId, pRev))
 }
 
+/// <p>Count non-deleted documents in a database.</p>
+/// <p>Returns the value of <code>^IRISCouch.DB(pDB, "doc_count")</code>
+/// which is maintained by DocumentEngine (incremented on create, decremented on delete).</p>
+/// @param pDB The database name
+/// @return %Integer The count of non-deleted documents
+ClassMethod CountNonDeleted(pDB As %String) As %Integer
+{
+    Quit +$Get(^IRISCouch.DB(pDB, "doc_count"))
+}
+
 /// <p>Check if a document exists in a database.</p>
 /// <p>Returns true if any revision of the document exists in
 /// <code>^IRISCouch.Docs(pDB, pDocId)</code>.</p>

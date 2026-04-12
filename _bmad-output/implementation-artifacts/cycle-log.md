@@ -189,3 +189,10 @@
 - **Code Review:** PASSED. 1 medium auto-resolved (added missing new_edits=false HTTP test). 2 deferred (empty id handling, repetitive error construction). 2 dismissed.
 - **Commit:** `7903979` pushed to origin/main
 - **Status:** done
+
+### 2026-04-13T04:00:00Z — Story 3.5: Replication-Format Bulk Writes
+- **Create Story:** Story file created at `3-5-replication-format-bulk-writes.md`
+- **Development:** All 6 tasks completed. 3 files modified (RevTree.cls, DocumentEngine.cls, DocumentHandler.cls), 2 files created (ReplicationTest.cls, ReplicationHttpTest.cls), 1 test updated. 112+ tests pass (7 new + 1 updated), 0 regressions.
+- **Code Review:** PASSED. 1 high auto-resolved (Quit/While dual HTTP response bug in HandleBulkDocs). 1 low deferred (race condition on doc_count). 2 dismissed.
+- **Commit:** `840555e` pushed to origin/main
+- **Status:** done
