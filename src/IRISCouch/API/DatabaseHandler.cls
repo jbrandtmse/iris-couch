@@ -43,6 +43,57 @@ ClassMethod HandleCreate(pDB As %String) As %Status
     Quit $$$OK
 }
 
+/// <p>Handle <code>GET /{db}</code> — retrieve database metadata.</p>
+/// <p>Returns CouchDB-compatible database info including document count,
+/// update sequence, disk size, and other metadata fields. Returns 404
+/// if the database does not exist.</p>
+/// @param pDB The database name from the URL path
+/// @return %Status
+ClassMethod HandleInfo(pDB As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        ; Check if database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "Database does not exist.")
+            Quit
+        }
+        ; Get database metadata
+        Set tInfo = ##class(IRISCouch.Storage.Database).GetInfo(pDB)
+        If '$IsObject(tInfo) {
+            Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "database: info error")
+            Quit
+        }
+        ; Return 200 OK with metadata
+        Do ##class(IRISCouch.Util.Response).JSON(tInfo)
+        Quit
+    }
+    Catch ex {
+        Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "database: info error", ex)
+        Quit
+    }
+    Quit $$$OK
+}
+
+/// <p>Handle <code>GET /_all_dbs</code> — list all databases.</p>
+/// <p>Returns a JSON array of all database names sorted alphabetically.
+/// Returns an empty array if no databases exist.</p>
+/// @return %Status
+ClassMethod HandleAllDbs() As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        Set tDbs = ##class(IRISCouch.Storage.Database).ListAll()
+        Do ##class(IRISCouch.Util.Response).JSON(tDbs)
+        Quit
+    }
+    Catch ex {
+        Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "database: list error", ex)
+        Quit
+    }
+    Quit $$$OK
+}
+
 /// <p>Handle <code>DELETE /{db}</code> — delete an existing database.</p>
 /// <p>Checks for existence and deletes the database and all associated
 /// globals. Returns 200 on success, 404 if the database does not exist.</p>

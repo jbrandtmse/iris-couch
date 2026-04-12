@@ -98,3 +98,10 @@
 - **Code Review:** PASSED. 0 critical/high/medium. 3 low items deferred (hardcoded creds, hardcoded server/port, no early-return guard in tests).
 - **Commit:** `af024d2` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T19:00:00Z — Story 2.1: Create and Delete Databases
+- **Create Story:** Story file created at `2-1-create-and-delete-databases.md`
+- **Development:** All 6 tasks completed. 4 files created (Storage/Database.cls, API/DatabaseHandler.cls, Test/DatabaseTest.cls, Test/DatabaseHttpTest.cls), 3 modified (Router.cls, Error.cls, HttpIntegrationTest.cls). 41 tests pass (30 existing + 11 new), 0 regressions.
+- **Code Review:** PASSED. 2 medium auto-resolved (hardcoded slugs replaced with constants, duplicate reason string fixed). 2 low deferred (race condition, name length limit).
+- **Commit:** `d19bc66` pushed to origin/main
+- **Status:** done

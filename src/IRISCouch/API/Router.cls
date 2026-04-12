@@ -17,9 +17,11 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Routes>
   <!-- Server-level endpoints (Story 1.2, 1.3) -->
   <Route Url="/_uuids" Method="GET" Call="HandleUUIDs" />
-  <!-- Database endpoints - MUST be after underscore-prefixed routes (Story 2.1) -->
+  <Route Url="/_all_dbs" Method="GET" Call="HandleAllDbs" />
+  <!-- Database endpoints - MUST be after underscore-prefixed routes (Story 2.1, 2.2) -->
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
   <Route Url="/:db" Method="DELETE" Call="HandleDatabaseDelete" />
+  <Route Url="/:db" Method="GET" Call="HandleDatabaseInfo" />
   <!-- Welcome endpoint (catch-all for GET /) -->
   <Route Url="/" Method="GET" Call="HandleWelcome" />
 </Routes>
@@ -47,6 +49,18 @@ ClassMethod HandleDatabaseCreate(pDB As %String) As %Status
 ClassMethod HandleDatabaseDelete(pDB As %String) As %Status
 {
     Quit ##class(IRISCouch.API.DatabaseHandler).HandleDelete(pDB)
+}
+
+/// <p>Dispatch GET /_all_dbs to DatabaseHandler.</p>
+ClassMethod HandleAllDbs() As %Status
+{
+    Quit ##class(IRISCouch.API.DatabaseHandler).HandleAllDbs()
+}
+
+/// <p>Dispatch GET /:db to DatabaseHandler.</p>
+ClassMethod HandleDatabaseInfo(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DatabaseHandler).HandleInfo(pDB)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>

@@ -20,6 +20,12 @@ Method OnBeforeOneTest() As %Status
     Kill ^IRISCouch.Tree("testdb")
     Kill ^IRISCouch.Changes("testdb")
     Kill ^IRISCouch.Seq("testdb")
+    Kill ^IRISCouch.DB("aaa")
+    Kill ^IRISCouch.Seq("aaa")
+    Kill ^IRISCouch.DB("bbb")
+    Kill ^IRISCouch.Seq("bbb")
+    Kill ^IRISCouch.DB("ccc")
+    Kill ^IRISCouch.Seq("ccc")
     Quit $$$OK
 }
 
@@ -31,6 +37,12 @@ Method OnAfterOneTest() As %Status
     Kill ^IRISCouch.Tree("testdb")
     Kill ^IRISCouch.Changes("testdb")
     Kill ^IRISCouch.Seq("testdb")
+    Kill ^IRISCouch.DB("aaa")
+    Kill ^IRISCouch.Seq("aaa")
+    Kill ^IRISCouch.DB("bbb")
+    Kill ^IRISCouch.Seq("bbb")
+    Kill ^IRISCouch.DB("ccc")
+    Kill ^IRISCouch.Seq("ccc")
     Quit $$$OK
 }
 
@@ -132,6 +144,76 @@ Method TestValidateNameInvalid()
     ; Just underscore
     Set tSC = ##class(IRISCouch.Storage.Database).ValidateName("_")
     Do $$$AssertStatusNotOK(tSC, "Single underscore invalid")
+}
+
+/// <p>AC #1/#2: ListAll returns empty array when no databases exist.</p>
+Method TestListAllEmpty()
+{
+    ; Ensure no databases exist by killing all test dbs
+    Kill ^IRISCouch.DB("aaa")
+    Kill ^IRISCouch.DB("bbb")
+    Kill ^IRISCouch.DB("ccc")
+    Kill ^IRISCouch.DB("testdb")
+    ; Kill any other test dbs that might exist
+    Set tName = ""
+    For {
+        Set tName = $Order(^IRISCouch.DB(tName))
+        Quit:tName=""
+        Kill ^IRISCouch.DB(tName)
+    }
+    Set tResult = ##class(IRISCouch.Storage.Database).ListAll()
+    Do $$$AssertTrue($IsObject(tResult), "ListAll returns an object")
+    Do $$$AssertEquals(tResult.%Size(), 0, "ListAll returns empty array when no databases")
+}
+
+/// <p>AC #1: ListAll returns sorted array of database names.</p>
+Method TestListAllWithDatabases()
+{
+    ; Create 3 databases in non-alphabetical order
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("ccc")
+    Do $$$AssertStatusOK(tSC, "Create ccc succeeds")
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("aaa")
+    Do $$$AssertStatusOK(tSC, "Create aaa succeeds")
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("bbb")
+    Do $$$AssertStatusOK(tSC, "Create bbb succeeds")
+    Set tResult = ##class(IRISCouch.Storage.Database).ListAll()
+    Do $$$AssertTrue($IsObject(tResult), "ListAll returns an object")
+    Do $$$AssertTrue(tResult.%Size() >= 3, "ListAll returns at least 3 databases")
+    ; Find the positions of our test databases and verify order
+    Set tFirst = tResult.%Get(0)
+    Set tSecond = tResult.%Get(1)
+    Set tThird = tResult.%Get(2)
+    Do $$$AssertEquals(tFirst, "aaa", "First database is aaa (alphabetical)")
+    Do $$$AssertEquals(tSecond, "bbb", "Second database is bbb (alphabetical)")
+    Do $$$AssertEquals(tThird, "ccc", "Third database is ccc (alphabetical)")
+}
+
+/// <p>AC #3: GetInfo returns metadata for existing database.</p>
+Method TestGetInfo()
+{
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("testdb")
+    Do $$$AssertStatusOK(tSC, "Create testdb succeeds for GetInfo test")
+    Set tInfo = ##class(IRISCouch.Storage.Database).GetInfo("testdb")
+    Do $$$AssertTrue($IsObject(tInfo), "GetInfo returns an object")
+    ; Verify all required CouchDB metadata fields
+    Do $$$AssertEquals(tInfo."db_name", "testdb", "db_name is testdb")
+    Do $$$AssertEquals(tInfo."doc_count", 0, "doc_count is 0")
+    Do $$$AssertEquals(tInfo."doc_del_count", 0, "doc_del_count is 0")
+    Do $$$AssertEquals(tInfo."update_seq", 0, "update_seq is 0")
+    Do $$$AssertEquals(tInfo."purge_seq", 0, "purge_seq is 0")
+    Do $$$AssertEquals(tInfo."compact_running", 0, "compact_running is false")
+    Do $$$AssertEquals(tInfo."disk_size", 0, "disk_size is 0")
+    Do $$$AssertEquals(tInfo."data_size", 0, "data_size is 0")
+    Do $$$AssertEquals(tInfo."instance_start_time", "0", "instance_start_time is 0")
+    Do $$$AssertEquals(tInfo."disk_format_version", 1, "disk_format_version is 1")
+    Do $$$AssertEquals(tInfo."committed_update_seq", 0, "committed_update_seq matches update_seq")
+}
+
+/// <p>AC #4: GetInfo returns empty string for non-existent database.</p>
+Method TestGetInfoNotFound()
+{
+    Set tInfo = ##class(IRISCouch.Storage.Database).GetInfo("nonexistentdb")
+    Do $$$AssertEquals(tInfo, "", "GetInfo returns empty string for non-existent database")
 }
 
 }

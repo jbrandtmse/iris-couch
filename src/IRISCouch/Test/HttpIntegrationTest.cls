@@ -92,29 +92,28 @@ Method TestUUIDsEndpoint()
     Do $$$AssertEquals($Length(tUUID), 32, "UUID is 32 characters long")
 }
 
-/// <p>Verify GET /nonexistent returns 405 since /:db routes exist for PUT/DELETE.</p>
-/// <p>After Story 2.1, /:db captures all non-system paths. GET is not a supported
-/// method on database endpoints, so 405 Method Not Allowed is returned.</p>
+/// <p>Verify GET /nonexistent returns 404 from DatabaseHandler.</p>
+/// <p>After Story 2.2, GET /:db routes to DatabaseHandler.HandleInfo which
+/// returns 404 for non-existent databases.</p>
 Method TestNotFoundEndpoint()
 {
     Set tSC = ..MakeRequest("GET", "/nonexistent", .tStatus, .tBody)
     Do $$$AssertStatusOK(tSC, "GET /nonexistent request completed successfully")
-    Do $$$AssertEquals(tStatus, 405, "GET /nonexistent returns HTTP 405 (/:db route exists but GET not supported)")
+    Do $$$AssertEquals(tStatus, 404, "GET /nonexistent returns HTTP 404 (database does not exist)")
     Do $$$AssertTrue($IsObject(tBody), "Response body is a JSON object")
-    Do $$$AssertEquals(tBody.error, "method_not_allowed", "Error slug is method_not_allowed")
+    Do $$$AssertEquals(tBody.error, "not_found", "Error slug is not_found")
 }
 
 /// <p>Verify parameterized route pattern works with database endpoints.</p>
-/// <p>Confirms that a GET request to a database-like path (e.g., /testdb123)
-/// returns 405 since PUT/DELETE are the only supported methods on /:db.
-/// This validates that the :db capture pattern is functioning correctly.</p>
+/// <p>After Story 2.2, GET /:db routes to DatabaseHandler.HandleInfo.
+/// A GET to a non-existent database returns 404 not_found.</p>
 Method TestParameterizedRoutePattern()
 {
     Set tSC = ..MakeRequest("GET", "/testdb123", .tStatus, .tBody)
     Do $$$AssertStatusOK(tSC, "GET /testdb123 request completed successfully")
-    Do $$$AssertEquals(tStatus, 405, "GET /testdb123 returns HTTP 405 (/:db exists but GET not supported)")
+    Do $$$AssertEquals(tStatus, 404, "GET /testdb123 returns HTTP 404 (database does not exist)")
     Do $$$AssertTrue($IsObject(tBody), "Response body is a JSON object")
-    Do $$$AssertEquals(tBody.error, "method_not_allowed", "Error slug is method_not_allowed for GET on db route")
+    Do $$$AssertEquals(tBody.error, "not_found", "Error slug is not_found for non-existent db")
 }
 
 }

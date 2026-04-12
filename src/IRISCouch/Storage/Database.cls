@@ -79,6 +79,61 @@ ClassMethod Exists(pName As %String) As %Boolean
     Quit $Data(^IRISCouch.DB(pName))>0
 }
 
+/// <p>List all database names in alphabetical order.</p>
+/// <p>Iterates <code>^IRISCouch.DB</code> using <code>$Order</code> to collect
+/// all database names. Global collation returns string keys in alphabetical
+/// order, so no explicit sort is needed.</p>
+/// @return %DynamicArray of database name strings
+ClassMethod ListAll() As %DynamicArray
+{
+    Set tArr = []
+    Set tName = ""
+    For {
+        Set tName = $Order(^IRISCouch.DB(tName))
+        Quit:tName=""
+        Do tArr.%Push(tName)
+    }
+    Quit tArr
+}
+
+/// <p>Get CouchDB-compatible metadata for a database.</p>
+/// <p>Reads <code>^IRISCouch.DB(pName, ...)</code> subscripts and returns a
+/// <class>%DynamicObject</class> with standard CouchDB database info fields.
+/// Returns empty string if the database does not exist.</p>
+/// @param pName The database name
+/// @return %DynamicObject with metadata fields, or "" if not found
+ClassMethod GetInfo(pName As %String) As %DynamicObject
+{
+    Set result = ""
+    Try {
+        If '..Exists(pName) {
+            Quit
+        }
+        Set tDocCount = +$Get(^IRISCouch.DB(pName, "doc_count"))
+        Set tUpdateSeq = +$Get(^IRISCouch.DB(pName, "update_seq"))
+        Set tDiskSize = +$Get(^IRISCouch.DB(pName, "disk_size"))
+        Set tPurgeSeq = +$Get(^IRISCouch.DB(pName, "purge_seq"))
+        Set result = {}
+        Do result.%Set("db_name", pName)
+        Do result.%Set("doc_count", tDocCount, "number")
+        Do result.%Set("doc_del_count", 0, "number")
+        Do result.%Set("update_seq", tUpdateSeq, "number")
+        Do result.%Set("purge_seq", tPurgeSeq, "number")
+        Do result.%Set("compact_running", 0, "boolean")
+        Do result.%Set("disk_size", tDiskSize, "number")
+        Do result.%Set("data_size", 0, "number")
+        Do result.%Set("instance_start_time", "0")
+        Do result.%Set("disk_format_version", 1, "number")
+        Do result.%Set("committed_update_seq", tUpdateSeq, "number")
+        Quit
+    }
+    Catch ex {
+        Set result = ""
+        Quit
+    }
+    Quit result
+}
+
 /// <p>Validate a database name against CouchDB naming rules.</p>
 /// <p>Valid names must begin with a lowercase letter and contain only
 /// lowercase letters, digits, and the characters <code>_$()+-/</code>.

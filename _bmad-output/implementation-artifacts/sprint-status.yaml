@@ -35,12 +35,11 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-12T23:59:00
+last_updated: 2026-04-12
 project: iris-couch
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
-
 
 development_status:
   # Epic 1: Project Foundation & Server Identity
@@ -56,7 +55,7 @@ development_status:
   epic-2: in-progress
   2-0-epic-1-deferred-cleanup: done
   2-1-create-and-delete-databases: done
-  2-2-list-databases-and-retrieve-metadata: backlog
+  2-2-list-databases-and-retrieve-metadata: done
   2-3-database-maintenance-operations: backlog
   epic-2-retrospective: optional
 
