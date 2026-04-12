@@ -30,9 +30,20 @@ ClassMethod Page(skipheader As %Boolean = 1) As %Status
         Do ##class(IRISCouch.Util.Error).Render(404, "not_found", "missing")
     }
     Catch ex {
-        Set tSC = ex.AsStatus()
+        Do ##class(IRISCouch.Util.Error).RenderInternal("server_error", "router: error rendering 404 response", ex)
     }
     Quit tSC
+}
+
+/// <p>Handle HTTP 405 Method Not Allowed responses.</p>
+/// <p>Overrides the <class>%CSP.REST</class> default to return a
+/// CouchDB-compatible JSON error envelope with the <code>Allow</code>
+/// header listing the valid HTTP methods for the route.</p>
+/// @param pSupportedVerbs Comma-separated list of allowed HTTP methods
+ClassMethod Http405(pSupportedVerbs As %String) As %Status
+{
+    Do ##class(IRISCouch.Util.Error).Render405(pSupportedVerbs)
+    Quit $$$OK
 }
 
 }
