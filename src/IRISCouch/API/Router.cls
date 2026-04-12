@@ -16,23 +16,35 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
   <!-- Server-level endpoints (Story 1.2, 1.3) -->
-  <Route Url="/_uuids" Method="GET" Call="IRISCouch.API.ServerHandler:HandleUUIDs" />
-  <Route Url="/" Method="GET" Call="IRISCouch.API.ServerHandler:HandleWelcome" />
+  <Route Url="/_uuids" Method="GET" Call="HandleUUIDs" />
+  <Route Url="/" Method="GET" Call="HandleWelcome" />
 </Routes>
 }
 
-/// <p>Handle requests that do not match any route in the UrlMap.</p>
-/// <p>Returns a CouchDB-compatible 404 JSON error envelope.</p>
-ClassMethod Page(skipheader As %Boolean = 1) As %Status
+/// <p>Dispatch GET / to ServerHandler.</p>
+ClassMethod HandleWelcome() As %Status
 {
-    Set tSC = $$$OK
-    Try {
+    Quit ##class(IRISCouch.API.ServerHandler).HandleWelcome()
+}
+
+/// <p>Dispatch GET /_uuids to ServerHandler.</p>
+ClassMethod HandleUUIDs() As %Status
+{
+    Quit ##class(IRISCouch.API.ServerHandler).HandleUUIDs()
+}
+
+/// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>
+/// <p>Called by %CSP.REST when no route matches (404) or other HTTP status errors.</p>
+ClassMethod ReportHttpStatusCode(pHttpStatus, pSC As %Status = {$$$OK}) As %Status
+{
+    If pHttpStatus [ "404" {
         Do ##class(IRISCouch.Util.Error).Render(404, "not_found", "missing")
+    } ElseIf pHttpStatus [ "405" {
+        Do ##class(IRISCouch.Util.Error).Render(405, "method_not_allowed", "method_not_allowed")
+    } Else {
+        Do ##class(IRISCouch.Util.Error).Render($Piece(pHttpStatus, " ", 1), "server_error", pHttpStatus)
     }
-    Catch ex {
-        Do ##class(IRISCouch.Util.Error).RenderInternal("server_error", "router: error rendering 404 response", ex)
-    }
-    Quit tSC
+    Quit $$$OK
 }
 
 /// <p>Handle HTTP 405 Method Not Allowed responses.</p>
