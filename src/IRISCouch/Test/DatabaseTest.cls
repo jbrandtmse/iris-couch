@@ -209,6 +209,40 @@ Method TestGetInfo()
     Do $$$AssertEquals(tInfo."committed_update_seq", 0, "committed_update_seq matches update_seq")
 }
 
+/// <p>AC #1 (Story 2.3): SetRevsLimit stores value in global.</p>
+Method TestSetRevsLimit()
+{
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("testdb")
+    Do $$$AssertStatusOK(tSC, "Create testdb succeeds for SetRevsLimit test")
+    Set tSC = ##class(IRISCouch.Storage.Database).SetRevsLimit("testdb", 500)
+    Do $$$AssertStatusOK(tSC, "SetRevsLimit returns OK status")
+    Do $$$AssertEquals($Get(^IRISCouch.DB("testdb", "revs_limit")), 500, "revs_limit global set to 500")
+}
+
+/// <p>AC #2 (Story 2.3): GetRevsLimit returns current value or default.</p>
+Method TestGetRevsLimit()
+{
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("testdb")
+    Do $$$AssertStatusOK(tSC, "Create testdb succeeds for GetRevsLimit test")
+    ; Default should be 1000 (set during Create)
+    Set tLimit = ##class(IRISCouch.Storage.Database).GetRevsLimit("testdb")
+    Do $$$AssertEquals(tLimit, 1000, "Default revs_limit is 1000")
+    ; Set to 500 and verify
+    Set tSC = ##class(IRISCouch.Storage.Database).SetRevsLimit("testdb", 500)
+    Do $$$AssertStatusOK(tSC, "SetRevsLimit to 500 succeeds")
+    Set tLimit = ##class(IRISCouch.Storage.Database).GetRevsLimit("testdb")
+    Do $$$AssertEquals(tLimit, 500, "GetRevsLimit returns 500 after set")
+}
+
+/// <p>AC #2 (Story 2.3): GetRevsLimit returns 1000 default from Create.</p>
+Method TestGetRevsLimitDefault()
+{
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("testdb")
+    Do $$$AssertStatusOK(tSC, "Create testdb succeeds for default revs_limit test")
+    Set tLimit = ##class(IRISCouch.Storage.Database).GetRevsLimit("testdb")
+    Do $$$AssertEquals(tLimit, 1000, "GetRevsLimit returns 1000 default from Create")
+}
+
 /// <p>AC #4: GetInfo returns empty string for non-existent database.</p>
 Method TestGetInfoNotFound()
 {

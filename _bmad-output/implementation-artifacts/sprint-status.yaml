@@ -36,6 +36,7 @@
 
 generated: 2026-04-12
 last_updated: 2026-04-12
+last_review: 2026-04-12
 project: iris-couch
 project_key: NOKEY
 tracking_system: file-system
@@ -56,7 +57,7 @@ development_status:
   2-0-epic-1-deferred-cleanup: done
   2-1-create-and-delete-databases: done
   2-2-list-databases-and-retrieve-metadata: done
-  2-3-database-maintenance-operations: backlog
+  2-3-database-maintenance-operations: done
   epic-2-retrospective: optional
 
   # Epic 3: Document Storage & Revision Control

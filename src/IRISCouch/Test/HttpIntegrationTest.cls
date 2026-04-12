@@ -22,8 +22,9 @@ Method %OnNew(initvalue As %String = "") As %Status
 /// @param pPath Request path relative to webapp root (e.g., "/" or "/_uuids")
 /// @param pStatusCode Output: HTTP status code from response
 /// @param pBody Output: Parsed JSON response body as %DynamicObject
+/// @param pRequestBody Optional: Request body string to send with the request
 /// @return %Status indicating transport-level success/failure
-ClassMethod MakeRequest(pMethod As %String, pPath As %String, Output pStatusCode As %Integer, Output pBody As %DynamicObject) As %Status
+ClassMethod MakeRequest(pMethod As %String, pPath As %String, Output pStatusCode As %Integer, Output pBody As %DynamicObject, pRequestBody As %String = "") As %Status
 {
     Set tSC = $$$OK
     Set pStatusCode = 0
@@ -35,6 +36,10 @@ ClassMethod MakeRequest(pMethod As %String, pPath As %String, Output pStatusCode
         Set tReq.Username = "_SYSTEM"
         Set tReq.Password = "SYS"
         Set tReq.ContentType = "application/json"
+        ; Write request body if provided
+        If pRequestBody '= "" {
+            Do tReq.EntityBody.Write(pRequestBody)
+        }
         ; Build full path with webapp prefix
         Set tFullPath = "/iris-couch" _ pPath
         If pMethod = "GET" {
@@ -52,7 +57,14 @@ ClassMethod MakeRequest(pMethod As %String, pPath As %String, Output pStatusCode
         Set pStatusCode = tReq.HttpResponse.StatusCode
         Set tBodyStr = tReq.HttpResponse.Data.Read()
         If tBodyStr '= "" {
-            Set pBody = ##class(%DynamicObject).%FromJSON(tBodyStr)
+            ; Try to parse as JSON object/array first
+            Set tFirstChar = $Extract($ZStrip(tBodyStr, "<W"), 1)
+            If (tFirstChar = "{") || (tFirstChar = "[") {
+                Set pBody = ##class(%DynamicAbstractObject).%FromJSON(tBodyStr)
+            } Else {
+                ; Plain value response (e.g., revs_limit integer)
+                Set pBody = $ZStrip(tBodyStr, "<>W")
+            }
         }
         Quit
     }

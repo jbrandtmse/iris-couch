@@ -105,3 +105,10 @@
 - **Code Review:** PASSED. 2 medium auto-resolved (hardcoded slugs replaced with constants, duplicate reason string fixed). 2 low deferred (race condition, name length limit).
 - **Commit:** `d19bc66` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T20:00:00Z — Story 2.2: List Databases and Retrieve Metadata
+- **Create Story:** Story file created at `2-2-list-databases-and-retrieve-metadata.md`
+- **Development:** All 7 tasks completed. 6 files modified (Storage/Database.cls, DatabaseHandler.cls, Router.cls, DatabaseTest.cls, DatabaseHttpTest.cls, HttpIntegrationTest.cls). 49 tests pass (41 existing + 8 new), 0 regressions.
+- **Code Review:** PASSED. 0 critical/high/medium. 4 low dismissed as noise. No auto-resolves or deferrals.
+- **Commit:** `7d07cd0` pushed to origin/main
+- **Status:** done

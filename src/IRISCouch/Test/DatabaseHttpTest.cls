@@ -28,6 +28,11 @@ Method OnAfterOneTest() As %Status
     Kill ^IRISCouch.Seq("betadb")
     Kill ^IRISCouch.DB("gammadb")
     Kill ^IRISCouch.Seq("gammadb")
+    Kill ^IRISCouch.DB("maintdb")
+    Kill ^IRISCouch.Docs("maintdb")
+    Kill ^IRISCouch.Tree("maintdb")
+    Kill ^IRISCouch.Changes("maintdb")
+    Kill ^IRISCouch.Seq("maintdb")
     Quit $$$OK
 }
 
@@ -180,6 +185,86 @@ Method TestDatabaseInfoNotFoundHttp()
     Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/nonexistentdb", .tStatus, .tBody)
     Do $$$AssertStatusOK(tSC, "GET /nonexistentdb request completed successfully")
     Do $$$AssertEquals(tStatus, 404, "GET /nonexistentdb returns HTTP 404")
+    Do $$$AssertTrue($IsObject(tBody), "Response body is a JSON object")
+    Do $$$AssertEquals(tBody.error, "not_found", "Error slug is not_found")
+}
+
+/// <p>AC #2 (Story 2.3): GET /{db}/_revs_limit returns 200 with default 1000.</p>
+Method TestRevsLimitGetHttp()
+{
+    ; Create database
+    Kill ^IRISCouch.DB("maintdb")
+    Kill ^IRISCouch.Seq("maintdb")
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/maintdb", .tStatus, .tBody)
+    Do $$$AssertEquals(tStatus, 201, "PUT /maintdb creates database")
+    ; GET /_revs_limit
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/maintdb/_revs_limit", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "GET /maintdb/_revs_limit request completed successfully")
+    Do $$$AssertEquals(tStatus, 200, "GET /maintdb/_revs_limit returns HTTP 200")
+    Do $$$AssertEquals(tBody, 1000, "Default revs_limit is 1000")
+}
+
+/// <p>AC #1 (Story 2.3): PUT /{db}/_revs_limit sets value, GET returns it.</p>
+Method TestRevsLimitPutHttp()
+{
+    ; Create database
+    Kill ^IRISCouch.DB("maintdb")
+    Kill ^IRISCouch.Seq("maintdb")
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/maintdb", .tStatus, .tBody)
+    Do $$$AssertEquals(tStatus, 201, "PUT /maintdb creates database")
+    ; PUT /_revs_limit with body 500
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/maintdb/_revs_limit", .tStatus, .tBody, "500")
+    Do $$$AssertStatusOK(tSC, "PUT /maintdb/_revs_limit request completed successfully")
+    Do $$$AssertEquals(tStatus, 200, "PUT /maintdb/_revs_limit returns HTTP 200")
+    Do $$$AssertEquals(tBody, 500, "PUT response body is 500")
+    ; Verify GET returns new value
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/maintdb/_revs_limit", .tStatus, .tBody)
+    Do $$$AssertEquals(tStatus, 200, "GET after PUT returns HTTP 200")
+    Do $$$AssertEquals(tBody, 500, "GET returns updated revs_limit 500")
+}
+
+/// <p>AC #3 (Story 2.3): POST /{db}/_compact returns 202 with ok:true.</p>
+Method TestCompactHttp()
+{
+    ; Create database
+    Kill ^IRISCouch.DB("maintdb")
+    Kill ^IRISCouch.Seq("maintdb")
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/maintdb", .tStatus, .tBody)
+    Do $$$AssertEquals(tStatus, 201, "PUT /maintdb creates database")
+    ; POST /_compact
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("POST", "/maintdb/_compact", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "POST /maintdb/_compact request completed successfully")
+    Do $$$AssertEquals(tStatus, 202, "POST /maintdb/_compact returns HTTP 202")
+    Do $$$AssertTrue($IsObject(tBody), "Response body is a JSON object")
+    Do $$$AssertTrue(tBody.ok, "Response body contains ok: true")
+}
+
+/// <p>AC #4 (Story 2.3): POST /{db}/_ensure_full_commit returns 201 with ok:true and instance_start_time.</p>
+Method TestEnsureFullCommitHttp()
+{
+    ; Create database
+    Kill ^IRISCouch.DB("maintdb")
+    Kill ^IRISCouch.Seq("maintdb")
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/maintdb", .tStatus, .tBody)
+    Do $$$AssertEquals(tStatus, 201, "PUT /maintdb creates database")
+    ; POST /_ensure_full_commit
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("POST", "/maintdb/_ensure_full_commit", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "POST /maintdb/_ensure_full_commit request completed successfully")
+    Do $$$AssertEquals(tStatus, 201, "POST /maintdb/_ensure_full_commit returns HTTP 201")
+    Do $$$AssertTrue($IsObject(tBody), "Response body is a JSON object")
+    Do $$$AssertTrue(tBody.ok, "Response body contains ok: true")
+    Do $$$AssertEquals(tBody."instance_start_time", "0", "instance_start_time is 0")
+}
+
+/// <p>AC #5 (Story 2.3): Maintenance endpoints return 404 for non-existent database.</p>
+Method TestMaintenanceNotFoundHttp()
+{
+    ; Ensure database does not exist
+    Kill ^IRISCouch.DB("nonexistent")
+    ; GET /_revs_limit on non-existent db
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/nonexistent/_revs_limit", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "GET /nonexistent/_revs_limit request completed successfully")
+    Do $$$AssertEquals(tStatus, 404, "GET /nonexistent/_revs_limit returns HTTP 404")
     Do $$$AssertTrue($IsObject(tBody), "Response body is a JSON object")
     Do $$$AssertEquals(tBody.error, "not_found", "Error slug is not_found")
 }

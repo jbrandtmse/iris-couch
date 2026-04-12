@@ -18,6 +18,11 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <!-- Server-level endpoints (Story 1.2, 1.3) -->
   <Route Url="/_uuids" Method="GET" Call="HandleUUIDs" />
   <Route Url="/_all_dbs" Method="GET" Call="HandleAllDbs" />
+  <!-- Database sub-resource endpoints - MUST be BEFORE /:db routes (Story 2.3) -->
+  <Route Url="/:db/_revs_limit" Method="GET" Call="HandleRevsLimitGet" />
+  <Route Url="/:db/_revs_limit" Method="PUT" Call="HandleRevsLimitPut" />
+  <Route Url="/:db/_compact" Method="POST" Call="HandleCompact" />
+  <Route Url="/:db/_ensure_full_commit" Method="POST" Call="HandleEnsureFullCommit" />
   <!-- Database endpoints - MUST be after underscore-prefixed routes (Story 2.1, 2.2) -->
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
   <Route Url="/:db" Method="DELETE" Call="HandleDatabaseDelete" />
@@ -61,6 +66,30 @@ ClassMethod HandleAllDbs() As %Status
 ClassMethod HandleDatabaseInfo(pDB As %String) As %Status
 {
     Quit ##class(IRISCouch.API.DatabaseHandler).HandleInfo(pDB)
+}
+
+/// <p>Dispatch GET /:db/_revs_limit to DatabaseHandler.</p>
+ClassMethod HandleRevsLimitGet(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DatabaseHandler).HandleRevsLimitGet(pDB)
+}
+
+/// <p>Dispatch PUT /:db/_revs_limit to DatabaseHandler.</p>
+ClassMethod HandleRevsLimitPut(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DatabaseHandler).HandleRevsLimitPut(pDB)
+}
+
+/// <p>Dispatch POST /:db/_compact to DatabaseHandler.</p>
+ClassMethod HandleCompact(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DatabaseHandler).HandleCompact(pDB)
+}
+
+/// <p>Dispatch POST /:db/_ensure_full_commit to DatabaseHandler.</p>
+ClassMethod HandleEnsureFullCommit(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DatabaseHandler).HandleEnsureFullCommit(pDB)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>

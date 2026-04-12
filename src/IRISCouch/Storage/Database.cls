@@ -134,6 +134,36 @@ ClassMethod GetInfo(pName As %String) As %DynamicObject
     Quit result
 }
 
+/// <p>Set the revision retention limit for a database.</p>
+/// <p>Stores the revs_limit value in <code>^IRISCouch.DB(pName, "revs_limit")</code>.
+/// The caller is responsible for validating that the database exists.</p>
+/// @param pName The database name
+/// @param pLimit The revision retention limit (positive integer)
+/// @return %Status
+ClassMethod SetRevsLimit(pName As %String, pLimit As %Integer) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        Set ^IRISCouch.DB(pName, "revs_limit") = pLimit
+        Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+        Quit
+    }
+    Quit tSC
+}
+
+/// <p>Get the revision retention limit for a database.</p>
+/// <p>Returns the revs_limit value from <code>^IRISCouch.DB(pName, "revs_limit")</code>,
+/// defaulting to 1000 if not set.</p>
+/// @param pName The database name
+/// @return %Integer The current revs_limit value (default 1000)
+ClassMethod GetRevsLimit(pName As %String) As %Integer
+{
+    Quit $Get(^IRISCouch.DB(pName, "revs_limit"), 1000)
+}
+
 /// <p>Validate a database name against CouchDB naming rules.</p>
 /// <p>Valid names must begin with a lowercase letter and contain only
 /// lowercase letters, digits, and the characters <code>_$()+-/</code>.
