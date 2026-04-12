@@ -182,3 +182,10 @@
 - **Code Review:** PASSED. 1 medium auto-resolved (open_revs 404 for non-existent docs), 1 medium deferred (missing test coverage for deleted/missing revs_info statuses). 3 low dismissed.
 - **Commit:** `4ffcb09` pushed to origin/main
 - **Status:** done
+
+### 2026-04-13T03:00:00Z — Story 3.4: Bulk Document Operations
+- **Create Story:** Story file created at `3-4-bulk-document-operations.md`
+- **Development:** All 6 tasks completed. 2 files modified (DocumentHandler.cls, Router.cls), 2 files created (BulkOpsTest.cls, BulkOpsHttpTest.cls). 106 tests pass (97 existing + 9 new), 0 regressions.
+- **Code Review:** PASSED. 1 medium auto-resolved (added missing new_edits=false HTTP test). 2 deferred (empty id handling, repetitive error construction). 2 dismissed.
+- **Commit:** `7903979` pushed to origin/main
+- **Status:** done

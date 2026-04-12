@@ -259,4 +259,68 @@ ClassMethod RecomputeWinner(pDB As %String, pDocId As %String) As %Status
     Quit tSC
 }
 
+/// <p>Graft an external revision ancestry chain into the revision tree.</p>
+/// <p>Used by replication (<code>new_edits=false</code>) to insert a chain of
+/// revisions from a remote source. Each revision in the chain is added as an
+/// R-node if it does not already exist (idempotent). The leaf revision is
+/// marked in the L-index and optionally marked as deleted.</p>
+/// <h4>Algorithm:</h4>
+/// <ol>
+/// <li>For each rev in chain (oldest to newest), create R-node if missing</li>
+/// <li>Remove parent-of-leaf from L-index if it was a leaf (it has a child now)</li>
+/// <li>Set new leaf entry with depth = chain length</li>
+/// <li>If deleted, set D marker on the leaf</li>
+/// <li>Recompute the winner</li>
+/// </ol>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pRevChain A %DynamicArray of rev strings from oldest to newest (e.g., ["1-a","2-b","3-c"])
+/// @param pLeafRev The leaf revision string (last element in chain)
+/// @param pDeleted Whether the leaf is a deletion tombstone
+/// @return %Status
+ClassMethod GraftChain(pDB As %String, pDocId As %String, pRevChain As %DynamicArray, pLeafRev As %String, pDeleted As %Boolean = 0) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        Set tLen = pRevChain.%Size()
+        ; Graft each revision in the chain (oldest to newest)
+        For tI = 0:1:(tLen - 1) {
+            Set tRev = pRevChain.%Get(tI)
+            ; Skip if R-node already exists (idempotent graft)
+            If $Data(^IRISCouch.Tree(pDB, pDocId, "R", tRev)) > 0 {
+                Continue
+            }
+            ; Parent is previous rev in chain, or empty for root
+            If tI > 0 {
+                Set tParentRev = pRevChain.%Get(tI - 1)
+            } Else {
+                Set tParentRev = ""
+            }
+            Set ^IRISCouch.Tree(pDB, pDocId, "R", tRev) = tParentRev
+        }
+        ; If chain has more than 1 element, check if parent of leaf was a leaf
+        If tLen > 1 {
+            Set tParentOfLeaf = pRevChain.%Get(tLen - 2)
+            If $Data(^IRISCouch.Tree(pDB, pDocId, "L", tParentOfLeaf)) > 0 {
+                Kill ^IRISCouch.Tree(pDB, pDocId, "L", tParentOfLeaf)
+                Kill ^IRISCouch.Tree(pDB, pDocId, "D", tParentOfLeaf)
+            }
+        }
+        ; Set new leaf entry with depth = chain length
+        Set ^IRISCouch.Tree(pDB, pDocId, "L", pLeafRev) = tLen
+        ; Mark as deleted if requested
+        If pDeleted {
+            Set ^IRISCouch.Tree(pDB, pDocId, "D", pLeafRev) = 1
+        }
+        ; Recompute winner
+        Set tSC = ..RecomputeWinner(pDB, pDocId)
+        Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+        Quit
+    }
+    Quit tSC
+}
+
 }

@@ -396,10 +396,67 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
             Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
             Quit
         }
-        ; Check for new_edits=false — defer to Story 3.5
+        ; Check for new_edits=false — replication mode
         If tBody.%IsDefined("new_edits") {
             If (tBody.%Get("new_edits") = "false") || (tBody.%Get("new_edits") = 0) {
-                Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "new_edits=false not yet implemented")
+                ; Extract docs array
+                If 'tBody.%IsDefined("docs") || (tBody.%GetTypeOf("docs") '= "array") {
+                    Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Request body must contain a ""docs"" array.")
+                    Quit
+                }
+                Set tDocs = tBody.%Get("docs")
+                Set tI = 0
+                Set tValidationError = 0
+                While tI < tDocs.%Size() {
+                    Set tDoc = tDocs.%Get(tI)
+                    Set tI = tI + 1
+                    ; _id is required for new_edits=false
+                    Set tDocId = ""
+                    If tDoc.%IsDefined("_id") {
+                        Set tDocId = tDoc.%Get("_id")
+                    }
+                    If tDocId = "" {
+                        Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Document must have an _id for new_edits=false.")
+                        Set tValidationError = 1
+                        Quit
+                    }
+                    ; _rev is required
+                    Set tRev = ""
+                    If tDoc.%IsDefined("_rev") {
+                        Set tRev = tDoc.%Get("_rev")
+                    }
+                    If tRev = "" {
+                        Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Document must have a _rev for new_edits=false.")
+                        Set tValidationError = 1
+                        Quit
+                    }
+                    ; Extract _revisions (optional but typical)
+                    Set tRevisions = ""
+                    If tDoc.%IsDefined("_revisions") {
+                        Set tRevisions = tDoc.%Get("_revisions")
+                    }
+                    ; Extract _deleted flag
+                    Set tDeleted = 0
+                    If tDoc.%IsDefined("_deleted") {
+                        If (tDoc.%Get("_deleted") = "true") || (tDoc.%Get("_deleted") = 1) {
+                            Set tDeleted = 1
+                        }
+                    }
+                    ; Remove metadata fields from body before storing
+                    If tDoc.%IsDefined("_id") Do tDoc.%Remove("_id")
+                    If tDoc.%IsDefined("_rev") Do tDoc.%Remove("_rev")
+                    If tDoc.%IsDefined("_revisions") Do tDoc.%Remove("_revisions")
+                    If tDoc.%IsDefined("_deleted") Do tDoc.%Remove("_deleted")
+                    If tDoc.%IsDefined("_attachments") Do tDoc.%Remove("_attachments")
+                    ; Call SaveWithHistory
+                    Set tSC2 = ##class(IRISCouch.Core.DocumentEngine).SaveWithHistory(pDB, tDocId, tDoc.%ToJSON(), tRev, tRevisions, tDeleted)
+                    ; Errors are silently ignored per CouchDB spec for new_edits=false
+                }
+                ; Only return 201 if no validation error occurred
+                If 'tValidationError {
+                    ; Return 201 with empty array per CouchDB spec
+                    Do ##class(IRISCouch.Util.Response).JSONStatus(201, [])
+                }
                 Quit
             }
         }

@@ -159,15 +159,15 @@ Method TestBulkGetRevsHttp()
     Do $$$AssertEquals(tRevisions.ids.%Size(), 2, "_revisions.ids has 2 entries")
 }
 
-/// <p>Dev Notes: POST /{db}/_bulk_docs with new_edits=false returns 400.</p>
+/// <p>Story 3.5: POST /{db}/_bulk_docs with new_edits=false stores doc with provided rev.</p>
 Method TestBulkDocsNewEditsFalseHttp()
 {
     Set tReqBody = "{""new_edits"":false,""docs"":[{""_id"":""ne1"",""_rev"":""1-abc"",""v"":1}]}"
     Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("POST", "/testbulkhttp/_bulk_docs", .tStatus, .tBody, tReqBody)
     Do $$$AssertStatusOK(tSC, "POST _bulk_docs with new_edits=false request completed")
-    Do $$$AssertEquals(tStatus, 400, "POST _bulk_docs with new_edits=false returns HTTP 400")
-    Do $$$AssertEquals(tBody.error, "bad_request", "Error slug is bad_request")
-    Do $$$AssertTrue(tBody.reason [ "new_edits=false", "Reason mentions new_edits=false")
+    Do $$$AssertEquals(tStatus, 201, "POST _bulk_docs with new_edits=false returns HTTP 201")
+    Do $$$AssertTrue($IsObject(tBody), "Response is a JSON array")
+    Do $$$AssertEquals(tBody.%Size(), 0, "Response is empty array per CouchDB spec")
 }
 
 }

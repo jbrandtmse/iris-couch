@@ -155,4 +155,96 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
     Quit tNewRev
 }
 
+/// <p>Save a document with externally-provided revision history (replication mode).</p>
+/// <p>Used by <code>new_edits=false</code> bulk writes to graft external revision
+/// histories into the local database. The server acts as a passive receiver:
+/// no revision minting, no conflict checking. The provided <code>_rev</code> is
+/// stored as-is, and the <code>_revisions</code> ancestry chain is grafted into
+/// the revision tree.</p>
+/// <h4>Transaction steps:</h4>
+/// <ol>
+/// <li>Check idempotency — if rev already exists in tree, skip silently</li>
+/// <li>Build ancestry chain from _revisions object</li>
+/// <li>Write document body for the leaf revision</li>
+/// <li>Graft ancestry chain via <method>RevTree.GraftChain</method></li>
+/// <li>Record change in changes feed</li>
+/// <li>Update doc_count (only for genuinely new documents)</li>
+/// <li>Update update_seq</li>
+/// </ol>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pBody The raw JSON body string (metadata fields already stripped)
+/// @param pRev The exact revision string to store (not minted by server)
+/// @param pRevisions The _revisions object: {"start":N,"ids":["hash1","hash2",...]}
+/// @param pDeleted Whether this is a deletion tombstone
+/// @return %Status
+ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String, pRev As %String, pRevisions As %DynamicObject = "", pDeleted As %Boolean = 0) As %Status
+{
+    Set tSC = $$$OK
+    Set tInTrans = 0
+    Try {
+        ; Validate database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Set tSC = $$$ERROR($$$GeneralError, "Database does not exist")
+            Quit
+        }
+        ; Idempotency check: if rev already exists in tree, skip silently
+        If $Data(^IRISCouch.Tree(pDB, pDocId, "R", pRev)) > 0 {
+            Quit
+        }
+        ; Build ancestry chain from _revisions object
+        Set tRevChain = []
+        If $IsObject(pRevisions) && pRevisions.%IsDefined("start") && pRevisions.%IsDefined("ids") {
+            Set tStart = pRevisions.%Get("start")
+            Set tIds = pRevisions.%Get("ids")
+            Set tIdCount = tIds.%Size()
+            ; Build from oldest to newest: ids are newest-first, so reverse
+            For tI = (tIdCount - 1):-1:0 {
+                Set tGen = tStart - tI
+                Set tHash = tIds.%Get(tI)
+                Do tRevChain.%Push(tGen _ "-" _ tHash)
+            }
+        } Else {
+            ; No _revisions — treat as single-node tree (root and only revision)
+            Do tRevChain.%Push(pRev)
+        }
+        ; Check if this is a genuinely new document (no prior tree existed)
+        Set tIsNewDoc = '$Data(^IRISCouch.Tree(pDB, pDocId))
+        ; Begin transaction
+        TSTART
+        Set tInTrans = 1
+        ; 1. Write document body for the leaf rev
+        Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, pRev, pBody)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Quit
+        }
+        ; 2. Graft the ancestry chain into the rev tree
+        Set tSC = ##class(IRISCouch.Storage.RevTree).GraftChain(pDB, pDocId, tRevChain, pRev, pDeleted)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Quit
+        }
+        ; 3. Record change in changes feed
+        Set tSeq = $Increment(^IRISCouch.Seq(pDB))
+        Set ^IRISCouch.Changes(pDB, tSeq) = $ListBuild(pDocId, pRev)
+        ; 4. Update doc_count only if genuinely new document
+        If tIsNewDoc {
+            Set tCount = $Increment(^IRISCouch.DB(pDB, "doc_count"))
+        }
+        ; 5. Update update_seq
+        Set ^IRISCouch.DB(pDB, "update_seq") = tSeq
+        ; Commit transaction
+        TCOMMIT
+        Set tInTrans = 0
+        Quit
+    }
+    Catch ex {
+        If tInTrans { TROLLBACK  Set tInTrans = 0 }
+        Set tSC = ex.AsStatus()
+        Quit
+    }
+    Quit tSC
+}
+
 }

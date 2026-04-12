@@ -48,3 +48,7 @@
 
 - **HandleBulkGet silently skips docs with empty id** [DocumentHandler.cls:596] -- When a `_bulk_get` request contains a doc entry with no `id` field or an empty `id`, the code silently skips it with `Continue`. The response array will have fewer entries than the request array. Not in AC and CouchDB behavior for this edge case is unspecified. Consider returning an error entry for malformed doc requests.
 - **Repetitive error-entry construction in HandleBulkDocs** [DocumentHandler.cls:433-530] -- Each error case in the bulk docs loop constructs a nearly identical `tEntry` object with `id`, `error`, `reason` fields. Could be extracted to a helper method for readability and maintainability. Not a bug, code quality improvement.
+
+## Deferred from: code review of 3-5-replication-format-bulk-writes (2026-04-12)
+
+- **Race condition on doc_count for concurrent SaveWithHistory calls** [DocumentEngine.cls:212] -- `$Data(^IRISCouch.Tree(pDB, pDocId))` check for genuinely new documents is performed before TSTART. If two concurrent SaveWithHistory calls arrive for the same new docId, both could see tIsNewDoc=1 and both increment doc_count. Low risk in current single-process architecture but should be addressed if concurrent replication support is added.
