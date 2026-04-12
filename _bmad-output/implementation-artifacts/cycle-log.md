@@ -34,3 +34,10 @@
 - **Code Review:** PASSED. 0 critical/high. 1 medium auto-resolved (max count cap at 1000 + integer validation). 0 deferred.
 - **Commit:** `edd675b` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T15:00:00Z — Story 1.4: Error Envelope & Consistent Error Responses
+- **Create Story:** Story file created at `1-4-error-envelope-and-consistent-error-responses.md`
+- **Development:** All 5 tasks completed. 1 file created (ErrorEnvelopeTest.cls), 2 modified (Error.cls, Router.cls). 20 tests pass, 0 regressions.
+- **Code Review:** PASSED. 0 critical/high. 1 medium auto-resolved (Router catch block uses RenderInternal). 5 deferred.
+- **Commit:** `81acb41` pushed to origin/main
+- **Status:** done

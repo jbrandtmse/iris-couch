@@ -2,15 +2,15 @@
 
 > Wire-compatible Apache CouchDB 3.x server, native to InterSystems IRIS — offline-first replication without a second database.
 
-## 🚧 Under Construction
+## 🚧 Pre-Alpha
 
-IRISCouch is actively being planned and will soon be under active development. **No implementation code has been committed yet.** The repository currently contains planning artifacts only.
+IRISCouch is under active development toward Milestone Alpha. The core foundation (configuration, HTTP routing, UUID generation, error handling, and installer) is implemented. The repository contains both planning artifacts and working ObjectScript code.
 
 - **[Product Requirements Document](_bmad-output/planning-artifacts/prd.md)** — 115 functional requirements, measurable success criteria, five narrative user journeys, and the complete capability contract for the MVP
 - **[Product Brief](_bmad-output/planning-artifacts/product-brief-iris-couch.md)** — vision, positioning, and origin story
 - **[Technical Research](_bmad-output/planning-artifacts/research/)** — 2,039-line feasibility study covering architecture, wire-protocol compatibility, and risk analysis
 
-The first code-bearing release will be **Milestone α (Public Alpha)**, which will deliver the core document API, replication protocol, Mango queries, and zero-dependency installation via ZPM/IPM. Until then, this README is the only thing you can actually run.
+The first public release will be **Milestone Alpha**, which will deliver the core document API, replication protocol, Mango queries, and zero-dependency installation via ZPM/IPM.
 
 ## What is IRISCouch?
 
@@ -46,6 +46,64 @@ InterSystems' own IRIS DocDB feature exposes a proprietary `/api/docdb/v1` REST 
 - **Target package manager:** ZPM / IPM (`zpm "install iris-couch"`) — planned for α
 - **Compatibility anchor:** Apache CouchDB 3.3.3 through β; CouchDB 3.5.x added at γ
 - **Smoke-tested clients (planned):** PouchDB 9.x, Apache CouchDB replicator, `nano` 10.x, `@cloudant/cloudant` 5.x, Fauxton
+
+## Installation
+
+### Option 1: ZPM / IPM (Recommended)
+
+If ZPM is available on your IRIS instance:
+
+```
+zpm "install iris-couch"
+```
+
+### Option 2: Manual Import
+
+For environments where ZPM is not installed:
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/jbrandtmse/iris-couch.git
+   ```
+
+2. **Import classes into your target namespace** (e.g., `IRISCOUCH`):
+   ```objectscript
+   Do $System.OBJ.ImportDir("C:\path\to\iris-couch\src\IRISCouch\", , "ck", , 1)
+   ```
+   - Replace the path with the actual location of your cloned repository.
+   - On Linux/macOS: `Do $System.OBJ.ImportDir("/path/to/iris-couch/src/IRISCouch/", , "ck", , 1)`
+   - The `"ck"` flags mean compile + keep source. The final `1` enables recursive import of subdirectories.
+
+3. **Create the web application** (programmatic method):
+   ```objectscript
+   Do ##class(IRISCouch.Installer).Install($Namespace, "/iris-couch/")
+   ```
+
+   **Alternative: Management Portal manual setup**
+   - Navigate to **System Administration > Security > Applications > Web Applications**
+   - Click **Create New Web Application**
+   - Set **Name** to `/iris-couch/`
+   - Set **Namespace** to your target namespace (e.g., `IRISCOUCH`)
+   - Set **Dispatch Class** to `IRISCouch.API.Router`
+   - Enable **Password** authentication
+   - Check **Enabled**
+   - Click **Save**
+
+4. **Verify the installation:**
+   ```bash
+   curl http://localhost:52773/iris-couch/
+   ```
+   Expected response:
+   ```json
+   {"couchdb":"Welcome","vendor":{"name":"IRISCouch"},"version":"0.1.0"}
+   ```
+
+### Uninstall
+
+To remove the web application programmatically:
+```objectscript
+Do ##class(IRISCouch.Installer).Uninstall("/iris-couch/")
+```
 
 ## Contributing
 
