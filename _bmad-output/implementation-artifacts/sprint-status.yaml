@@ -1,0 +1,154 @@
+# generated: 2026-04-12
+# last_updated: 2026-04-12
+# project: iris-couch
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-04-12
+last_updated: 2026-04-12
+project: iris-couch
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Project Foundation & Server Identity
+  epic-1: in-progress
+  1-1-configuration-system-and-package-scaffold: done
+  1-2-http-router-and-couchdb-welcome-endpoint: backlog
+  1-3-uuid-generation-endpoint: backlog
+  1-4-error-envelope-and-consistent-error-responses: backlog
+  1-5-manual-objectscript-import-installation: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Database Lifecycle Management
+  epic-2: backlog
+  2-1-create-and-delete-databases: backlog
+  2-2-list-databases-and-retrieve-metadata: backlog
+  2-3-database-maintenance-operations: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Document Storage & Revision Control
+  epic-3: backlog
+  3-1-single-document-create-and-read: backlog
+  3-2-document-update-delete-and-optimistic-concurrency: backlog
+  3-3-revision-tree-and-conflict-management: backlog
+  3-4-bulk-document-operations: backlog
+  3-5-replication-format-bulk-writes: backlog
+  3-6-all-documents-view: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Real-Time Change Tracking
+  epic-4: backlog
+  4-1-normal-changes-feed: backlog
+  4-2-longpoll-changes-feed: backlog
+  4-3-built-in-changes-filters: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Binary Attachment Management
+  epic-5: backlog
+  5-1-standalone-attachment-upload-and-download: backlog
+  5-2-inline-and-multipart-attachment-upload: backlog
+  5-3-attachment-retrieval-options-and-multipart-response: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Mango Query Engine
+  epic-6: backlog
+  6-1-mango-index-management: backlog
+  6-2-mango-query-execution-selectors-and-query-plan: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Authentication & Authorization
+  epic-7: backlog
+  7-1-session-authentication-and-basic-auth: backlog
+  7-2-jwt-and-proxy-authentication: backlog
+  7-3-user-management-via-users-database: backlog
+  7-4-per-database-security-configuration: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Replication Protocol
+  epic-8: backlog
+  8-1-local-documents-and-replication-checkpoints: backlog
+  8-2-revision-difference-calculation: backlog
+  8-3-replication-ready-bulk-get: backlog
+  8-4-bidirectional-replication-protocol: backlog
+  8-5-replicator-database-and-continuous-replication-jobs: backlog
+  epic-8-retrospective: optional
+
+  # Epic 9: Observability & Audit Trail
+  epic-9: backlog
+  9-1-prometheus-opentelemetry-metrics-endpoint: backlog
+  9-2-audit-event-emission: backlog
+  9-3-operational-resilience-and-data-durability: backlog
+  epic-9-retrospective: optional
+
+  # Epic 10: Admin UI - Core Experience
+  epic-10: backlog
+  10-1-angular-scaffold-design-tokens-and-icon-system: backlog
+  10-2-core-ui-components: backlog
+  10-3-appshell-navigation-and-login: backlog
+  10-4-database-list-view-with-create-and-delete: backlog
+  10-5-document-list-view-with-filtering-and-pagination: backlog
+  10-6-document-detail-view: backlog
+  10-7-error-handling-accessibility-and-cross-browser-verification: backlog
+  epic-10-retrospective: optional
+
+  # Epic 11: Admin UI - Design Documents & Security Views
+  epic-11: backlog
+  11-1-design-document-list-and-detail-view: backlog
+  11-2-security-configuration-view: backlog
+  11-3-design-document-and-security-editing: backlog
+  11-4-revision-history-view: backlog
+  epic-11-retrospective: optional
+
+  # Epic 12: Pluggable JavaScript Runtime
+  epic-12: backlog
+  12-1-jsruntime-sandbox-interface-and-none-backend: backlog
+  12-2-subprocess-jsruntime-map-reduce-views: backlog
+  12-3-subprocess-jsruntime-validation-and-filter-functions: backlog
+  12-4-python-jsruntime-backend: backlog
+  12-5-incremental-view-indexing-caching-and-sandbox-safety: backlog
+  epic-12-retrospective: optional
+
+  # Epic 13: Documentation & Working Examples
+  epic-13: backlog
+  13-1-getting-started-guide-and-compatibility-matrix: backlog
+  13-2-deviation-log-migration-playbook-and-troubleshooting-runbook: backlog
+  13-3-working-code-examples: backlog
+  epic-13-retrospective: optional
+
+  # Epic 14: Gamma - Streaming Feeds & ECP Clustering
+  epic-14: backlog
+  14-1-continuous-and-eventsource-changes-feeds: backlog
+  14-2-ecp-clustering-and-mirror-failover-verification: backlog
+  epic-14-retrospective: optional
