@@ -2068,32 +2068,32 @@ configuring IRISCouch), and **system** (IRISCouch itself).
 
 ### Administration UI
 
-- **FR83**: Operators can access a built-in administration UI at
+- **FR83** `[α]`: Operators can access a built-in administration UI at
   the webapp's `_utils` path (default `/iris-couch/_utils/`)
   without installing Fauxton or any separate tooling.
-- **FR84**: The administration UI is a TypeScript + Angular
+- **FR84** `[α]`: The administration UI is a TypeScript + Angular
   single-page application served as static assets from the
   IRISCouch webapp.
-- **FR85**: Operators can list all databases visible to their
+- **FR85** `[α]`: Operators can list all databases visible to their
   credentials via the admin UI.
-- **FR86**: Operators can create a database via the admin UI.
-- **FR87**: Operators can delete a database via the admin UI.
-- **FR88**: Operators can view per-database metadata (document
+- **FR86** `[α]`: Operators can create a database via the admin UI.
+- **FR87** `[α]`: Operators can delete a database via the admin UI.
+- **FR88** `[α]`: Operators can view per-database metadata (document
   count, update sequence, disk size) via the admin UI.
-- **FR89**: Operators can browse documents in a database with
+- **FR89** `[α]`: Operators can browse documents in a database with
   pagination via the admin UI.
-- **FR90**: Operators can view individual document details
+- **FR90** `[α]`: Operators can view individual document details
   (body + metadata + `_rev`) via the admin UI.
-- **FR91**: Operators can view design documents stored in a
-  database via the admin UI (α: read-only).
-- **FR92**: Operators can create, edit, and delete design
-  documents via the admin UI (β).
-- **FR93**: Operators can view `_security` admin/member
-  configuration for a database via the admin UI (α: read-only).
-- **FR94**: Operators can edit `_security` admin/member
-  configuration via the admin UI (β).
-- **FR95**: Operators can view a document's revision history via
-  the admin UI (γ).
+- **FR91** `[α]`: Operators can view design documents stored in a
+  database via the admin UI (read-only).
+- **FR92** `[β]`: Operators can create, edit, and delete design
+  documents via the admin UI.
+- **FR93** `[α]`: Operators can view `_security` admin/member
+  configuration for a database via the admin UI (read-only).
+- **FR94** `[β]`: Operators can edit `_security` admin/member
+  configuration via the admin UI.
+- **FR95** `[γ]`: Operators can view a document's revision history via
+  the admin UI.
 
 ### Observability, Audit & Operations
 
@@ -2137,6 +2137,11 @@ configuring IRISCouch), and **system** (IRISCouch itself).
   ObjectScript `$System.OBJ.ImportDir` as a documented fallback.
 - **FR108**: Operators can mount the IRISCouch webapp at a
   configurable path, with `/iris-couch/` as the documented default.
+  For maximum CouchDB client compatibility (especially PouchDB
+  replication), the recommended deployment uses a reverse proxy
+  (nginx or Apache) that presents IRISCouch at the URL root on a
+  dedicated port; example configurations are provided in the
+  deployment documentation (see FR110, FR114).
 - **FR109**: The default installation has no mandatory external
   dependencies beyond IRIS itself — no Node.js, no Python, no
   couchjs binary, no Erlang runtime.
@@ -2302,11 +2307,15 @@ HMAC-signed with a per-instance secret. Cookie forgery requires
 access to the signing secret; tampering is detected on every
 request.
 
-**NFR-S4 — Transport encryption.** TLS termination is handled by
-`%Service_WebGateway` / the CSP Gateway using operator-configured
-certificates. IRISCouch does not terminate TLS itself. The
-product works correctly behind a reverse proxy terminating TLS
-upstream.
+**NFR-S4 — Transport encryption and reverse proxy.** TLS
+termination is handled by `%Service_WebGateway` / the CSP Gateway
+using operator-configured certificates. IRISCouch does not
+terminate TLS itself. The product works correctly behind a reverse
+proxy terminating TLS upstream. Reverse proxy deployment is the
+recommended topology for CouchDB client compatibility — IRISCouch
+generates all URLs relative to `/` (no path-prefix awareness in
+application code), and the proxy maps the external root to the
+IRIS webapp mount path.
 
 **NFR-S5 — Audit completeness.** Every document mutation, every
 authentication attempt, every `_security` change, every `_users`

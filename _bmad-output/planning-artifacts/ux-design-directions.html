@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1280" />
+<title>iris-couch — Design Directions Mockup</title>
+<style>
+  /* ============================================================
+     iris-couch admin UI — Design Direction Mockup
+     ============================================================
+     Three variations of the Database List view, rendered with the
+     design tokens from step 8 of the UX design specification.
+     Toggle between A / B / C to compare. All three share the same
+     palette, type, spacing, and content — they differ only on:
+
+       1. Left-nav chrome         (dark / light / dark)
+       2. Row density             (32 / 28 / 32 px)
+       3. Header zone weight      (banded / flush / flush)
+       4. Breadcrumb placement    (top / inline / top)
+
+     Zero external dependencies. System fonts only.
+     ============================================================ */
+
+  /* ---------- Design tokens (from step 8) ---------- */
+  :root {
+    /* Neutral palette */
+    --color-neutral-0:   #FFFFFF;
+    --color-neutral-50:  #F7F8FA;
+    --color-neutral-100: #EEF0F3;
+    --color-neutral-200: #E1E4E9;
+    --color-neutral-300: #C7CBD3;
+    --color-neutral-400: #9096A1;
+    --color-neutral-500: #6B7280;
+    --color-neutral-600: #4B5260;
+    --color-neutral-700: #374050;
+    --color-neutral-800: #242B38;
+    --color-neutral-900: #12161F;
+
+    /* Semantic colors */
+    --color-error:   #C33F3F;
+    --color-warn:    #B57B21;
+    --color-success: #3C7A5A;
+    --color-info:    #3C5A9E;
+
+    /* Typography */
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Oxygen,
+                 Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    --font-mono: ui-monospace, "JetBrains Mono", "IBM Plex Mono",
+                 Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+    --font-size-xs:  12px;
+    --font-size-sm:  13px;
+    --font-size-md:  14px;
+    --font-size-lg:  16px;
+    --font-size-xl:  20px;
+    --font-size-2xl: 24px;
+
+    /* Spacing scale */
+    --space-1:  4px;
+    --space-2:  8px;
+    --space-3:  12px;
+    --space-4:  16px;
+    --space-6:  24px;
+    --space-8:  32px;
+    --space-12: 48px;
+
+    /* Structural */
+    --sidenav-width: 240px;
+    --header-height: 48px;
+    --row-height: 32px; /* overridden per direction */
+  }
+
+  /* ---------- Reset ---------- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-md);
+    color: var(--color-neutral-600);
+    background: var(--color-neutral-100);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; cursor: pointer; }
+  input { font: inherit; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ---------- Direction toggle bar (not part of the product UI) ---------- */
+  .toggle-bar {
+    background: var(--color-neutral-900);
+    color: var(--color-neutral-100);
+    padding: var(--space-3) var(--space-6);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid var(--color-neutral-800);
+  }
+  .toggle-bar .label {
+    font-size: var(--font-size-sm);
+    color: var(--color-neutral-300);
+    margin-right: var(--space-2);
+  }
+  .toggle-bar button {
+    background: transparent;
+    color: var(--color-neutral-200);
+    border: 1px solid var(--color-neutral-700);
+    padding: var(--space-1) var(--space-3);
+    border-radius: 2px;
+    font-size: var(--font-size-sm);
+    transition: background 120ms, border-color 120ms;
+  }
+  .toggle-bar button:hover {
+    background: var(--color-neutral-800);
+    border-color: var(--color-neutral-600);
+  }
+  .toggle-bar button.active {
+    background: var(--color-neutral-0);
+    color: var(--color-neutral-800);
+    border-color: var(--color-neutral-0);
+  }
+  .toggle-bar .caption {
+    margin-left: auto;
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
+    font-family: var(--font-mono);
+  }
+
+  /* ---------- Page container (holds the mocked product) ---------- */
+  .product-frame {
+    background: var(--color-neutral-0);
+    min-height: 100vh;
+    padding-top: 0;
+  }
+
+  /* ---------- App shell ---------- */
+  .app-shell {
+    display: grid;
+    grid-template-columns: var(--sidenav-width) 1fr;
+    grid-template-rows: var(--header-height) 1fr;
+    grid-template-areas:
+      "header header"
+      "sidenav main";
+    min-height: calc(100vh - 48px); /* account for toggle bar */
+  }
+
+  /* ---------- Header ---------- */
+  .app-header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-6);
+    background: var(--color-neutral-0);
+    border-bottom: 1px solid var(--color-neutral-200);
+  }
+  .wordmark {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-lg);
+    color: var(--color-neutral-700);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .session {
+    font-size: var(--font-size-sm);
+    color: var(--color-neutral-500);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .session .user {
+    font-family: var(--font-mono);
+    color: var(--color-neutral-700);
+  }
+  .session .signout {
+    color: var(--color-info);
+    cursor: pointer;
+  }
+  .session .signout:hover { text-decoration: underline; }
+  .session .signout:focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: 3px;
+  }
+
+  /* ---------- Side nav ---------- */
+  .side-nav {
+    grid-area: sidenav;
+    background: var(--color-neutral-800);
+    color: var(--color-neutral-200);
+    padding: var(--space-4) 0;
+    border-right: 1px solid var(--color-neutral-800);
+  }
+  .side-nav .nav-group-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
+    padding: 0 var(--space-4);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: var(--space-2);
+  }
+  .side-nav .nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--font-size-md);
+    color: var(--color-neutral-200);
+    cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+  .side-nav .nav-item:hover {
+    background: rgba(255,255,255,0.04);
+  }
+  .side-nav .nav-item:focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: -2px;
+  }
+  .side-nav .nav-item.active {
+    background: rgba(255,255,255,0.06);
+    color: var(--color-neutral-0);
+    border-left-color: var(--color-info);
+  }
+  .side-nav .nav-icon {
+    width: 14px; height: 14px;
+    display: inline-block;
+    opacity: 0.7;
+  }
+
+  /* ---------- Main page area ---------- */
+  .page {
+    grid-area: main;
+    padding: var(--space-6) var(--space-6) var(--space-8);
+    background: var(--color-neutral-0);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0; /* allow content to shrink */
+  }
+
+  /* ---------- Breadcrumb (top-of-page variant) ---------- */
+  .breadcrumb-top {
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .breadcrumb-top .seg {
+    color: var(--color-neutral-500);
+    cursor: pointer;
+  }
+  .breadcrumb-top .seg:hover { color: var(--color-info); text-decoration: underline; }
+  .breadcrumb-top .seg.active { color: var(--color-neutral-700); cursor: default; }
+  .breadcrumb-top .seg.active:hover { text-decoration: none; }
+  .breadcrumb-top .sep { color: var(--color-neutral-300); }
+
+  /* ---------- Page header ---------- */
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-6);
+  }
+  .page-header .title-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+  .page-header h1 {
+    margin: 0;
+    font-size: var(--font-size-xl);
+    font-weight: 500;
+    color: var(--color-neutral-800);
+    letter-spacing: -0.005em;
+  }
+  .page-header .meta {
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .page-header .fetched {
+    font-family: var(--font-mono);
+    color: var(--color-neutral-500);
+  }
+  .page-header .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--color-neutral-200);
+    color: var(--color-neutral-600);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    transition: background 120ms, border-color 120ms;
+  }
+  .page-header .refresh-btn:hover {
+    background: var(--color-neutral-50);
+    border-color: var(--color-neutral-300);
+  }
+  .page-header .refresh-btn:focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: 3px;
+  }
+  .page-header .refresh-btn.spin svg { animation: spin 600ms linear; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .page-header .action-cluster {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+  .page-header .primary-btn {
+    background: var(--color-neutral-800);
+    color: var(--color-neutral-0);
+    border: 1px solid var(--color-neutral-800);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+    border-radius: 2px;
+    transition: background 120ms;
+  }
+  .page-header .primary-btn:hover { background: var(--color-neutral-700); }
+  .page-header .primary-btn:focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: 3px;
+  }
+
+  /* Inline breadcrumb variant (Direction B) */
+  .breadcrumb-inline {
+    display: none;
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
+    font-family: var(--font-mono);
+    margin-right: var(--space-3);
+  }
+  .breadcrumb-inline .seg { color: var(--color-neutral-500); }
+  .breadcrumb-inline .seg.active { color: var(--color-neutral-700); }
+  .breadcrumb-inline .sep { color: var(--color-neutral-300); padding: 0 var(--space-1); }
+
+  /* ---------- Filter bar ---------- */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .filter-bar input {
+    flex: 0 1 360px;
+    height: 32px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--color-neutral-200);
+    border-radius: 2px;
+    background: var(--color-neutral-0);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--color-neutral-700);
+  }
+  .filter-bar input::placeholder {
+    color: var(--color-neutral-300);
+    font-family: var(--font-sans);
+  }
+  .filter-bar input:focus {
+    outline: none;
+    border-color: var(--color-info);
+    box-shadow: 0 0 0 2px rgba(60,90,158,0.15);
+  }
+  .filter-bar .filter-count {
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Data table ---------- */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--color-neutral-200);
+    border-radius: 2px;
+  }
+  .data-table thead th {
+    text-align: left;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--color-neutral-500);
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-neutral-50);
+    border-bottom: 1px solid var(--color-neutral-200);
+    user-select: none;
+    cursor: pointer;
+  }
+  .data-table thead th:hover {
+    color: var(--color-neutral-700);
+  }
+  .data-table thead th.num { text-align: right; }
+  .data-table thead th .sort-arrow {
+    display: inline-block;
+    margin-left: var(--space-1);
+    opacity: 0.4;
+    font-size: 10px;
+  }
+  .data-table thead th.sorted .sort-arrow {
+    opacity: 1;
+    color: var(--color-neutral-700);
+  }
+  .data-table tbody tr {
+    height: var(--row-height);
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-neutral-100);
+    transition: background 80ms;
+  }
+  .data-table tbody tr:last-child { border-bottom: none; }
+  .data-table tbody tr:hover {
+    background: var(--color-neutral-50);
+  }
+  .data-table tbody tr:focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: -2px;
+  }
+  .data-table tbody tr.selected {
+    background: rgba(60,90,158,0.06);
+  }
+  .data-table tbody td {
+    padding: 0 var(--space-3);
+    font-size: var(--font-size-sm);
+    color: var(--color-neutral-700);
+    vertical-align: middle;
+  }
+  .data-table tbody td.name {
+    font-family: var(--font-mono);
+    color: var(--color-neutral-800);
+  }
+  .data-table tbody td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+    color: var(--color-neutral-600);
+  }
+  .data-table tbody td.seq {
+    font-family: var(--font-mono);
+    color: var(--color-neutral-500);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .data-table tbody td.size {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--color-neutral-600);
+  }
+
+  /* Badges inside table cells */
+  .badge {
+    display: inline-block;
+    padding: 1px var(--space-1);
+    font-size: 10px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid;
+    border-radius: 2px;
+    margin-left: var(--space-2);
+    vertical-align: middle;
+  }
+  .badge-system {
+    color: var(--color-info);
+    background: rgba(60,90,158,0.08);
+    border-color: rgba(60,90,158,0.3);
+  }
+  .badge-design {
+    color: var(--color-info);
+    background: rgba(60,90,158,0.08);
+    border-color: rgba(60,90,158,0.3);
+  }
+  .badge-warn {
+    color: var(--color-warn);
+    background: rgba(181,123,33,0.08);
+    border-color: rgba(181,123,33,0.3);
+  }
+
+  /* ---------- Pagination ---------- */
+  .pagination {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-500);
+    margin-top: var(--space-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .pagination button {
+    background: transparent;
+    border: 1px solid var(--color-neutral-200);
+    color: var(--color-neutral-600);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+    border-radius: 2px;
+  }
+  .pagination button:hover:not(:disabled) {
+    background: var(--color-neutral-50);
+    border-color: var(--color-neutral-300);
+  }
+  .pagination button:disabled {
+    color: var(--color-neutral-300);
+    cursor: not-allowed;
+  }
+  .pagination button:focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: 3px;
+  }
+  .pagination .range {
+    font-family: var(--font-mono);
+    color: var(--color-neutral-500);
+  }
+
+  /* ---------- Footer ---------- */
+  .app-footer {
+    margin-top: auto;
+    padding-top: var(--space-8);
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-400);
+    font-family: var(--font-mono);
+  }
+
+  /* ============================================================
+     DIRECTION-SPECIFIC OVERRIDES
+     ============================================================ */
+
+  /* ---------- Direction A — SMP Orthodox ---------- */
+  /* - Dark left nav
+     - 32 px rows
+     - Banded header zone (neutral-50 background)
+     - Top-of-page breadcrumb */
+  body[data-direction="a"] {
+    --row-height: 32px;
+  }
+  body[data-direction="a"] .side-nav {
+    background: var(--color-neutral-800);
+    color: var(--color-neutral-200);
+    border-right-color: var(--color-neutral-800);
+  }
+  body[data-direction="a"] .side-nav .nav-item { color: var(--color-neutral-200); }
+  body[data-direction="a"] .side-nav .nav-item.active {
+    background: rgba(255,255,255,0.08);
+    color: var(--color-neutral-0);
+  }
+  body[data-direction="a"] .side-nav .nav-group-label { color: var(--color-neutral-400); }
+  body[data-direction="a"] .page { padding: 0; background: var(--color-neutral-0); }
+  body[data-direction="a"] .page > .breadcrumb-top { display: flex; padding: var(--space-4) var(--space-6) 0; }
+  body[data-direction="a"] .page > .page-header {
+    background: var(--color-neutral-50);
+    padding: var(--space-4) var(--space-6);
+    margin-top: var(--space-3);
+    border-top: 1px solid var(--color-neutral-200);
+    border-bottom: 1px solid var(--color-neutral-200);
+  }
+  body[data-direction="a"] .page > .filter-bar,
+  body[data-direction="a"] .page > .data-table,
+  body[data-direction="a"] .page > .pagination,
+  body[data-direction="a"] .page > .app-footer {
+    margin-left: var(--space-6);
+    margin-right: var(--space-6);
+  }
+  body[data-direction="a"] .page > .filter-bar { margin-top: var(--space-4); }
+  body[data-direction="a"] .page > .app-footer { padding-bottom: var(--space-8); }
+
+  /* ---------- Direction B — Linear Restraint ---------- */
+  /* - Light left nav (white bg, neutral-200 right border)
+     - 28 px compact rows
+     - Flush header (no band, just spacing)
+     - Inline breadcrumb with title */
+  body[data-direction="b"] {
+    --row-height: 28px;
+  }
+  body[data-direction="b"] .side-nav {
+    background: var(--color-neutral-0);
+    color: var(--color-neutral-700);
+    border-right: 1px solid var(--color-neutral-200);
+    padding: var(--space-4) 0;
+  }
+  body[data-direction="b"] .side-nav .nav-item { color: var(--color-neutral-600); }
+  body[data-direction="b"] .side-nav .nav-item:hover { background: var(--color-neutral-50); }
+  body[data-direction="b"] .side-nav .nav-item.active {
+    background: var(--color-neutral-100);
+    color: var(--color-neutral-900);
+    border-left-color: var(--color-info);
+  }
+  body[data-direction="b"] .side-nav .nav-group-label { color: var(--color-neutral-400); }
+  body[data-direction="b"] .page > .breadcrumb-top { display: none; }
+  body[data-direction="b"] .page > .page-header { padding: 0; background: transparent; border: none; margin: 0; }
+  body[data-direction="b"] .page > .page-header .breadcrumb-inline { display: inline-flex; }
+  body[data-direction="b"] .page > .page-header .title-block { flex-direction: row; align-items: baseline; }
+  body[data-direction="b"] .page > .data-table tbody td {
+    font-size: var(--font-size-xs);
+  }
+  body[data-direction="b"] .page > .data-table thead th { padding: var(--space-1) var(--space-3); }
+
+  /* ---------- Direction C — Balanced Middle ---------- */
+  /* - Dark left nav (from A)
+     - 32 px standard rows (from A)
+     - Flush header (from B — no band)
+     - Top-of-page breadcrumb (from A) */
+  body[data-direction="c"] {
+    --row-height: 32px;
+  }
+  body[data-direction="c"] .side-nav {
+    background: var(--color-neutral-800);
+    color: var(--color-neutral-200);
+    border-right-color: var(--color-neutral-800);
+  }
+  body[data-direction="c"] .side-nav .nav-item { color: var(--color-neutral-200); }
+  body[data-direction="c"] .side-nav .nav-item.active {
+    background: rgba(255,255,255,0.08);
+    color: var(--color-neutral-0);
+  }
+  body[data-direction="c"] .side-nav .nav-group-label { color: var(--color-neutral-400); }
+  body[data-direction="c"] .page > .breadcrumb-top { display: flex; }
+  body[data-direction="c"] .page > .page-header { padding: 0; background: transparent; border: none; }
+
+  /* ---------- Reduced motion ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* ---------- Skip link (a11y) ---------- */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--color-info);
+    color: var(--color-neutral-0);
+    padding: var(--space-2) var(--space-3);
+    z-index: 200;
+  }
+  .skip-link:focus { left: var(--space-3); top: var(--space-3); }
+</style>
+</head>
+
+<body data-direction="b">
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- ============================================================
+     Direction toggle bar — NOT part of the product UI
+     (Exists only for this mockup to compare A / B / C.)
+     ============================================================ -->
+<div class="toggle-bar" role="toolbar" aria-label="Direction toggle">
+  <span class="label">Direction:</span>
+  <button data-dir="a" type="button">A — SMP Orthodox</button>
+  <button data-dir="b" class="active" type="button">B — Linear Restraint (chosen)</button>
+  <button data-dir="c" type="button">C — Balanced Middle</button>
+  <span class="caption">iris-couch admin UI mockup · viewport ≥ 1280 px</span>
+</div>
+
+<!-- ============================================================
+     Product frame — mocked iris-couch admin UI
+     ============================================================ -->
+<div class="product-frame">
+  <div class="app-shell">
+
+    <!-- ============ Header ============ -->
+    <header class="app-header" role="banner">
+      <div class="wordmark">iris-couch</div>
+      <div class="session">
+        <span class="user">admin</span>
+        <a class="signout" href="#" tabindex="0" aria-label="Sign out">sign out</a>
+      </div>
+    </header>
+
+    <!-- ============ Side nav ============ -->
+    <aside class="side-nav" role="navigation" aria-label="Main navigation">
+      <div class="nav-group-label">Global</div>
+      <a class="nav-item active" tabindex="0" aria-current="page">
+        <span class="nav-icon" aria-hidden="true">▣</span> Databases
+      </a>
+      <a class="nav-item" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">◷</span> Active tasks
+      </a>
+      <a class="nav-item" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">⚙</span> Setup
+      </a>
+      <a class="nav-item" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">?</span> About
+      </a>
+    </aside>
+
+    <!-- ============ Main page ============ -->
+    <main class="page" id="main" role="main">
+
+      <!-- Breadcrumb (top-of-page variant — shown in A and C) -->
+      <nav class="breadcrumb-top" aria-label="Breadcrumb">
+        <span class="seg active" aria-current="page">Databases</span>
+      </nav>
+
+      <!-- Page header -->
+      <div class="page-header">
+        <div class="title-block">
+          <!-- Inline breadcrumb variant — shown in B only -->
+          <nav class="breadcrumb-inline" aria-label="Breadcrumb">
+            <span class="seg active" aria-current="page">Databases</span>
+            <span class="sep">/</span>
+          </nav>
+          <h1>Databases</h1>
+          <div class="meta">
+            <span id="count">6 databases</span>
+            <span class="fetched">
+              fetched <span id="fetchedAgo">2s</span> ago
+            </span>
+            <button class="refresh-btn" id="refreshBtn" type="button" aria-label="Refresh database list">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.88"/>
+                <path d="M14 2v3h-3"/>
+              </svg>
+              refresh
+            </button>
+          </div>
+        </div>
+        <div class="action-cluster">
+          <button class="primary-btn" type="button">+ Create database</button>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="filter-bar">
+        <input
+          type="text"
+          id="filterInput"
+          placeholder="filter by name prefix"
+          aria-label="Filter databases by name prefix"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <span class="filter-count" id="filterCount"></span>
+      </div>
+
+      <!-- Table -->
+      <table class="data-table" role="table" aria-label="Databases">
+        <thead>
+          <tr>
+            <th class="sorted" scope="col">name <span class="sort-arrow">▲</span></th>
+            <th class="num" scope="col">docs</th>
+            <th scope="col">update seq</th>
+            <th class="num" scope="col">size</th>
+          </tr>
+        </thead>
+        <tbody id="dbTableBody">
+          <tr tabindex="0" data-name="_replicator">
+            <td class="name">_replicator <span class="badge badge-system">system</span></td>
+            <td class="num">3</td>
+            <td class="seq">4-g1AAAA...3hJqTU</td>
+            <td class="size">48 KB</td>
+          </tr>
+          <tr tabindex="0" data-name="_users">
+            <td class="name">_users <span class="badge badge-system">system</span></td>
+            <td class="num">12</td>
+            <td class="seq">17-g1AAAA...xPmC72</td>
+            <td class="size">96 KB</td>
+          </tr>
+          <tr tabindex="0" data-name="fielddata_production">
+            <td class="name">fielddata_production</td>
+            <td class="num">42,187</td>
+            <td class="seq">83921-g1AA...dQrMNz</td>
+            <td class="size">186 MB</td>
+          </tr>
+          <tr tabindex="0" data-name="fielddata_staging">
+            <td class="name">fielddata_staging</td>
+            <td class="num">2,914</td>
+            <td class="seq">5127-g1AAA...hKvB81</td>
+            <td class="size">14 MB</td>
+          </tr>
+          <tr tabindex="0" data-name="maya-migration-20260411">
+            <td class="name">maya-migration-20260411 <span class="badge badge-warn">in-migration</span></td>
+            <td class="num">8,442</td>
+            <td class="seq">8442-g1AAA...pQrZn9</td>
+            <td class="size">62 MB</td>
+          </tr>
+          <tr tabindex="0" data-name="mydb">
+            <td class="name">mydb</td>
+            <td class="num">1</td>
+            <td class="seq">1-967a00dff5e02add</td>
+            <td class="size">4 KB</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <button type="button" disabled aria-label="Previous page">← prev</button>
+        <span class="range">rows 1–6 of 6</span>
+        <button type="button" disabled aria-label="Next page">next →</button>
+      </div>
+
+      <!-- Footer -->
+      <footer class="app-footer" role="contentinfo">
+        iris-couch · /iris-couch/_utils/ · read-only mockup
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  /* ---------- Direction toggle ---------- */
+  const toggleButtons = document.querySelectorAll('.toggle-bar button[data-dir]');
+  toggleButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.body.dataset.direction = btn.dataset.dir;
+      toggleButtons.forEach(b => b.classList.toggle('active', b === btn));
+    });
+  });
+
+  /* ---------- Row selection (mock click-through) ---------- */
+  const rows = document.querySelectorAll('.data-table tbody tr');
+  rows.forEach(row => {
+    row.addEventListener('click', () => {
+      rows.forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+    });
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        row.click();
+      }
+    });
+  });
+
+  /* ---------- Filter (prefix match, matches _all_docs startkey semantics) ---------- */
+  const filterInput = document.getElementById('filterInput');
+  const filterCount = document.getElementById('filterCount');
+  const countEl = document.getElementById('count');
+  const totalRows = rows.length;
+
+  filterInput.addEventListener('input', () => {
+    const q = filterInput.value.toLowerCase();
+    let visible = 0;
+    rows.forEach(row => {
+      const name = (row.dataset.name || '').toLowerCase();
+      const match = name.startsWith(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    countEl.textContent = visible + ' database' + (visible === 1 ? '' : 's');
+    filterCount.textContent = q ? ('showing ' + visible + ' of ' + totalRows) : '';
+  });
+
+  /* ---------- Refresh button (updates fetched-at timestamp) ---------- */
+  const refreshBtn = document.getElementById('refreshBtn');
+  const fetchedAgoEl = document.getElementById('fetchedAgo');
+  let fetchedAtMs = Date.now() - 2000;
+
+  function updateFetched() {
+    const elapsed = Math.max(0, Math.round((Date.now() - fetchedAtMs) / 1000));
+    fetchedAgoEl.textContent = elapsed + 's';
+  }
+  setInterval(updateFetched, 1000);
+
+  refreshBtn.addEventListener('click', () => {
+    fetchedAtMs = Date.now();
+    updateFetched();
+    refreshBtn.classList.add('spin');
+    setTimeout(() => refreshBtn.classList.remove('spin'), 600);
+  });
+</script>
+
+</body>
+</html>
