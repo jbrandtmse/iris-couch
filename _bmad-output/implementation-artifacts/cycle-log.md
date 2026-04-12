@@ -69,3 +69,25 @@
 - 3 action items for Story 2.0, 3 deferred items, 3 lessons codified in memory
 - Webapp installed and verified live at `/iris-couch/`
 - Epic 1 retrospective status: done
+
+---
+
+## Epic 2: Database Lifecycle Management
+
+### 2026-04-12T18:00:00Z — Cycle started
+- **Scope:** Epic 2, Stories 2.0 (deferred cleanup) through 2.3
+- **Sprint status:** All Epic 2 stories at `backlog`
+
+### 2026-04-12T18:00:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml confirmed current (14 epics, 55 stories tracked)
+- Epic 2 stories confirmed: 2.1, 2.2, 2.3 (plus 2.0 cleanup from retro)
+- No issues surfaced
+
+### 2026-04-12T18:05:00Z — Phase 0.5: Retrospective Review & Story 2.0
+- Epic 1 retrospective found: `epic-1-retro-2026-04-12.md`
+- Triaged all action items:
+  - **Included in 2.0:** Fix ServerHandler catch blocks (RenderInternal), HTTP integration test infrastructure, parameterized route verification
+  - **Deferred:** Config.Get/Set/GetAll issues (4 items), Request.ReadBody size limit, metrics wrapper, Error.Render missing %response
+  - **Dropped:** None
+- Story 2.0 created: `2-0-epic-1-deferred-cleanup.md`
+- Epic 2 status updated to `in-progress`

@@ -52,7 +52,8 @@ development_status:
   epic-1-retrospective: done
 
   # Epic 2: Database Lifecycle Management
-  epic-2: backlog
+  epic-2: in-progress
+  2-0-epic-1-deferred-cleanup: done
   2-1-create-and-delete-databases: backlog
   2-2-list-databases-and-retrieve-metadata: backlog
   2-3-database-maintenance-operations: backlog

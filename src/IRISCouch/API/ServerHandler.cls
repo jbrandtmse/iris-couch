@@ -20,9 +20,9 @@ ClassMethod HandleWelcome() As %Status
         Do ##class(IRISCouch.Util.Response).JSON(tResponse)
     }
     Catch ex {
-        Do ##class(IRISCouch.Util.Error).Render(500, "server_error", "Internal Server Error")
+        Do ##class(IRISCouch.Util.Error).RenderInternal("server_error", "server: welcome endpoint error", ex)
     }
-    Quit tSC
+    Quit $$$OK
 }
 
 /// <p>Handle <code>GET /_uuids</code> — generate CouchDB-compatible UUIDs.</p>
@@ -47,9 +47,9 @@ ClassMethod HandleUUIDs() As %Status
         Do ##class(IRISCouch.Util.Response).JSON(tResponse)
     }
     Catch ex {
-        Do ##class(IRISCouch.Util.Error).Render(500, "server_error", "Internal Server Error")
+        Do ##class(IRISCouch.Util.Error).RenderInternal("server_error", "server: uuid generation error", ex)
     }
-    Quit tSC
+    Quit $$$OK
 }
 
 /// <p>Build the welcome response as a <class>%DynamicObject</class>.</p>
