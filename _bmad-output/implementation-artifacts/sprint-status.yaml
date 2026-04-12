@@ -37,8 +37,8 @@
 generated: 2026-04-12
 last_updated: 2026-04-12
 last_review: 2026-04-12
-last_story_completed: 3-0-epic-2-deferred-cleanup
-last_story_created: 3-0-epic-2-deferred-cleanup
+last_story_completed: 3-1-single-document-create-and-read
+last_story_created: 3-1-single-document-create-and-read
 project: iris-couch
 project_key: NOKEY
 tracking_system: file-system
@@ -65,7 +65,7 @@ development_status:
   # Epic 3: Document Storage & Revision Control
   epic-3: in-progress
   3-0-epic-2-deferred-cleanup: done
-  3-1-single-document-create-and-read: backlog
+  3-1-single-document-create-and-read: done
   3-2-document-update-delete-and-optimistic-concurrency: backlog
   3-3-revision-tree-and-conflict-management: backlog
   3-4-bulk-document-operations: backlog

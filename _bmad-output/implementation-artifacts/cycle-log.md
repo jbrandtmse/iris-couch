@@ -132,3 +132,32 @@
 - Epic 1 retro action items: 3/3 completed (all fulfilled in Story 2.0)
 - 3 action items for Epic 3, 4 deferred items, 5 lessons codified
 - Epic 2 retrospective status: done
+
+---
+
+## Epic 3: Document Storage & Revision Control
+
+### 2026-04-12T23:00:00Z — Cycle started
+- **Scope:** Epic 3, Stories 3.0 (deferred cleanup) through 3.6
+- **Sprint status:** All Epic 3 stories at `backlog`
+
+### 2026-04-12T23:00:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml confirmed current (14 epics, 55+ stories tracked)
+- Epic 3 stories confirmed: 3.1-3.6 (plus 3.0 cleanup from retro)
+- No issues surfaced
+
+### 2026-04-12T23:05:00Z — Phase 0.5: Retrospective Review & Story 3.0
+- Epic 2 retrospective found: `epic-2-retro-2026-04-12.md`
+- Triaged all action items:
+  - **Included in 3.0:** Database lifecycle integration test, doc_del_count tracking, disk_size verification
+  - **Deferred:** Config-driven test infra, early-return guard, name length validation, race condition, all 15 deferred-work.md items
+  - **Dropped:** None
+- Story 3.0 created: `3-0-epic-2-deferred-cleanup.md`
+- Epic 3 status updated to `in-progress`
+
+### 2026-04-12T23:30:00Z — Story 3.0: Epic 2 Deferred Cleanup
+- **Create Story:** Story file created at `3-0-epic-2-deferred-cleanup.md`
+- **Development:** All 4 tasks completed. 2 files modified (Storage/Database.cls, DatabaseHttpTest.cls). 49 tests pass (48 existing + 1 new), 0 regressions.
+- **Code Review:** PASSED. 0 critical/high/medium. 3 items dismissed as noise. 0 deferred.
+- **Commit:** `417817f` pushed to origin/main
+- **Status:** done

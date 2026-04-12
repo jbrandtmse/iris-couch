@@ -30,3 +30,8 @@
 
 - **Race condition between Exists() and Create() in HandleCreate** [DatabaseHandler.cls:25-28] -- Between the Exists() check in HandleCreate and the Create() call, another concurrent request could create the same database. Create() does its own internal Exists() check, but if that second check fails, it returns an error status which triggers a 500 RenderInternal instead of the expected 412. Extremely unlikely in practice; address if concurrency requirements increase.
 - **No maximum database name length validation** [Storage/Database.cls:88-136] -- CouchDB enforces a maximum database name length. Not specified in story AC but could cause issues with very long names hitting global subscript limits. Address when hardening database lifecycle operations.
+
+## Deferred from: code review of 3-1-single-document-create-and-read (2026-04-12)
+
+- **RevTree.AddChild does not verify parent revision exists in leaf index** [RevTree.cls:55] -- If pParentRev is not in the leaf index, $Get returns "" coercing to 0, resulting in incorrect depth calculation. Not reachable in Story 3.1 (create-only uses Init), but should be validated when update path (Story 3.2) is implemented.
+- **No underscore-prefix validation on document IDs in HandlePut** [DocumentHandler.cls:74] -- CouchDB reserves document IDs starting with underscore for system documents (_design/, _local/). No validation prevents clients from creating documents with reserved ID prefixes. Address when system document handling is implemented (Epic 5+).

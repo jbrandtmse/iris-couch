@@ -24,9 +24,13 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db/_compact" Method="POST" Call="HandleCompact" />
   <Route Url="/:db/_ensure_full_commit" Method="POST" Call="HandleEnsureFullCommit" />
   <!-- Database endpoints - MUST be after underscore-prefixed routes (Story 2.1, 2.2) -->
+  <Route Url="/:db" Method="POST" Call="HandleDocumentPost" />
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
   <Route Url="/:db" Method="DELETE" Call="HandleDatabaseDelete" />
   <Route Url="/:db" Method="GET" Call="HandleDatabaseInfo" />
+  <!-- Document endpoints - MUST be after /:db routes (Story 3.1) -->
+  <Route Url="/:db/:docid" Method="PUT" Call="HandleDocumentPut" />
+  <Route Url="/:db/:docid" Method="GET" Call="HandleDocumentGet" />
   <!-- Welcome endpoint (catch-all for GET /) -->
   <Route Url="/" Method="GET" Call="HandleWelcome" />
 </Routes>
@@ -90,6 +94,24 @@ ClassMethod HandleCompact(pDB As %String) As %Status
 ClassMethod HandleEnsureFullCommit(pDB As %String) As %Status
 {
     Quit ##class(IRISCouch.API.DatabaseHandler).HandleEnsureFullCommit(pDB)
+}
+
+/// <p>Dispatch POST /:db to DocumentHandler (create document with server-generated ID).</p>
+ClassMethod HandleDocumentPost(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DocumentHandler).HandlePost(pDB)
+}
+
+/// <p>Dispatch PUT /:db/:docid to DocumentHandler (create/update document with client ID).</p>
+ClassMethod HandleDocumentPut(pDB As %String, pDocId As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DocumentHandler).HandlePut(pDB, pDocId)
+}
+
+/// <p>Dispatch GET /:db/:docid to DocumentHandler (retrieve document).</p>
+ClassMethod HandleDocumentGet(pDB As %String, pDocId As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.DocumentHandler).HandleGet(pDB, pDocId)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>
