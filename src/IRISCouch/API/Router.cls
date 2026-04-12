@@ -16,6 +16,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
   <!-- Server-level endpoints (Story 1.2, 1.3) -->
+  <Route Url="/_uuids" Method="GET" Call="IRISCouch.API.ServerHandler:HandleUUIDs" />
   <Route Url="/" Method="GET" Call="IRISCouch.API.ServerHandler:HandleWelcome" />
 </Routes>
 }

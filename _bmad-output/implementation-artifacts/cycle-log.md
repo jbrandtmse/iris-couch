@@ -18,4 +18,12 @@
 - **Create Story:** Story file created at `1-1-configuration-system-and-package-scaffold.md`
 - **Development:** All 8 tasks completed. 7 files created (module.xml, Config.cls, Error.cls, Response.cls, Request.cls, ConfigTest.cls, API/.gitkeep). All classes compile cleanly. 6 test scenarios pass.
 - **Code Review:** PASSED. 0 critical/high. 5 low/medium items deferred to `deferred-work.md`.
+- **Commit:** `aeb49ef` pushed to origin/main
+- **Status:** done
+
+### 2026-04-12T13:00:00Z — Story 1.2: HTTP Router & CouchDB Welcome Endpoint
+- **Create Story:** Story file created at `1-2-http-router-and-couchdb-welcome-endpoint.md`
+- **Development:** All 4 tasks completed. 3 files created (Router.cls, ServerHandler.cls, RouterTest.cls). .gitkeep deleted. All classes compile cleanly. 5 tests pass, 0 regressions.
+- **Code Review:** PASSED. 0 critical/high. 2 medium auto-resolved (dedup HandleWelcome logic, fix catch block %Status). 1 deferred (metrics wrapper stub).
+- **Commit:** `a9bd50e` pushed to origin/main
 - **Status:** done

@@ -25,6 +25,33 @@ ClassMethod HandleWelcome() As %Status
     Quit tSC
 }
 
+/// <p>Handle <code>GET /_uuids</code> — generate CouchDB-compatible UUIDs.</p>
+/// <p>Reads the optional <code>count</code> query parameter (default 1).
+/// Returns a JSON object with a <code>uuids</code> array containing the
+/// requested number of 32-character lowercase hex UUIDs.</p>
+/// <p>Returns 400 Bad Request if count is not a positive integer.</p>
+/// @return %Status
+ClassMethod HandleUUIDs() As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        Set tCount = %request.Get("count", 1)
+        ; Validate count is a positive integer within allowed range
+        If (tCount '= +tCount) || (tCount < 1) || (tCount > 1000) || (tCount \ 1 '= tCount) {
+            Do ##class(IRISCouch.Util.Error).Render(400, "bad_request", "count must be a positive integer up to 1000")
+            Quit
+        }
+        Set tUUIDs = ##class(IRISCouch.Util.UUID).GenerateN(tCount)
+        Set tResponse = {}
+        Set tResponse.uuids = tUUIDs
+        Do ##class(IRISCouch.Util.Response).JSON(tResponse)
+    }
+    Catch ex {
+        Do ##class(IRISCouch.Util.Error).Render(500, "server_error", "Internal Server Error")
+    }
+    Quit tSC
+}
+
 /// <p>Build the welcome response as a <class>%DynamicObject</class>.</p>
 /// <p>Extracted for testability — unit tests can call this method to
 /// verify JSON structure without requiring an HTTP context.</p>
