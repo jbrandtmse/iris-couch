@@ -94,13 +94,13 @@ ClassMethod FindByDefinition(pDB As %String, pFields As %String, pPartialFilter 
     Set pName = ""
     Try {
         If pPartialFilter = "" {
-            &sql(SELECT DDoc, Name INTO :pDDoc, :pName
+            &sql(SELECT %EXACT(DDoc), %EXACT(Name) INTO :pDDoc, :pName
                  FROM IRISCouch_Projection.MangoIndexDef
-                 WHERE DbName = :pDB AND Fields = :pFields AND (PartialFilterSelector IS NULL OR PartialFilterSelector = ''))
+                 WHERE %EXACT(DbName) = :pDB AND %EXACT(Fields) = :pFields AND (PartialFilterSelector IS NULL OR PartialFilterSelector = ''))
         } Else {
-            &sql(SELECT DDoc, Name INTO :pDDoc, :pName
+            &sql(SELECT %EXACT(DDoc), %EXACT(Name) INTO :pDDoc, :pName
                  FROM IRISCouch_Projection.MangoIndexDef
-                 WHERE DbName = :pDB AND Fields = :pFields AND PartialFilterSelector = :pPartialFilter)
+                 WHERE %EXACT(DbName) = :pDB AND %EXACT(Fields) = :pFields AND %EXACT(PartialFilterSelector) = :pPartialFilter)
         }
         If SQLCODE = 0 {
             Quit
@@ -125,7 +125,7 @@ ClassMethod List(pDB As %String) As %DynamicArray
     Set tArr = []
     Try {
         Set tRS = ##class(%SQL.Statement).%ExecDirect(,
-            "SELECT DDoc, Name, Type, Fields, PartialFilterSelector FROM IRISCouch_Projection.MangoIndexDef WHERE DbName = ?", pDB)
+            "SELECT %EXACT(DDoc) AS DDoc, %EXACT(Name) AS Name, %EXACT(Type) AS Type, %EXACT(Fields) AS Fields, %EXACT(PartialFilterSelector) AS PartialFilterSelector FROM IRISCouch_Projection.MangoIndexDef WHERE %EXACT(DbName) = ?", pDB)
         While tRS.%Next() {
             Set tObj = {}
             Do tObj.%Set("ddoc", tRS.%Get("DDoc"))
@@ -186,7 +186,7 @@ ClassMethod DeleteAll(pDB As %String) As %Status
 {
     Set tSC = $$$OK
     Try {
-        &sql(DELETE FROM IRISCouch_Projection.MangoIndexDef WHERE DbName = :pDB)
+        &sql(DELETE FROM IRISCouch_Projection.MangoIndexDef WHERE %EXACT(DbName) = :pDB)
         If SQLCODE < 0 {
             Set tSC = $$$ERROR($$$GeneralError, "SQL error deleting MangoIndexDef: " _ SQLCODE)
         }
@@ -207,7 +207,7 @@ ClassMethod GetActiveIndexes(pDB As %String) As %DynamicArray
     Set tArr = []
     Try {
         Set tRS = ##class(%SQL.Statement).%ExecDirect(,
-            "SELECT DDoc, Name, Fields, PartialFilterSelector FROM IRISCouch_Projection.MangoIndexDef WHERE DbName = ?", pDB)
+            "SELECT %EXACT(DDoc) AS DDoc, %EXACT(Name) AS Name, %EXACT(Fields) AS Fields, %EXACT(PartialFilterSelector) AS PartialFilterSelector FROM IRISCouch_Projection.MangoIndexDef WHERE %EXACT(DbName) = ?", pDB)
         While tRS.%Next() {
             Set tObj = {}
             Do tObj.%Set("ddoc", tRS.%Get("DDoc"))

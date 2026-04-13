@@ -174,7 +174,7 @@ ClassMethod HandleListIndexes(pDB As %String) As %Status
         Set tIndexes = []
         ; _all_docs special index
         Set tAllDocs = {}
-        Do tAllDocs.%Set("ddoc", "null", "null")
+        Do tAllDocs.%Set("ddoc", "", "null")
         Do tAllDocs.%Set("name", "_all_docs")
         Do tAllDocs.%Set("type", "special")
         Set tAllDocsDef = {}
@@ -281,7 +281,7 @@ ClassMethod BackfillIndex(pDB As %String, pDDoc As %String, pName As %String, pF
         ; Build set of docs already indexed via Winners
         Set tIndexedDocs = ""
         Set tRS = ##class(%SQL.Statement).%ExecDirect(,
-            "SELECT DocId, Body FROM IRISCouch_Projection.Winners WHERE DbName = ? AND Deleted = 0", pDB)
+            "SELECT %EXACT(DocId) AS DocId, Body FROM IRISCouch_Projection.Winners WHERE %EXACT(DbName) = ? AND Deleted = 0", pDB)
         While tRS.%Next() {
             Set tDocId = tRS.%Get("DocId")
             Set tBodyStr = tRS.%Get("Body")

@@ -164,9 +164,9 @@ ClassMethod ExecuteIndexQuery(pDB As %String, pDDoc As %String, pIdxName As %Str
         Set pKeysExamined = 0
         Set pDocsExamined = 0
         ; Get candidate DocIds from MangoIndex
-        Set tSQL = "SELECT DISTINCT DocId FROM IRISCouch_Projection.MangoIndex WHERE DbName = ? AND DDoc = ? AND IndexName = ?"
+        Set tSQL = "SELECT DISTINCT %EXACT(DocId) AS DocId FROM IRISCouch_Projection.MangoIndex WHERE %EXACT(DbName) = ? AND %EXACT(DDoc) = ? AND %EXACT(IndexName) = ?"
         If pBookmarkDocId '= "" {
-            Set tSQL = tSQL _ " AND DocId > ?"
+            Set tSQL = tSQL _ " AND %EXACT(DocId) > ?"
             Set tSQL = tSQL _ " ORDER BY DocId"
             Set tRS = ##class(%SQL.Statement).%ExecDirect(, tSQL, pDB, pDDoc, pIdxName, pBookmarkDocId)
         } Else {
@@ -217,9 +217,9 @@ ClassMethod ExecuteFullScan(pDB As %String, pSelector As %DynamicObject, pBookma
     Try {
         Set pDocs = []
         Set pDocsExamined = 0
-        Set tSQL = "SELECT DocId, Body FROM IRISCouch_Projection.Winners WHERE DbName = ? AND Deleted = 0"
+        Set tSQL = "SELECT %EXACT(DocId) AS DocId, Body FROM IRISCouch_Projection.Winners WHERE %EXACT(DbName) = ? AND Deleted = 0"
         If pBookmarkDocId '= "" {
-            Set tSQL = tSQL _ " AND DocId > ?"
+            Set tSQL = tSQL _ " AND %EXACT(DocId) > ?"
             Set tSQL = tSQL _ " ORDER BY DocId"
             Set tRS = ##class(%SQL.Statement).%ExecDirect(, tSQL, pDB, pBookmarkDocId)
         } Else {

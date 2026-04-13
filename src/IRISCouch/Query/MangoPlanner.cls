@@ -83,7 +83,7 @@ ClassMethod ChooseIndex(pDB As %String, pSelector As %DynamicObject, pSort As %D
             Do tAnalysis.%Set("usable", tUsableFlag, "boolean")
             Do tAnalysis.%Set("reasons", tReasons)
             Do tAnalysis.%Set("ranking", 0, "number")
-            Do tAnalysis.%Set("covering", "null", "null")
+            Do tAnalysis.%Set("covering", "", "null")
             Do tCandidate.%Set("analysis", tAnalysis)
             Do tCandidates.%Push(tCandidate)
             If tUsableFlag {
@@ -112,7 +112,7 @@ ClassMethod ChooseIndex(pDB As %String, pSelector As %DynamicObject, pSort As %D
         Do tAllDocsReasons.%Push(tReasonObj)
         Do tAllDocsAnalysis.%Set("reasons", tAllDocsReasons)
         Do tAllDocsAnalysis.%Set("ranking", 0, "number")
-        Do tAllDocsAnalysis.%Set("covering", "null", "null")
+        Do tAllDocsAnalysis.%Set("covering", "", "null")
         Do tAllDocsCandidate.%Set("analysis", tAllDocsAnalysis)
         Do tCandidates.%Push(tAllDocsCandidate)
         ; Sort usable indexes by ranking criteria
@@ -393,7 +393,7 @@ ClassMethod BuildIndexInfo(pDDoc As %String, pName As %String, pType As %String,
 ClassMethod BuildAllDocsInfo() As %DynamicObject
 {
     Set tInfo = {}
-    Do tInfo.%Set("ddoc", "null", "null")
+    Do tInfo.%Set("ddoc", "", "null")
     Do tInfo.%Set("name", "_all_docs")
     Do tInfo.%Set("type", "special")
     Set tDef = {}

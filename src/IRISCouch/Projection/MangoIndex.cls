@@ -114,7 +114,7 @@ ClassMethod DeleteForDocument(pDB As %String, pDocId As %String) As %Status
 {
     Set tSC = $$$OK
     Try {
-        &sql(DELETE FROM IRISCouch_Projection.MangoIndex WHERE DbName = :pDB AND DocId = :pDocId)
+        &sql(DELETE FROM IRISCouch_Projection.MangoIndex WHERE %EXACT(DbName) = :pDB AND %EXACT(DocId) = :pDocId)
         If SQLCODE < 0 {
             Set tSC = $$$ERROR($$$GeneralError, "SQL error deleting MangoIndex for doc: " _ SQLCODE)
         }
@@ -136,7 +136,7 @@ ClassMethod DeleteForIndex(pDB As %String, pDDoc As %String, pName As %String) A
 {
     Set tSC = $$$OK
     Try {
-        &sql(DELETE FROM IRISCouch_Projection.MangoIndex WHERE DbName = :pDB AND DDoc = :pDDoc AND IndexName = :pName)
+        &sql(DELETE FROM IRISCouch_Projection.MangoIndex WHERE %EXACT(DbName) = :pDB AND %EXACT(DDoc) = :pDDoc AND %EXACT(IndexName) = :pName)
         If SQLCODE < 0 {
             Set tSC = $$$ERROR($$$GeneralError, "SQL error deleting MangoIndex for index: " _ SQLCODE)
         }
@@ -156,7 +156,7 @@ ClassMethod DeleteAll(pDB As %String) As %Status
 {
     Set tSC = $$$OK
     Try {
-        &sql(DELETE FROM IRISCouch_Projection.MangoIndex WHERE DbName = :pDB)
+        &sql(DELETE FROM IRISCouch_Projection.MangoIndex WHERE %EXACT(DbName) = :pDB)
         If SQLCODE < 0 {
             Set tSC = $$$ERROR($$$GeneralError, "SQL error deleting all MangoIndex: " _ SQLCODE)
         }

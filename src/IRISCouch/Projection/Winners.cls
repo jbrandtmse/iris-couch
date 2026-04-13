@@ -87,7 +87,7 @@ ClassMethod DeleteAll(pDB As %String) As %Status
 {
     Set tSC = $$$OK
     Try {
-        &sql(DELETE FROM IRISCouch_Projection.Winners WHERE DbName = :pDB)
+        &sql(DELETE FROM IRISCouch_Projection.Winners WHERE %EXACT(DbName) = :pDB)
         If SQLCODE < 0 {
             Set tSC = $$$ERROR($$$GeneralError, "SQL error deleting Winners: " _ SQLCODE)
         }
