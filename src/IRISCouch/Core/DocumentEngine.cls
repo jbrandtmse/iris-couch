@@ -88,6 +88,178 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
     Quit tNewRev
 }
 
+/// <p>Save a document with a new attachment, creating a new revision.</p>
+/// <p>Wraps document write, attachment store, and metadata update in a single
+/// <code>TSTART</code>/<code>TCOMMIT</code> transaction. The document body
+/// is updated to include <code>_attachments</code> stub metadata.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pParentRev The current revision (required for existing documents)
+/// @param pAttName The attachment filename
+/// @param pContentType The MIME content type
+/// @param pStream The binary stream containing attachment data
+/// @return %String The new revision string on success, empty string on failure
+ClassMethod SaveAttachment(pDB As %String, pDocId As %String, pParentRev As %String, pAttName As %String, pContentType As %String, pStream As %Stream.GlobalBinary) As %String
+{
+    Set tNewRev = ""
+    Set tInTrans = 0
+    Try {
+        ; Validate database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Quit
+        }
+        ; Read existing document body (or create empty one)
+        Set tBodyStr = ""
+        If pParentRev '= "" {
+            Set tBodyStr = ##class(IRISCouch.Storage.Document).Read(pDB, pDocId, pParentRev)
+        }
+        If tBodyStr = "" {
+            Set tBodyStr = "{}"
+        }
+        ; Determine generation
+        If pParentRev = "" {
+            Set tGeneration = 1
+        } Else {
+            Set tGeneration = +$Piece(pParentRev, "-", 1) + 1
+        }
+        ; Mint new revision
+        Set tNewRev = ##class(IRISCouch.Core.RevHash).MintRev(tGeneration, tBodyStr, pParentRev)
+        If tNewRev = "" Quit
+        ; Begin transaction
+        TSTART
+        Set tInTrans = 1
+        ; 1. Store the attachment stream
+        Set tSC = ##class(IRISCouch.Storage.Attachment).Store(pDB, pDocId, tNewRev, pAttName, pContentType, pStream, tGeneration, .tDigest, .tLength)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 2. Copy forward any existing attachments from previous rev
+        If pParentRev '= "" {
+            Set tSC = ##class(IRISCouch.Storage.Attachment).CopyAttachments(pDB, pDocId, pParentRev, tNewRev, pAttName)
+            If $$$ISERR(tSC) {
+                TROLLBACK  Set tInTrans = 0
+                Set tNewRev = ""
+                Quit
+            }
+        }
+        ; 3. Write document body (same body, new rev)
+        Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, tNewRev, tBodyStr)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 4. Update revision tree
+        If tGeneration = 1 {
+            Set tSC = ##class(IRISCouch.Storage.RevTree).Init(pDB, pDocId, tNewRev)
+        } Else {
+            Set tSC = ##class(IRISCouch.Storage.RevTree).AddChild(pDB, pDocId, pParentRev, tNewRev)
+        }
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 5. Record change in changes feed
+        Set tSeq = ##class(IRISCouch.Storage.Changes).RecordChange(pDB, pDocId, tNewRev)
+        ; 6. Update database metadata
+        If tGeneration = 1 {
+            Do ##class(IRISCouch.Storage.Database).IncrementDocCount(pDB)
+        }
+        Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
+        ; Commit transaction
+        TCOMMIT
+        Set tInTrans = 0
+        ; Signal longpoll waiters AFTER commit
+        Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)
+        If ##class(%SYSTEM.Event).Defined(tEventName) {
+            Set tEvtSignal = ##class(%SYSTEM.Event).Signal(tEventName)
+        }
+        Quit
+    }
+    Catch ex {
+        If tInTrans { TROLLBACK  Set tInTrans = 0 }
+        Set tNewRev = ""
+        Quit
+    }
+    Quit tNewRev
+}
+
+/// <p>Delete an attachment from a document, creating a new revision.</p>
+/// <p>Creates a new revision that carries forward all attachments except
+/// the deleted one. The document body is preserved.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pParentRev The current revision (required)
+/// @param pAttName The attachment filename to delete
+/// @return %String The new revision string on success, empty string on failure
+ClassMethod DeleteAttachment(pDB As %String, pDocId As %String, pParentRev As %String, pAttName As %String) As %String
+{
+    Set tNewRev = ""
+    Set tInTrans = 0
+    Try {
+        ; Validate database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Quit
+        }
+        ; Read existing document body
+        Set tBodyStr = ##class(IRISCouch.Storage.Document).Read(pDB, pDocId, pParentRev)
+        If tBodyStr = "" {
+            Set tBodyStr = "{}"
+        }
+        ; Determine generation
+        Set tGeneration = +$Piece(pParentRev, "-", 1) + 1
+        ; Mint new revision
+        Set tNewRev = ##class(IRISCouch.Core.RevHash).MintRev(tGeneration, tBodyStr, pParentRev)
+        If tNewRev = "" Quit
+        ; Begin transaction
+        TSTART
+        Set tInTrans = 1
+        ; 1. Copy forward all attachments except the deleted one
+        Set tSC = ##class(IRISCouch.Storage.Attachment).CopyAttachments(pDB, pDocId, pParentRev, tNewRev, pAttName)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 2. Write document body (same body, new rev)
+        Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, tNewRev, tBodyStr)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 3. Update revision tree
+        Set tSC = ##class(IRISCouch.Storage.RevTree).AddChild(pDB, pDocId, pParentRev, tNewRev)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 4. Record change in changes feed
+        Set tSeq = ##class(IRISCouch.Storage.Changes).RecordChange(pDB, pDocId, tNewRev)
+        ; 5. Update database metadata
+        Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
+        ; Commit transaction
+        TCOMMIT
+        Set tInTrans = 0
+        ; Signal longpoll waiters AFTER commit
+        Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)
+        If ##class(%SYSTEM.Event).Defined(tEventName) {
+            Set tEvtSignal = ##class(%SYSTEM.Event).Signal(tEventName)
+        }
+        Quit
+    }
+    Catch ex {
+        If tInTrans { TROLLBACK  Set tInTrans = 0 }
+        Set tNewRev = ""
+        Quit
+    }
+    Quit tNewRev
+}
+
 /// <p>Delete a document by creating a tombstone revision.</p>
 /// <p>Creates a new revision with <code>{"_deleted":true}</code> as the body,
 /// marks the leaf as deleted in the revision tree, decrements

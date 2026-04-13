@@ -304,3 +304,10 @@
   - **Dropped:** None
 - Story 5.0 created: `5-0-epic-4-deferred-cleanup.md`
 - Epic 5 status updated to `in-progress`
+
+### 2026-04-12T14:30:00Z — Story 5.0: Epic 4 Deferred Cleanup
+- **Create Story:** Story file created at `5-0-epic-4-deferred-cleanup.md`
+- **Development:** All 5 tasks completed. 7 files modified (Storage/Changes, Storage/Database, Storage/Document, DocumentEngine, BulkHandler, ChangesHandler, RevTree), 1 created (Test/StorageCleanupTest). 169 tests pass (162 existing + 7 new), 0 regressions.
+- **Code Review:** PASSED. 0 critical/high/medium. 4 low items deferred (naming inconsistency, unused locals, missing doc comment, test Kill pattern).
+- **Commit:** `01f4f78` pushed to origin/main
+- **Status:** done

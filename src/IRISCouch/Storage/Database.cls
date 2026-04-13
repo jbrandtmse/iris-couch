@@ -63,6 +63,8 @@ ClassMethod Delete(pName As %String) As %Status
         Kill ^IRISCouch.Tree(pName)
         Kill ^IRISCouch.Changes(pName)
         Kill ^IRISCouch.Seq(pName)
+        ; Clean up attachment data (Story 5.1)
+        Do ##class(IRISCouch.Storage.Attachment).CleanupDatabase(pName)
         Quit
     }
     Catch ex {

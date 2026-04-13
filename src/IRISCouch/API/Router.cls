@@ -34,6 +34,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
   <Route Url="/:db" Method="DELETE" Call="HandleDatabaseDelete" />
   <Route Url="/:db" Method="GET" Call="HandleDatabaseInfo" />
+  <!-- Attachment endpoints - 3-segment routes before 2-segment document routes (Story 5.1) -->
+  <Route Url="/:db/:docid/:attname" Method="PUT" Call="HandleAttachmentPut" />
+  <Route Url="/:db/:docid/:attname" Method="GET" Call="HandleAttachmentGet" />
+  <Route Url="/:db/:docid/:attname" Method="DELETE" Call="HandleAttachmentDelete" />
   <!-- Document endpoints - MUST be after /:db routes (Story 3.1, 3.2) -->
   <Route Url="/:db/:docid" Method="PUT" Call="HandleDocumentPut" />
   <Route Url="/:db/:docid" Method="GET" Call="HandleDocumentGet" />
@@ -161,6 +165,24 @@ ClassMethod HandleChangesGet(pDB As %String) As %Status
 ClassMethod HandleChangesPost(pDB As %String) As %Status
 {
     Quit ##class(IRISCouch.API.ChangesHandler).HandleChanges(pDB)
+}
+
+/// <p>Dispatch PUT /:db/:docid/:attname to AttachmentHandler (upload attachment).</p>
+ClassMethod HandleAttachmentPut(pDB As %String, pDocId As %String, pAttName As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.AttachmentHandler).HandlePut(pDB, pDocId, pAttName)
+}
+
+/// <p>Dispatch GET /:db/:docid/:attname to AttachmentHandler (download attachment).</p>
+ClassMethod HandleAttachmentGet(pDB As %String, pDocId As %String, pAttName As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.AttachmentHandler).HandleGet(pDB, pDocId, pAttName)
+}
+
+/// <p>Dispatch DELETE /:db/:docid/:attname to AttachmentHandler (delete attachment).</p>
+ClassMethod HandleAttachmentDelete(pDB As %String, pDocId As %String, pAttName As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.AttachmentHandler).HandleDelete(pDB, pDocId, pAttName)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>
