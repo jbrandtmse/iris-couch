@@ -224,7 +224,7 @@ ClassMethod GetRevsInfo(pDB As %String, pDocId As %String, pRev As %String) As %
         ; Determine status
         If +$Get(^IRISCouch.Tree(pDB, pDocId, "D", tRev)) {
             Do tInfo.%Set("status", "deleted")
-        } ElseIf $Data(^IRISCouch.Docs(pDB, pDocId, tRev)) {
+        } ElseIf ##class(IRISCouch.Storage.Document).DocumentExists(pDB, pDocId, tRev) {
             Do tInfo.%Set("status", "available")
         } Else {
             Do tInfo.%Set("status", "missing")

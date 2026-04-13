@@ -163,7 +163,7 @@ ClassMethod HandleChanges(pDB As %String) As %Status
             Set tLastSeq = ##class(IRISCouch.Storage.Changes).GetLastSeq(pDB)
             If tLastSeq <= tSince {
                 ; No new changes — enter wait loop
-                Set tEventName = "^IRISCouch.LPChanges(""" _ pDB _ """)"
+                Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)
                 Set tEvtCreate = ##class(%SYSTEM.Event).Create(tEventName)
                 If tHeartbeat > 0 {
                     ; Heartbeat mode: wait in intervals, send newlines to keep alive

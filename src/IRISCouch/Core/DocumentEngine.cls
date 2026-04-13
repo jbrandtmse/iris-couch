@@ -62,21 +62,21 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
             Quit
         }
         ; 3. Record change in changes feed
-        Set tSeq = $Increment(^IRISCouch.Seq(pDB))
-        Set ^IRISCouch.Changes(pDB, tSeq) = $ListBuild(pDocId, tNewRev)
+        Set tSeq = ##class(IRISCouch.Storage.Changes).RecordChange(pDB, pDocId, tNewRev)
         ; 4. Update database metadata
         If tGeneration = 1 {
             ; Only increment doc_count for new documents
-            Set tCount = $Increment(^IRISCouch.DB(pDB, "doc_count"))
+            Do ##class(IRISCouch.Storage.Database).IncrementDocCount(pDB)
         }
-        Set ^IRISCouch.DB(pDB, "update_seq") = tSeq
+        Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
         ; Signal longpoll waiters AFTER commit so readers see committed data
         ; Only signal if the event resource exists (created by a longpoll listener)
-        If ##class(%SYSTEM.Event).Defined("^IRISCouch.LPChanges(""" _ pDB _ """)") {
-            Set tEvtSignal = ##class(%SYSTEM.Event).Signal("^IRISCouch.LPChanges(""" _ pDB _ """)")
+        Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)
+        If ##class(%SYSTEM.Event).Defined(tEventName) {
+            Set tEvtSignal = ##class(%SYSTEM.Event).Signal(tEventName)
         }
         Quit
     }
@@ -146,21 +146,21 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
             Quit
         }
         ; 4. Record change in changes feed
-        Set tSeq = $Increment(^IRISCouch.Seq(pDB))
-        Set ^IRISCouch.Changes(pDB, tSeq) = $ListBuild(pDocId, tNewRev)
+        Set tSeq = ##class(IRISCouch.Storage.Changes).RecordChange(pDB, pDocId, tNewRev)
         ; 5. Update database metadata
         ; Decrement doc_count
-        Set tCount = $Increment(^IRISCouch.DB(pDB, "doc_count"), -1)
+        Do ##class(IRISCouch.Storage.Database).IncrementDocCount(pDB, -1)
         ; Increment doc_del_count
-        Set tDelCount = $Increment(^IRISCouch.DB(pDB, "doc_del_count"))
-        Set ^IRISCouch.DB(pDB, "update_seq") = tSeq
+        Do ##class(IRISCouch.Storage.Database).IncrementDelCount(pDB)
+        Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
         ; Signal longpoll waiters AFTER commit so readers see committed data
         ; Only signal if the event resource exists (created by a longpoll listener)
-        If ##class(%SYSTEM.Event).Defined("^IRISCouch.LPChanges(""" _ pDB _ """)") {
-            Set tEvtSignal = ##class(%SYSTEM.Event).Signal("^IRISCouch.LPChanges(""" _ pDB _ """)")
+        Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)
+        If ##class(%SYSTEM.Event).Defined(tEventName) {
+            Set tEvtSignal = ##class(%SYSTEM.Event).Signal(tEventName)
         }
         Quit
     }
@@ -243,21 +243,21 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
             Quit
         }
         ; 3. Record change in changes feed
-        Set tSeq = $Increment(^IRISCouch.Seq(pDB))
-        Set ^IRISCouch.Changes(pDB, tSeq) = $ListBuild(pDocId, pRev)
+        Set tSeq = ##class(IRISCouch.Storage.Changes).RecordChange(pDB, pDocId, pRev)
         ; 4. Update doc_count only if genuinely new document
         If tIsNewDoc {
-            Set tCount = $Increment(^IRISCouch.DB(pDB, "doc_count"))
+            Do ##class(IRISCouch.Storage.Database).IncrementDocCount(pDB)
         }
         ; 5. Update update_seq
-        Set ^IRISCouch.DB(pDB, "update_seq") = tSeq
+        Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
         ; Signal longpoll waiters AFTER commit so readers see committed data
         ; Only signal if the event resource exists (created by a longpoll listener)
-        If ##class(%SYSTEM.Event).Defined("^IRISCouch.LPChanges(""" _ pDB _ """)") {
-            Set tEvtSignal = ##class(%SYSTEM.Event).Signal("^IRISCouch.LPChanges(""" _ pDB _ """)")
+        Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)
+        If ##class(%SYSTEM.Event).Defined(tEventName) {
+            Set tEvtSignal = ##class(%SYSTEM.Event).Signal(tEventName)
         }
         Quit
     }

@@ -83,3 +83,10 @@
 
 - **Storage encapsulation: test files directly Kill ^IRISCouch.* globals** [ChangesFilterTest.cls:19-24, ChangesFilterHttpTest.cls:19-24] -- OnBeforeOneTest/OnAfterOneTest directly Kill ^IRISCouch.DB, ^IRISCouch.Docs, etc. instead of going through Storage.* classes. Pre-existing pattern used across all 24+ test files. Should be addressed project-wide when test infrastructure is refactored.
 - **Missing test: _selector filter with deleted documents** [ChangesFilterTest.cls] -- No unit test exercises the _selector filter's behavior with deleted documents (which should be skipped per the implementation). The handler code correctly skips them, but no test validates this edge case. Add when delete+filter interaction is explicitly specified or during test coverage expansion.
+
+## Deferred from: code review of 5-0-epic-4-deferred-cleanup (2026-04-12)
+
+- **DocumentExists naming inconsistent with sibling Exists method** [Storage/Document.cls:69] -- Storage.Document has `Exists(pDB, pDocId)` for document-level and `DocumentExists(pDB, pDocId, pRev)` for revision-level checks. Name `DocumentExists` implies document-level existence. Consider renaming to `RevisionExists` for clarity in a future cleanup pass.
+- **Unused local variables in IncrementDocCount/IncrementDelCount** [Storage/Database.cls:175,183] -- `$Increment` results are assigned to `tCount`/`tDelCount` but never returned or used. Harmless (ObjectScript requires assignment for `$Increment` side effect) but cosmetic noise.
+- **RecordChange lacks documentation about transaction requirement** [Storage/Changes.cls:150] -- RecordChange performs two operations ($Increment + Set) that are not independently atomic. All current callers wrap in TSTART/TCOMMIT, but the method's doc comment does not mention this requirement. Add a note when Storage API documentation is formalized.
+- **Test file directly kills ^IRISCouch.* globals** [StorageCleanupTest.cls:22-26,34-38] -- Continues pre-existing pattern across 24+ test files. Should be addressed project-wide when test infrastructure is refactored (same as existing deferred item from 4-3 review).

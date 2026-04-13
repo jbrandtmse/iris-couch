@@ -130,6 +130,30 @@ ClassMethod ListChanges(pDB As %String, pSince As %Integer = 0, pLimit As %Integ
     Quit tResp
 }
 
+/// <p>Get the system event resource name for longpoll signaling on a database.</p>
+/// <p>Returns the canonical event name string used with <code>$System.Event</code>
+/// for longpoll change notifications.</p>
+/// @param pDB The database name
+/// @return %String The event resource name
+ClassMethod EventResourceName(pDB As %String) As %String
+{
+    Quit "^IRISCouch.LPChanges(""" _ pDB _ """)"
+}
+
+/// <p>Record a change entry for a document and return the new sequence number.</p>
+/// <p>Atomically increments <code>^IRISCouch.Seq(pDB)</code> and writes the change
+/// entry to <code>^IRISCouch.Changes(pDB, seq)</code> as <code>$ListBuild(pDocId, pRev)</code>.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pRev The revision string
+/// @return %Integer The new sequence number
+ClassMethod RecordChange(pDB As %String, pDocId As %String, pRev As %String) As %Integer
+{
+    Set tSeq = $Increment(^IRISCouch.Seq(pDB))
+    Set ^IRISCouch.Changes(pDB, tSeq) = $ListBuild(pDocId, pRev)
+    Quit tSeq
+}
+
 /// <p>Count change entries after a given sequence number.</p>
 /// <p>Counts entries in <code>^IRISCouch.Changes(pDB)</code> with seq greater than
 /// <code>pSince</code>. Used for computing the <code>pending</code> field.</p>

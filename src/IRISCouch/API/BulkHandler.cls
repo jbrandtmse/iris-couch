@@ -34,7 +34,7 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
             Set tBody = ##class(%DynamicObject).%FromJSON(tContent)
         } Catch tParseEx {
             Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
-            Quit
+            Return $$$OK
         }
         ; Check for new_edits=false — replication mode
         If tBody.%IsDefined("new_edits") {

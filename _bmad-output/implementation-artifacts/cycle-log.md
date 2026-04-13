@@ -282,3 +282,25 @@
 - 3 action items for Epic 5, 5 deferred items, 6 lessons codified
 - Key learnings: $System.Event API constraints, Return vs Quit in nested blocks
 - Epic 4 retrospective status: done
+
+---
+
+## Epic 5: Binary Attachment Management
+
+### 2026-04-12T14:00:00Z — Cycle started
+- **Scope:** Epic 5, Stories 5.0 (deferred cleanup) through 5.3
+- **Sprint status:** All Epic 5 stories at `backlog`
+
+### 2026-04-12T14:00:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml confirmed current (14 epics, 56+ stories tracked)
+- Epic 5 stories confirmed: 5.1, 5.2, 5.3 (plus 5.0 cleanup from retro)
+- No issues surfaced
+
+### 2026-04-12T14:05:00Z — Phase 0.5: Retrospective Review & Story 5.0
+- Epic 4 retrospective found: `epic-4-retro-2026-04-12.md`
+- Triaged all action items:
+  - **Included in 5.0:** Extract event name helper (4 locations), encapsulate DocumentEngine globals (Changes/Seq/DB), fix BulkHandler inner catch Quit→Return, fix RevTree.GetRevsInfo storage encapsulation
+  - **Deferred:** Test Kill globals, missing _selector+deleted test, unsupported feed mode 400 test, pre-existing storage items
+  - **Dropped:** None
+- Story 5.0 created: `5-0-epic-4-deferred-cleanup.md`
+- Epic 5 status updated to `in-progress`

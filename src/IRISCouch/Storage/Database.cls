@@ -166,6 +166,32 @@ ClassMethod GetRevsLimit(pName As %String) As %Integer
     Quit $Get(^IRISCouch.DB(pName, "revs_limit"), 1000)
 }
 
+/// <p>Increment the document count for a database.</p>
+/// <p>Wraps <code>$Increment(^IRISCouch.DB(pDB, "doc_count"), pDelta)</code>.</p>
+/// @param pDB The database name
+/// @param pDelta The increment value (default 1, use -1 to decrement)
+ClassMethod IncrementDocCount(pDB As %String, pDelta As %Integer = 1)
+{
+    Set tCount = $Increment(^IRISCouch.DB(pDB, "doc_count"), pDelta)
+}
+
+/// <p>Increment the deleted document count for a database.</p>
+/// <p>Wraps <code>$Increment(^IRISCouch.DB(pDB, "doc_del_count"))</code>.</p>
+/// @param pDB The database name
+ClassMethod IncrementDelCount(pDB As %String)
+{
+    Set tDelCount = $Increment(^IRISCouch.DB(pDB, "doc_del_count"))
+}
+
+/// <p>Set the update sequence number for a database.</p>
+/// <p>Wraps <code>Set ^IRISCouch.DB(pDB, "update_seq") = pSeq</code>.</p>
+/// @param pDB The database name
+/// @param pSeq The sequence number to set
+ClassMethod SetUpdateSeq(pDB As %String, pSeq As %Integer)
+{
+    Set ^IRISCouch.DB(pDB, "update_seq") = pSeq
+}
+
 /// <p>Validate a database name against CouchDB naming rules.</p>
 /// <p>Valid names must begin with a lowercase letter and contain only
 /// lowercase letters, digits, and the characters <code>_$()+-/</code>.
