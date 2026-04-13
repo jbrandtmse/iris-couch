@@ -37,9 +37,9 @@
 generated: 2026-04-12
 last_updated: 2026-04-13
 last_review: 2026-04-13
-last_story_reviewed: 7-2-jwt-and-proxy-authentication
-last_story_in_progress:
-last_story_completed: 7-2-jwt-and-proxy-authentication
+last_story_reviewed: 7-3-user-management-via-users-database
+last_story_in_progress: 7-3-user-management-via-users-database
+last_story_completed: 7-3-user-management-via-users-database
 last_story_created: 3-1-single-document-create-and-read
 project: iris-couch
 project_key: NOKEY
@@ -103,7 +103,7 @@ development_status:
   7-0-epic-6-deferred-cleanup: done
   7-1-session-authentication-and-basic-auth: done
   7-2-jwt-and-proxy-authentication: done
-  7-3-user-management-via-users-database: backlog
+  7-3-user-management-via-users-database: done
   7-4-per-database-security-configuration: backlog
   epic-7-retrospective: optional
 

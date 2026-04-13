@@ -78,6 +78,30 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
             Set tBodyObj = ##class(%DynamicObject).%FromJSON(pBody)
             Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
         }
+        ; 7. _users database sync (Story 7.3)
+        ; If this is a _users write, process password hashing and IRIS user sync
+        If ##class(IRISCouch.Auth.Users).IsUsersDB(pDB) {
+            Set tUserBody = ##class(%DynamicObject).%FromJSON(pBody)
+            Set tModified = ##class(IRISCouch.Auth.Users).OnUserDocSave(pDB, pDocId, tUserBody)
+            ; If body was modified (password stripped), re-save the modified body
+            Set tModifiedJSON = tModified.%ToJSON()
+            If tModifiedJSON '= pBody {
+                Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, tNewRev, tModifiedJSON)
+                If $$$ISERR(tSC) {
+                    TROLLBACK  Set tInTrans = 0
+                    Set tNewRev = ""
+                    Quit
+                }
+                ; Update Winners projection with the modified body
+                Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, tModifiedJSON, 0)
+                ; Re-index MangoIndex with modified body (password stripped)
+                Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+                Set tIndexDefs2 = ##class(IRISCouch.Projection.MangoIndexDef).GetActiveIndexes(pDB)
+                If tIndexDefs2.%Size() > 0 {
+                    Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tModified, tIndexDefs2)
+                }
+            }
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -356,6 +380,11 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, "", 1)
         ; 7. Remove from all MangoIndex rows (Story 6.1)
         Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+        ; 8. _users database sync (Story 7.3)
+        ; If this is a _users delete, remove the corresponding IRIS user
+        If ##class(IRISCouch.Auth.Users).IsUsersDB(pDB) {
+            Do ##class(IRISCouch.Auth.Users).OnUserDocDelete(pDB, pDocId)
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0

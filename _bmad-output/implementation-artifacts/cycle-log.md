@@ -444,3 +444,10 @@
 - **Code Review:** PASSED. 1 high auto-resolved (AUTHSECRET exposure in GetAll). 3 medium auto-resolved (timing-safe HMAC comparison, boolean ok:true, future-dated cookie rejection). 2 low deferred (colon in username, GetSecret race).
 - **Commit:** `84cb686` pushed to origin/main
 - **Status:** done
+
+### 2026-04-14T03:00:00Z — Story 7.2: JWT & Proxy Authentication
+- **Create Story:** Story file created at `7-2-jwt-and-proxy-authentication.md` with 9 tasks, 4 new files, 2 modified files
+- **Development:** All 9 tasks completed. 4 files created (Auth/JWT.cls, Auth/Proxy.cls, Test/JWTTest.cls, Test/JWTHttpTest.cls), 2 modified (Router.cls, Config.cls). 345 tests pass (328 existing + 17 new), 0 regressions. CouchDB source read confirmed HMAC-SHA1 for proxy, HS256 for JWT. Key finding: IRIS HMACSHA uses bit sizes (160/256).
+- **Code Review:** CLEAN. 0 critical/high/medium. 3 low deferred (clock skew, proxy unit coverage, hardcoded test creds). 7 dismissed.
+- **Commit:** `36680ff` pushed to origin/main
+- **Status:** done
