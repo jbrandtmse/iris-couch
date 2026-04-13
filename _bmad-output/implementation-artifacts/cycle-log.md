@@ -246,3 +246,10 @@
 - **Code Review:** PASSED. 0 critical/high/medium. 3 pre-existing low items deferred. 0 auto-resolved.
 - **Commit:** `7c58b1b` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T08:30:00Z — Story 4.1: Normal Changes Feed
+- **Create Story:** Story file created at `4-1-normal-changes-feed.md`
+- **Development:** All 6 tasks completed. 3 files created (API/ChangesHandler.cls, Test/ChangesTest.cls, Test/ChangesHttpTest.cls), 2 modified (Storage/Changes.cls, Router.cls). 140 tests pass (124 existing + 16 new), 0 regressions.
+- **Code Review:** PASSED. 1 high auto-resolved (inner catch Quit → Return for POST parse error), 1 medium auto-resolved (descending pending count fix). 1 low deferred (missing unsupported feed mode test).
+- **Commit:** `930ff41` pushed to origin/main
+- **Status:** done

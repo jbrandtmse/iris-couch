@@ -38,7 +38,7 @@ generated: 2026-04-12
 last_updated: 2026-04-12
 last_review: 2026-04-12
 last_story_in_progress:
-last_story_completed: 4-1-normal-changes-feed
+last_story_completed: 4-2-longpoll-changes-feed
 last_story_created: 3-1-single-document-create-and-read
 project: iris-couch
 project_key: NOKEY
@@ -78,7 +78,7 @@ development_status:
   epic-4: in-progress
   4-0-epic-3-deferred-cleanup: done
   4-1-normal-changes-feed: done
-  4-2-longpoll-changes-feed: backlog
+  4-2-longpoll-changes-feed: done
   4-3-built-in-changes-filters: backlog
   epic-4-retrospective: optional
 

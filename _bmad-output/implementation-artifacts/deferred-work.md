@@ -74,3 +74,7 @@
 ## Deferred from: code review of 4-1-normal-changes-feed (2026-04-12)
 
 - **No test for unsupported feed mode 400 response** [ChangesHandler.cls:87-90] -- The handler returns 400 for feed modes other than "normal" (e.g., longpoll, continuous), but no unit or HTTP test exercises this path. Minor coverage gap; add when Story 4.2 (longpoll) is implemented.
+
+## Deferred from: code review of 4-2-longpoll-changes-feed (2026-04-12)
+
+- **Event resource name pattern duplicated in 4 locations** [DocumentEngine.cls:78,162,259 + ChangesHandler.cls:114] -- The event name string `"^IRISCouch.LPChanges(""" _ pDB _ """)"` is constructed identically in DocumentEngine.Save, SaveDeleted, SaveWithHistory, and ChangesHandler.HandleChanges. Should be extracted to a shared helper method or constant for maintainability. Code quality improvement, not a bug.

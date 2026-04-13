@@ -72,6 +72,12 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
         Set ^IRISCouch.DB(pDB, "update_seq") = tSeq
         ; Commit transaction
         TCOMMIT
+        Set tInTrans = 0
+        ; Signal longpoll waiters AFTER commit so readers see committed data
+        ; Only signal if the event resource exists (created by a longpoll listener)
+        If ##class(%SYSTEM.Event).Defined("^IRISCouch.LPChanges(""" _ pDB _ """)") {
+            Set tEvtSignal = ##class(%SYSTEM.Event).Signal("^IRISCouch.LPChanges(""" _ pDB _ """)")
+        }
         Quit
     }
     Catch ex {
@@ -150,6 +156,12 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         Set ^IRISCouch.DB(pDB, "update_seq") = tSeq
         ; Commit transaction
         TCOMMIT
+        Set tInTrans = 0
+        ; Signal longpoll waiters AFTER commit so readers see committed data
+        ; Only signal if the event resource exists (created by a longpoll listener)
+        If ##class(%SYSTEM.Event).Defined("^IRISCouch.LPChanges(""" _ pDB _ """)") {
+            Set tEvtSignal = ##class(%SYSTEM.Event).Signal("^IRISCouch.LPChanges(""" _ pDB _ """)")
+        }
         Quit
     }
     Catch ex {
@@ -242,6 +254,11 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
+        ; Signal longpoll waiters AFTER commit so readers see committed data
+        ; Only signal if the event resource exists (created by a longpoll listener)
+        If ##class(%SYSTEM.Event).Defined("^IRISCouch.LPChanges(""" _ pDB _ """)") {
+            Set tEvtSignal = ##class(%SYSTEM.Event).Signal("^IRISCouch.LPChanges(""" _ pDB _ """)")
+        }
         Quit
     }
     Catch ex {

@@ -1,10 +1,12 @@
 /// <p>HTTP handler for the CouchDB-compatible changes feed.</p>
 /// <p>Handles <code>GET /{db}/_changes</code> and <code>POST /{db}/_changes</code>
-/// for <code>feed=normal</code> mode. Returns a snapshot of all document changes
-/// up to the current sequence number.</p>
+/// for <code>feed=normal</code> and <code>feed=longpoll</code> modes.</p>
+/// <p>In <code>longpoll</code> mode, if no new changes exist since the client's
+/// <code>since</code> value, the request blocks until a new change arrives via
+/// <code>$System.Event</code> or the <code>timeout</code> expires.</p>
 /// <p>Supports query parameters: <code>since</code>, <code>limit</code>,
 /// <code>include_docs</code>, <code>style</code>, <code>descending</code>,
-/// and <code>feed</code>.</p>
+/// <code>feed</code>, <code>timeout</code>, and <code>heartbeat</code>.</p>
 Class IRISCouch.API.ChangesHandler Extends %RegisteredObject
 {
 
@@ -30,6 +32,8 @@ ClassMethod HandleChanges(pDB As %String) As %Status
         Set tStyle = "main_only"
         Set tDescending = 0
         Set tFeed = "normal"
+        Set tTimeout = 60000
+        Set tHeartbeat = 0
         ; For POST: read body parameters first (body is base, query overrides)
         If %request.Method = "POST" {
             Set tContent = ""
@@ -62,6 +66,12 @@ ClassMethod HandleChanges(pDB As %String) As %Status
                 If tBodyObj.%IsDefined("feed") {
                     Set tFeed = tBodyObj.%Get("feed")
                 }
+                If tBodyObj.%IsDefined("timeout") {
+                    Set tTimeout = +tBodyObj.%Get("timeout")
+                }
+                If tBodyObj.%IsDefined("heartbeat") {
+                    Set tHeartbeat = +tBodyObj.%Get("heartbeat")
+                }
             }
         }
         ; Query string parameters override body parameters
@@ -83,10 +93,69 @@ ClassMethod HandleChanges(pDB As %String) As %Status
         If $Data(%request.Data("feed", 1)) {
             Set tFeed = $Get(%request.Data("feed", 1))
         }
-        ; Validate feed mode — only "normal" supported in this story
-        If (tFeed '= "normal") && (tFeed '= "") {
+        If $Data(%request.Data("timeout", 1)) {
+            Set tTimeout = +$Get(%request.Data("timeout", 1))
+        }
+        If $Data(%request.Data("heartbeat", 1)) {
+            Set tHeartbeat = +$Get(%request.Data("heartbeat", 1))
+        }
+        ; Clamp negative timeout to 0 (immediate return)
+        If tTimeout < 0 Set tTimeout = 0
+        ; Validate feed mode — accept "normal", "", and "longpoll"
+        If (tFeed '= "normal") && (tFeed '= "") && (tFeed '= "longpoll") {
             Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Feed mode not yet supported")
             Quit
+        }
+        ; Longpoll mode: block until new changes arrive or timeout
+        If tFeed = "longpoll" {
+            Set tLastSeq = ##class(IRISCouch.Storage.Changes).GetLastSeq(pDB)
+            If tLastSeq <= tSince {
+                ; No new changes — enter wait loop
+                Set tEventName = "^IRISCouch.LPChanges(""" _ pDB _ """)"
+                Set tEvtCreate = ##class(%SYSTEM.Event).Create(tEventName)
+                If tHeartbeat > 0 {
+                    ; Heartbeat mode: wait in intervals, send newlines to keep alive
+                    Set tElapsed = 0
+                    Set tHeartbeatSec = tHeartbeat / 1000
+                    Set tTimeoutSec = tTimeout / 1000
+                    For {
+                        ; Cap wait interval at remaining time so heartbeat > timeout is respected
+                        Set tRemainingSec = tTimeoutSec - (tElapsed / 1000)
+                        If tRemainingSec <= 0 Quit
+                        Set tWaitSec = $Select(tHeartbeatSec < tRemainingSec : tHeartbeatSec, 1 : tRemainingSec)
+                        Set tResult = ##class(%SYSTEM.Event).WaitMsg(tEventName, tWaitSec)
+                        If $ListGet(tResult, 1) '= 0 {
+                            ; Event received — changes happened
+                            Quit
+                        }
+                        ; Timeout on wait — send heartbeat
+                        Do %response.Write($Char(10))
+                        Do %response.Flush()
+                        Set tElapsed = tElapsed + (tWaitSec * 1000)
+                        If tElapsed >= tTimeout {
+                            ; Total timeout expired — return empty results
+                            Quit
+                        }
+                    }
+                } Else {
+                    ; No heartbeat: wait for full timeout
+                    Set tTimeoutSec = tTimeout / 1000
+                    Set tResult = ##class(%SYSTEM.Event).WaitMsg(tEventName, tTimeoutSec)
+                }
+                ; Re-check for changes after wait
+                Set tLastSeqNow = ##class(IRISCouch.Storage.Changes).GetLastSeq(pDB)
+                If tLastSeqNow <= tSince {
+                    ; Timeout with no new changes — return empty results
+                    Set tResp = {}
+                    Set tResp.results = []
+                    Do tResp.%Set("last_seq", tSince, "number")
+                    Do tResp.%Set("pending", 0, "number")
+                    Do ##class(IRISCouch.Util.Response).JSON(tResp)
+                    Quit
+                }
+                ; Fall through to normal processing with new changes
+            }
+            ; If lastSeq > tSince, changes exist — fall through to normal processing
         }
         ; Get raw changes from storage
         Set tRaw = ##class(IRISCouch.Storage.Changes).ListChanges(pDB, tSince, tLimit, tDescending)
