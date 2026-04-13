@@ -338,4 +338,150 @@ ClassMethod BackfillFromStorage(pDB As %String, pIndexDefs As %DynamicArray, ByR
     }
 }
 
+/// <p>Handle POST /{db}/_find — execute a Mango query.</p>
+/// @param pDB The database name
+/// @return %Status
+ClassMethod HandleFind(pDB As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        ; Validate database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Do ##class(IRISCouch.Util.Error).Render(404, "not_found", "Database does not exist.")
+            Quit
+        }
+        ; Read and parse request body
+        Set tBody = ##class(IRISCouch.Util.Request).ReadBody()
+        ; Validate selector is present
+        If 'tBody.%IsDefined("selector") {
+            Do ##class(IRISCouch.Util.Error).Render(400, "bad_request", "Missing required field: selector")
+            Quit
+        }
+        Set tSelector = tBody.%Get("selector")
+        If '$IsObject(tSelector) {
+            Do ##class(IRISCouch.Util.Error).Render(400, "bad_request", "Selector must be a JSON object")
+            Quit
+        }
+        ; Build options object
+        Set tOpts = {}
+        If tBody.%IsDefined("limit") Do tOpts.%Set("limit", tBody.%Get("limit"))
+        If tBody.%IsDefined("skip") Do tOpts.%Set("skip", tBody.%Get("skip"))
+        If tBody.%IsDefined("sort") Do tOpts.%Set("sort", tBody.%Get("sort"))
+        If tBody.%IsDefined("fields") Do tOpts.%Set("fields", tBody.%Get("fields"))
+        If tBody.%IsDefined("bookmark") Do tOpts.%Set("bookmark", tBody.%Get("bookmark"))
+        If tBody.%IsDefined("use_index") Do tOpts.%Set("use_index", tBody.%Get("use_index"))
+        If tBody.%IsDefined("execution_stats") Do tOpts.%Set("execution_stats", tBody.%Get("execution_stats"))
+        If tBody.%IsDefined("conflicts") Do tOpts.%Set("conflicts", tBody.%Get("conflicts"))
+        If tBody.%IsDefined("allow_fallback") Do tOpts.%Set("allow_fallback", tBody.%Get("allow_fallback"))
+        ; Execute query
+        Set tQueryResult = ##class(IRISCouch.Query.MangoExecutor).Execute(pDB, tSelector, tOpts)
+        ; Check for error in result
+        If tQueryResult.%IsDefined("error") {
+            Do ##class(IRISCouch.Util.Error).Render(400, tQueryResult.%Get("error"), tQueryResult.%Get("reason"))
+            Quit
+        }
+        ; Return result
+        Do ##class(IRISCouch.Util.Response).JSON(tQueryResult)
+        Quit
+    }
+    Catch ex {
+        Do ##class(IRISCouch.Util.Error).RenderInternal("server_error", "find: query error", ex)
+        Quit
+    }
+    Quit $$$OK
+}
+
+/// <p>Handle POST /{db}/_explain — explain a Mango query plan.</p>
+/// @param pDB The database name
+/// @return %Status
+ClassMethod HandleExplain(pDB As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        ; Validate database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Do ##class(IRISCouch.Util.Error).Render(404, "not_found", "Database does not exist.")
+            Quit
+        }
+        ; Read and parse request body
+        Set tBody = ##class(IRISCouch.Util.Request).ReadBody()
+        ; Validate selector
+        If 'tBody.%IsDefined("selector") {
+            Do ##class(IRISCouch.Util.Error).Render(400, "bad_request", "Missing required field: selector")
+            Quit
+        }
+        Set tSelector = tBody.%Get("selector")
+        If '$IsObject(tSelector) {
+            Do ##class(IRISCouch.Util.Error).Render(400, "bad_request", "Selector must be a JSON object")
+            Quit
+        }
+        ; Parse options
+        Set tSort = ""
+        If tBody.%IsDefined("sort") Set tSort = tBody.%Get("sort")
+        Set tUseIndex = ""
+        If tBody.%IsDefined("use_index") Set tUseIndex = tBody.%Get("use_index")
+        Set tLimit = 25
+        If tBody.%IsDefined("limit") Set tLimit = +tBody.%Get("limit")
+        Set tSkip = 0
+        If tBody.%IsDefined("skip") Set tSkip = +tBody.%Get("skip")
+        Set tFields = ""
+        If tBody.%IsDefined("fields") Set tFields = tBody.%Get("fields")
+        Set tBookmark = ""
+        If tBody.%IsDefined("bookmark") Set tBookmark = tBody.%Get("bookmark")
+        ; Normalize selector
+        Set tNormSelector = ##class(IRISCouch.Query.MangoSelector).Normalize(tSelector)
+        ; Get query plan
+        Set tPlan = ##class(IRISCouch.Query.MangoPlanner).ChooseIndex(pDB, tNormSelector, tSort, tUseIndex)
+        ; Build response
+        Set tResult = {}
+        Do tResult.%Set("dbname", pDB)
+        Do tResult.%Set("index", tPlan.%Get("index"))
+        Do tResult.%Set("selector", tNormSelector)
+        ; Build opts
+        Set tOptsObj = {}
+        If tUseIndex '= "" {
+            Do tOptsObj.%Set("use_index", tUseIndex)
+        } Else {
+            Do tOptsObj.%Set("use_index", [])
+        }
+        If tBookmark '= "" {
+            Do tOptsObj.%Set("bookmark", tBookmark)
+        } Else {
+            Do tOptsObj.%Set("bookmark", "nil")
+        }
+        Do tOptsObj.%Set("limit", tLimit, "number")
+        Do tOptsObj.%Set("skip", tSkip, "number")
+        If $IsObject(tSort) {
+            Do tOptsObj.%Set("sort", tSort)
+        } Else {
+            Do tOptsObj.%Set("sort", {})
+        }
+        If $IsObject(tFields) {
+            Do tOptsObj.%Set("fields", tFields)
+        } Else {
+            Do tOptsObj.%Set("fields", "all_fields")
+        }
+        Do tOptsObj.%Set("r", 1, "number")
+        Do tOptsObj.%Set("conflicts", 0, "boolean")
+        Do tOptsObj.%Set("execution_stats", 0, "boolean")
+        Do tResult.%Set("opts", tOptsObj)
+        Do tResult.%Set("limit", tLimit, "number")
+        Do tResult.%Set("skip", tSkip, "number")
+        If $IsObject(tFields) {
+            Do tResult.%Set("fields", tFields)
+        } Else {
+            Do tResult.%Set("fields", "all_fields")
+        }
+        Do tResult.%Set("index_candidates", tPlan.%Get("candidates"))
+        ; Return result
+        Do ##class(IRISCouch.Util.Response).JSON(tResult)
+        Quit
+    }
+    Catch ex {
+        Do ##class(IRISCouch.Util.Error).RenderInternal("server_error", "explain: query plan error", ex)
+        Quit
+    }
+    Quit $$$OK
+}
+
 }

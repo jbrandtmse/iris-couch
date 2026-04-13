@@ -375,6 +375,14 @@
 - **Commit:** `d5ac23a` pushed to origin/main
 - **Status:** done
 
+### 2026-04-13T00:20:00Z — Story 6.2: Mango Query Execution, Selectors & Query Plan
+- **Create Story:** Story file created at `6-2-mango-query-execution-selectors-and-query-plan.md` with 12 tasks, 9 new files, 2 modified files
+- **Research:** Leveraged prior research from 3 agents (CouchDB mango_selector.erl 24+ operators, mango_cursor.erl index selection, mango_httpd.erl API formats, bookmark encoding, execution stats)
+
 ### 2026-04-13T00:10:00Z — Story 6.1: Mango Index Management
 - **Research:** 3 parallel agents analyzed CouchDB source (mango_idx.erl, mango_httpd.erl, mango_selector.erl, mango_cursor.erl + 15 more files), Perplexity research on Mango APIs, architecture docs for projection design
 - **Create Story:** Story file created at `6-1-mango-index-management.md` with 11 tasks, 7 new files, 3 modified files
+- **Development:** All 11 tasks completed. 7 new files created (3 Projection classes, 1 MangoHandler, 3 test classes). 5 files modified (Router, DocumentEngine, Database, Document, sprint-status). 31 new tests (251 total).
+- **Code Review:** PASSED. 2 HIGH auto-resolved (storage encapsulation in BackfillFromStorage, incomplete backfill when Winners partially populated). 3 MEDIUM auto-resolved (JSON type detection, field name validation). 4 LOW deferred.
+- **Commit:** `3a52b8a` pushed to origin/main
+- **Status:** done

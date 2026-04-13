@@ -23,6 +23,9 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db/_revs_limit" Method="PUT" Call="HandleRevsLimitPut" />
   <Route Url="/:db/_compact" Method="POST" Call="HandleCompact" />
   <Route Url="/:db/_ensure_full_commit" Method="POST" Call="HandleEnsureFullCommit" />
+  <!-- Mango query endpoints (Story 6.2) -->
+  <Route Url="/:db/_find" Method="POST" Call="HandleMangoFind" />
+  <Route Url="/:db/_explain" Method="POST" Call="HandleMangoExplain" />
   <!-- Mango index endpoints (Story 6.1) -->
   <Route Url="/:db/_index/:ddoc/:type/:name" Method="DELETE" Call="HandleMangoIndexDelete" />
   <Route Url="/:db/_index" Method="POST" Call="HandleMangoIndexCreate" />
@@ -187,6 +190,18 @@ ClassMethod HandleAttachmentGet(pDB As %String, pDocId As %String, pAttName As %
 ClassMethod HandleAttachmentDelete(pDB As %String, pDocId As %String, pAttName As %String) As %Status
 {
     Quit ##class(IRISCouch.API.AttachmentHandler).HandleDelete(pDB, pDocId, pAttName)
+}
+
+/// <p>Dispatch POST /:db/_find to MangoHandler (execute Mango query).</p>
+ClassMethod HandleMangoFind(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.MangoHandler).HandleFind(pDB)
+}
+
+/// <p>Dispatch POST /:db/_explain to MangoHandler (explain Mango query plan).</p>
+ClassMethod HandleMangoExplain(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.MangoHandler).HandleExplain(pDB)
 }
 
 /// <p>Dispatch POST /:db/_index to MangoHandler (create Mango index).</p>

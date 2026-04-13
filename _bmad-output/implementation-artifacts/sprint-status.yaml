@@ -1,5 +1,5 @@
 # generated: 2026-04-12
-# last_updated: 2026-04-13
+# last_updated: 2026-04-14
 # project: iris-couch
 # project_key: NOKEY
 # tracking_system: file-system
@@ -37,9 +37,9 @@
 generated: 2026-04-12
 last_updated: 2026-04-13
 last_review: 2026-04-13
-last_story_reviewed: 6-1-mango-index-management
+last_story_reviewed: 6-2-mango-query-execution-selectors-and-query-plan
 last_story_in_progress:
-last_story_completed: 6-1-mango-index-management
+last_story_completed: 6-2-mango-query-execution-selectors-and-query-plan
 last_story_created: 3-1-single-document-create-and-read
 project: iris-couch
 project_key: NOKEY
@@ -95,7 +95,7 @@ development_status:
   epic-6: in-progress
   6-0-epic-5-deferred-cleanup: done
   6-1-mango-index-management: done
-  6-2-mango-query-execution-selectors-and-query-plan: backlog
+  6-2-mango-query-execution-selectors-and-query-plan: done
   epic-6-retrospective: optional
 
   # Epic 7: Authentication & Authorization
