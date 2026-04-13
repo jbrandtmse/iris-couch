@@ -36,6 +36,42 @@ The PRD commits to three milestone checkpoints within a single MVP:
 
 See the [PRD § Project Scoping & Phased Development Strategy](_bmad-output/planning-artifacts/prd.md) for the full milestone plan and risk register.
 
+## Roadmap
+
+14 epics across three milestones. Quality-gated, not calendar-gated.
+
+### Milestone Alpha — Public Alpha
+
+| Epic | Description | Stories | Tests | Status |
+|------|-------------|---------|-------|--------|
+| 1 | Project Foundation & Server Identity | 5/5 | 25 | Done |
+| 2 | Database Lifecycle Management | 4/4 | 57 | Done |
+| 3 | Document Storage & Revision Control | 7/7 | 122 | Done |
+| 4 | Real-Time Change Tracking | 4/4 | 162 | Done |
+| 5 | Binary Attachment Management | 4/4 | 208 | Done |
+| 6 | Mango Query Engine | 0/2 | — | Backlog |
+| 7 | Authentication & Authorization | 0/4 | — | Backlog |
+| 8 | Replication Protocol | 0/5 | — | Backlog |
+| 9 | Observability & Audit Trail | 0/3 | — | Backlog |
+| 10 | Admin UI — Core Experience | 0/7 | — | Backlog |
+| 11 | Admin UI — Design Docs & Security | 0/4 | — | Backlog |
+| 12 | Pluggable JavaScript Runtime | 0/5 | — | Backlog |
+| 13 | Documentation & Working Examples | 0/3 | — | Backlog |
+
+**Progress:** 5/13 epics complete — 208 tests passing, 0 failures, 0 regressions across 5 consecutive epics.
+
+### Milestone Beta — Customer Zero Complete
+
+Adds on top of Alpha: design document and security editing in the Admin UI (Epic 11 stories), HMAC cookie auth byte-compat, and validation against the author's three production CouchDB databases.
+
+### Milestone Gamma — MVP Feature-Complete (1.0)
+
+| Epic | Description | Status |
+|------|-------------|--------|
+| 14 | Streaming Feeds & ECP Clustering | Backlog |
+
+Adds continuous/eventsource `_changes` feeds via standalone TCP listener, ECP distributed-cache clustering, revision history UI, and CouchDB 3.5.x conformance.
+
 ## Relationship to IRIS DocDB
 
 InterSystems' own IRIS DocDB feature exposes a proprietary `/api/docdb/v1` REST surface; it does not speak the CouchDB HTTP API, does not implement Mango, and does not participate in the CouchDB replication protocol. IRISCouch complements IRIS DocDB rather than competing with it — they occupy different slots in the IRIS ecosystem.
