@@ -370,3 +370,11 @@
 
 ### 2026-04-13T00:01:00Z — Story 6.0: Epic 5 Deferred Cleanup
 - **Create Story:** Story file created at `6-0-epic-5-deferred-cleanup.md`
+- **Development:** All 11 tasks completed. 12 new tests added (220 total). Files: 8 production modified, 5 test modified/created, 1 story file.
+- **Code Review:** PASSED. 1 HIGH auto-resolved (stream.Read() truncation for >32KB attachments in 3 DocumentHandler locations). 3 LOW deferred (shared OID corruption, delimiter collision, zero-byte stream orphans).
+- **Commit:** `d5ac23a` pushed to origin/main
+- **Status:** done
+
+### 2026-04-13T00:10:00Z — Story 6.1: Mango Index Management
+- **Research:** 3 parallel agents analyzed CouchDB source (mango_idx.erl, mango_httpd.erl, mango_selector.erl, mango_cursor.erl + 15 more files), Perplexity research on Mango APIs, architecture docs for projection design
+- **Create Story:** Story file created at `6-1-mango-index-management.md` with 11 tasks, 7 new files, 3 modified files

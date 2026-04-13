@@ -23,6 +23,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db/_revs_limit" Method="PUT" Call="HandleRevsLimitPut" />
   <Route Url="/:db/_compact" Method="POST" Call="HandleCompact" />
   <Route Url="/:db/_ensure_full_commit" Method="POST" Call="HandleEnsureFullCommit" />
+  <!-- Mango index endpoints (Story 6.1) -->
+  <Route Url="/:db/_index/:ddoc/:type/:name" Method="DELETE" Call="HandleMangoIndexDelete" />
+  <Route Url="/:db/_index" Method="POST" Call="HandleMangoIndexCreate" />
+  <Route Url="/:db/_index" Method="GET" Call="HandleMangoIndexList" />
   <Route Url="/:db/_all_docs" Method="GET" Call="HandleAllDocs" />
   <Route Url="/:db/_all_docs" Method="POST" Call="HandleAllDocsPost" />
   <Route Url="/:db/_bulk_docs" Method="POST" Call="HandleBulkDocs" />
@@ -183,6 +187,24 @@ ClassMethod HandleAttachmentGet(pDB As %String, pDocId As %String, pAttName As %
 ClassMethod HandleAttachmentDelete(pDB As %String, pDocId As %String, pAttName As %String) As %Status
 {
     Quit ##class(IRISCouch.API.AttachmentHandler).HandleDelete(pDB, pDocId, pAttName)
+}
+
+/// <p>Dispatch POST /:db/_index to MangoHandler (create Mango index).</p>
+ClassMethod HandleMangoIndexCreate(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.MangoHandler).HandleCreateIndex(pDB)
+}
+
+/// <p>Dispatch GET /:db/_index to MangoHandler (list Mango indexes).</p>
+ClassMethod HandleMangoIndexList(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.MangoHandler).HandleListIndexes(pDB)
+}
+
+/// <p>Dispatch DELETE /:db/_index/:ddoc/:type/:name to MangoHandler (delete Mango index).</p>
+ClassMethod HandleMangoIndexDelete(pDB As %String, pDDoc As %String, pType As %String, pName As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.MangoHandler).HandleDeleteIndex(pDB, pDDoc, pType, pName)
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>

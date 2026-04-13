@@ -69,6 +69,15 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
             Do ##class(IRISCouch.Storage.Database).IncrementDocCount(pDB)
         }
         Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
+        ; 5. Update Projection.Winners (Story 6.1)
+        Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, pBody, 0)
+        ; 6. Update MangoIndex projections (Story 6.1)
+        Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+        Set tIndexDefs = ##class(IRISCouch.Projection.MangoIndexDef).GetActiveIndexes(pDB)
+        If tIndexDefs.%Size() > 0 {
+            Set tBodyObj = ##class(%DynamicObject).%FromJSON(pBody)
+            Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -169,6 +178,15 @@ ClassMethod SaveAttachment(pDB As %String, pDocId As %String, pParentRev As %Str
             Do ##class(IRISCouch.Storage.Database).IncrementDocCount(pDB)
         }
         Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
+        ; 7. Update Projection.Winners (Story 6.1) — body unchanged for attachment ops
+        Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, tBodyStr, 0)
+        ; 8. Update MangoIndex projections (Story 6.1)
+        Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+        Set tIndexDefs = ##class(IRISCouch.Projection.MangoIndexDef).GetActiveIndexes(pDB)
+        If tIndexDefs.%Size() > 0 {
+            Set tBodyObj = ##class(%DynamicObject).%FromJSON(tBodyStr)
+            Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -242,6 +260,15 @@ ClassMethod DeleteAttachment(pDB As %String, pDocId As %String, pParentRev As %S
         Set tSeq = ##class(IRISCouch.Storage.Changes).RecordChange(pDB, pDocId, tNewRev)
         ; 5. Update database metadata
         Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
+        ; 6. Update Projection.Winners (Story 6.1) — body unchanged for attachment ops
+        Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, tBodyStr, 0)
+        ; 7. Update MangoIndex projections (Story 6.1)
+        Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+        Set tIndexDefs = ##class(IRISCouch.Projection.MangoIndexDef).GetActiveIndexes(pDB)
+        If tIndexDefs.%Size() > 0 {
+            Set tBodyObj = ##class(%DynamicObject).%FromJSON(tBodyStr)
+            Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -325,6 +352,10 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         ; Increment doc_del_count
         Do ##class(IRISCouch.Storage.Database).IncrementDelCount(pDB)
         Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
+        ; 6. Update Projection.Winners with deletion (Story 6.1)
+        Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, "", 1)
+        ; 7. Remove from all MangoIndex rows (Story 6.1)
+        Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -422,6 +453,26 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
         }
         ; 5. Update update_seq
         Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
+        ; 6. Update Projection.Winners (Story 6.1)
+        ; Determine the winning rev after graft
+        Set tCurrentWinner = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, pDocId)
+        If tCurrentWinner '= "" {
+            If pDeleted && (tCurrentWinner = pRev) {
+                Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tCurrentWinner, "", 1)
+                Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+            } Else {
+                ; Get the winning body
+                Set tWinBody = ##class(IRISCouch.Storage.Document).Read(pDB, pDocId, tCurrentWinner)
+                Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tCurrentWinner, tWinBody, 0)
+                ; Re-index for mango
+                Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+                Set tIndexDefs = ##class(IRISCouch.Projection.MangoIndexDef).GetActiveIndexes(pDB)
+                If tIndexDefs.%Size() > 0 && (tWinBody '= "") {
+                    Set tBodyObj = ##class(%DynamicObject).%FromJSON(tWinBody)
+                    Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
+                }
+            }
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -583,6 +634,15 @@ ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %Str
             Do ##class(IRISCouch.Storage.Database).IncrementDocCount(pDB)
         }
         Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
+        ; 7. Update Projection.Winners (Story 6.1)
+        Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, pBody, 0)
+        ; 8. Update MangoIndex projections (Story 6.1)
+        Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+        Set tIndexDefs = ##class(IRISCouch.Projection.MangoIndexDef).GetActiveIndexes(pDB)
+        If tIndexDefs.%Size() > 0 {
+            Set tBodyObj = ##class(%DynamicObject).%FromJSON(pBody)
+            Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0

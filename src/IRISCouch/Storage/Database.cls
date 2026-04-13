@@ -65,6 +65,10 @@ ClassMethod Delete(pName As %String) As %Status
         Kill ^IRISCouch.Seq(pName)
         ; Clean up attachment data (Story 5.1)
         Do ##class(IRISCouch.Storage.Attachment).CleanupDatabase(pName)
+        ; Clean up projection data (Story 6.1)
+        Do ##class(IRISCouch.Projection.Winners).DeleteAll(pName)
+        Do ##class(IRISCouch.Projection.MangoIndex).DeleteAll(pName)
+        Do ##class(IRISCouch.Projection.MangoIndexDef).DeleteAll(pName)
         Quit
     }
     Catch ex {

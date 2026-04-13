@@ -71,4 +71,21 @@ ClassMethod RevisionExists(pDB As %String, pDocId As %String, pRev As %String) A
     Quit $Data(^IRISCouch.Docs(pDB, pDocId, pRev))>0
 }
 
+/// <p>List all document IDs in a database.</p>
+/// <p>Returns a <class>%DynamicArray</class> of document ID strings
+/// by iterating <code>^IRISCouch.Docs(pDB)</code> subscripts.</p>
+/// @param pDB The database name
+/// @return %DynamicArray of document ID strings
+ClassMethod ListDocIds(pDB As %String) As %DynamicArray
+{
+    Set tArr = []
+    Set tDocId = ""
+    For {
+        Set tDocId = $Order(^IRISCouch.Docs(pDB, tDocId))
+        If tDocId = "" Quit
+        Do tArr.%Push(tDocId)
+    }
+    Quit tArr
+}
+
 }
