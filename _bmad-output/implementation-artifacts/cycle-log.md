@@ -451,3 +451,10 @@
 - **Code Review:** CLEAN. 0 critical/high/medium. 3 low deferred (clock skew, proxy unit coverage, hardcoded test creds). 7 dismissed.
 - **Commit:** `36680ff` pushed to origin/main
 - **Status:** done
+
+### 2026-04-14T04:00:00Z — Story 7.3: User Management via _users Database
+- **Create Story:** Story file created at `7-3-user-management-via-users-database.md` with 7 tasks, 3 new files, 1 modified file
+- **Development:** All 7 tasks completed. 3 files created (Auth/Users.cls, Test/UsersTest.cls, Test/UsersHttpTest.cls), 1 modified (DocumentEngine.cls). 360 tests pass (345 existing + 15 new), 0 regressions. PBKDF2 via iterated HMAC-SHA256 verified against RFC 6070. Security.Users.Exists() output param must be initialized.
+- **Code Review:** PASSED. 2 high auto-resolved (namespace restore in catch, MangoIndex re-index after body mod). 3 medium auto-resolved (delete status check, roles status check, PBKDF2 empty guard). 4 deferred.
+- **Commit:** `e26f66c` pushed to origin/main
+- **Status:** done

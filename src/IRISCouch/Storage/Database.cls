@@ -69,6 +69,8 @@ ClassMethod Delete(pName As %String) As %Status
         Do ##class(IRISCouch.Projection.Winners).DeleteAll(pName)
         Do ##class(IRISCouch.Projection.MangoIndex).DeleteAll(pName)
         Do ##class(IRISCouch.Projection.MangoIndexDef).DeleteAll(pName)
+        ; Clean up security configuration (Story 7.4)
+        Do ##class(IRISCouch.Auth.Security).Delete(pName)
         Quit
     }
     Catch ex {

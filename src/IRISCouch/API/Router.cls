@@ -40,6 +40,9 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db/_bulk_get" Method="POST" Call="HandleBulkGet" />
   <Route Url="/:db/_changes" Method="GET" Call="HandleChangesGet" />
   <Route Url="/:db/_changes" Method="POST" Call="HandleChangesPost" />
+  <!-- Per-database security configuration (Story 7.4) -->
+  <Route Url="/:db/_security" Method="GET" Call="HandleSecurityGet" />
+  <Route Url="/:db/_security" Method="PUT" Call="HandleSecurityPut" />
   <!-- Database endpoints - MUST be after underscore-prefixed routes (Story 2.1, 2.2) -->
   <Route Url="/:db" Method="POST" Call="HandleDocumentPost" />
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
@@ -244,6 +247,18 @@ ClassMethod HandleSessionDelete() As %Status
     Quit ##class(IRISCouch.API.AuthHandler).HandleSessionDelete()
 }
 
+/// <p>Dispatch GET /:db/_security to SecurityHandler.</p>
+ClassMethod HandleSecurityGet(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.SecurityHandler).HandleGet(pDB)
+}
+
+/// <p>Dispatch PUT /:db/_security to SecurityHandler.</p>
+ClassMethod HandleSecurityPut(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.SecurityHandler).HandlePut(pDB)
+}
+
 /// <p>Authentication middleware — establishes user context on every request.</p>
 /// <p>Checks for <code>AuthSession</code> cookie or <code>Authorization: Basic</code>
 /// header and sets process-private <code>%IRISCouchUser</code>,
@@ -314,6 +329,45 @@ ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue A
     Catch ex {
         ; On error, remain anonymous — don't block the request
         Quit
+    }
+    ; --- Per-database security enforcement (Story 7.4) ---
+    ; Must execute AFTER auth context is established but BEFORE dispatch
+    ; Parse database name from URL (pUrl is relative: /{db}/... or /_session etc.)
+    Set tPathSegment = $Piece(pUrl, "/", 2)
+    ; Skip enforcement for server-level endpoints
+    If (tPathSegment = "") || (tPathSegment = "_session") || (tPathSegment = "_uuids") || (tPathSegment = "_all_dbs") {
+        Quit $$$OK
+    }
+    ; Skip enforcement for root URL
+    If pUrl = "/" Quit $$$OK
+    ; Only enforce on database-level URLs (skip if first segment starts with _ and is a known server endpoint)
+    ; Database names can start with _ (e.g., _users, _replicator) so we only skip known server endpoints
+    ; At this point tPathSegment is the database name
+    Set tDB = tPathSegment
+    ; Only enforce if the database has a security config
+    If ##class(IRISCouch.Auth.Security).Exists(tDB) {
+        ; Determine if this is an admin operation
+        Set tIsAdminOp = 0
+        ; PUT /_security is an admin operation
+        If ($Piece(pUrl, "/", 3) = "_security") && (pMethod = "PUT") {
+            Set tIsAdminOp = 1
+        }
+        ; Design document writes are admin operations
+        If ($Piece(pUrl, "/", 3) = "_design") && ((pMethod = "PUT") || (pMethod = "DELETE")) {
+            Set tIsAdminOp = 1
+        }
+        ; Check access
+        Set tAllowed = ##class(IRISCouch.Auth.Security).CheckAccess(tDB, %IRISCouchUser, %IRISCouchRoles, tIsAdminOp)
+        If 'tAllowed {
+            Set pContinue = 0
+            ; Anonymous users get 401, authenticated users get 403
+            If %IRISCouchUser = "" {
+                Do ##class(IRISCouch.Util.Error).Render(401, "unauthorized", "Authentication required for this database")
+            } Else {
+                Do ##class(IRISCouch.Util.Error).Render(403, "forbidden", "You are not allowed to access this db.")
+            }
+            Quit $$$OK
+        }
     }
     Quit $$$OK
 }
