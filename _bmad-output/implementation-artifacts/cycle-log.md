@@ -400,9 +400,33 @@
 - Epic 6 retrospective status: done
 
 ### 2026-04-13T00:10:00Z — Story 6.1: Mango Index Management
+
 - **Research:** 3 parallel agents analyzed CouchDB source (mango_idx.erl, mango_httpd.erl, mango_selector.erl, mango_cursor.erl + 15 more files), Perplexity research on Mango APIs, architecture docs for projection design
 - **Create Story:** Story file created at `6-1-mango-index-management.md` with 11 tasks, 7 new files, 3 modified files
 - **Development:** All 11 tasks completed. 7 new files created (3 Projection classes, 1 MangoHandler, 3 test classes). 5 files modified (Router, DocumentEngine, Database, Document, sprint-status). 31 new tests (251 total).
 - **Code Review:** PASSED. 2 HIGH auto-resolved (storage encapsulation in BackfillFromStorage, incomplete backfill when Winners partially populated). 3 MEDIUM auto-resolved (JSON type detection, field name validation). 4 LOW deferred.
 - **Commit:** `3a52b8a` pushed to origin/main
 - **Status:** done
+
+---
+
+## Epic 7: Authentication & Authorization
+
+### 2026-04-14T00:00:00Z — Cycle started
+- **Scope:** Epic 7, Stories 7.0 (deferred cleanup) through 7.4
+- **Sprint status:** All Epic 7 stories at `backlog`
+
+### 2026-04-14T00:00:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml confirmed current (14 epics, 56+ stories tracked)
+- Epic 7 stories confirmed: 7.0, 7.1, 7.2, 7.3, 7.4
+- Story 7.0 added to sprint-status.yaml
+- No issues surfaced
+
+### 2026-04-14T00:05:00Z — Phase 0.5: Retrospective Review & Story 7.0
+- Epic 6 retrospective found: `epic-6-retro-2026-04-13.md`
+- Triaged all action items:
+  - **Included in 7.0:** %EXACT() rule (not yet in rules file), JSON null rule (not yet in rules file), missing-field semantics rule, cross-type comparison tests, MatchesPartialFilter fix
+  - **Deferred:** GetJsonType heuristic, FindByDefinition race, ExtractFieldValue ambiguity, Delete() shared OID, stub delimiter collision
+  - **Dropped:** None
+- Story 7.0 created: `7-0-epic-6-deferred-cleanup.md`
+- Epic 7 status updated to `in-progress`

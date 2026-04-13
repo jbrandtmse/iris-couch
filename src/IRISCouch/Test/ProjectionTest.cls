@@ -226,4 +226,37 @@ Method TestMangoIndexJsonTypeDetection()
     Do $$$AssertEquals(##class(IRISCouch.Projection.MangoIndex).GetJsonType(""), "null", "Empty string as null without hint")
 }
 
+/// <p>Test MangoIndex with complex partial filter selector using $in operator.</p>
+/// <p>Verifies that documents not matching the partial filter are excluded from indexing.</p>
+Method TestPartialFilterComplexSelector()
+{
+    ; Create index with complex partial_filter_selector: {"status":{"$in":["active","pending"]}}
+    Set tFields = "[{""type"":""asc""}]"
+    Set tPartialFilter = "{""status"":{""$in"":[""active"",""pending""]}}"
+    Set tSC = ##class(IRISCouch.Projection.MangoIndexDef).Create("testprojdb", "_design/pf-idx", "pfidx1", "json", tFields, tPartialFilter)
+    Do $$$AssertStatusOK(tSC, "Create index with partial filter OK")
+    ; Build index defs array matching what UpsertForDocument expects
+    Set tIndexDefs = []
+    Set tDef = {}
+    Do tDef.%Set("ddoc", "_design/pf-idx")
+    Do tDef.%Set("name", "pfidx1")
+    Do tDef.%Set("fields", tFields)
+    Do tDef.%Set("partialFilter", tPartialFilter)
+    Do tIndexDefs.%Push(tDef)
+    ; Document 1: status=active — should be indexed
+    Set tBodyActive = ##class(%DynamicObject).%FromJSON("{""type"":""order"",""status"":""active""}")
+    Set tSC = ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument("testprojdb", "doc-active", tBodyActive, tIndexDefs)
+    Do $$$AssertStatusOK(tSC, "UpsertForDocument active OK")
+    ; Document 2: status=archived — should NOT be indexed
+    Set tBodyArchived = ##class(%DynamicObject).%FromJSON("{""type"":""order"",""status"":""archived""}")
+    Set tSC = ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument("testprojdb", "doc-archived", tBodyArchived, tIndexDefs)
+    Do $$$AssertStatusOK(tSC, "UpsertForDocument archived OK")
+    ; Verify: doc-active should have index rows
+    &sql(SELECT COUNT(*) INTO :tActiveCount FROM IRISCouch_Projection.MangoIndex WHERE %EXACT(DbName) = 'testprojdb' AND %EXACT(DocId) = 'doc-active' AND %EXACT(IndexName) = 'pfidx1')
+    Do $$$AssertTrue(tActiveCount > 0, "Active document is indexed")
+    ; Verify: doc-archived should NOT have index rows
+    &sql(SELECT COUNT(*) INTO :tArchivedCount FROM IRISCouch_Projection.MangoIndex WHERE %EXACT(DbName) = 'testprojdb' AND %EXACT(DocId) = 'doc-archived' AND %EXACT(IndexName) = 'pfidx1')
+    Do $$$AssertEquals(tArchivedCount, 0, "Archived document is NOT indexed (filtered by partial filter)")
+}
+
 }

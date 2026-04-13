@@ -248,8 +248,9 @@ ClassMethod ValueToString(pValue, pType As %String) As %String
 }
 
 /// <p>Check if a document matches a partial filter selector.</p>
-/// <p>Simple implementation: checks top-level equality conditions only.
-/// Full selector evaluation will be implemented in Story 6.2.</p>
+/// <p>Delegates to MangoSelector.Normalize() and MangoSelector.Match() for full
+/// selector evaluation, supporting all 18+ CouchDB operators including $gt, $in,
+/// $regex, nested selectors, and complex combinations.</p>
 /// @param pBody The document body as %DynamicObject
 /// @param pPartialFilter JSON string of the partial filter selector
 /// @return %Boolean 1 if matches, 0 otherwise
@@ -260,18 +261,12 @@ ClassMethod MatchesPartialFilter(pBody As %DynamicObject, pPartialFilter As %Str
         If pPartialFilter = "" Quit
         Set tFilter = ##class(%DynamicObject).%FromJSON(pPartialFilter)
         If '$IsObject(tFilter) Quit
-        Set tIter = tFilter.%GetIterator()
-        While tIter.%GetNext(.tKey, .tExpected) {
-            Set tActual = pBody.%Get(tKey)
-            If tActual '= tExpected {
-                Set tResult = 0
-                Quit
-            }
-        }
+        Set tNormalized = ##class(IRISCouch.Query.MangoSelector).Normalize(tFilter)
+        Set tResult = ##class(IRISCouch.Query.MangoSelector).Match(tNormalized, pBody)
         Quit
     }
     Catch ex {
-        Quit
+        Set tResult = 0
     }
     Quit tResult
 }

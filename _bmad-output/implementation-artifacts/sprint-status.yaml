@@ -1,5 +1,5 @@
 # generated: 2026-04-12
-# last_updated: 2026-04-14
+# last_updated: 2026-04-13
 # project: iris-couch
 # project_key: NOKEY
 # tracking_system: file-system
@@ -37,9 +37,9 @@
 generated: 2026-04-12
 last_updated: 2026-04-13
 last_review: 2026-04-13
-last_story_reviewed: 6-2-mango-query-execution-selectors-and-query-plan
+last_story_reviewed: 7-0-epic-6-deferred-cleanup
 last_story_in_progress:
-last_story_completed: 6-2-mango-query-execution-selectors-and-query-plan
+last_story_completed: 7-0-epic-6-deferred-cleanup
 last_story_created: 3-1-single-document-create-and-read
 project: iris-couch
 project_key: NOKEY
@@ -99,7 +99,8 @@ development_status:
   epic-6-retrospective: done
 
   # Epic 7: Authentication & Authorization
-  epic-7: backlog
+  epic-7: in-progress
+  7-0-epic-6-deferred-cleanup: done
   7-1-session-authentication-and-basic-auth: backlog
   7-2-jwt-and-proxy-authentication: backlog
   7-3-user-management-via-users-database: backlog

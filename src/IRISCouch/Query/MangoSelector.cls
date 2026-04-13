@@ -816,8 +816,8 @@ ClassMethod TypeRank(pValue, pTypeHint As %String = "") As %Integer
             Set tRank = 6
             Quit
         }
-        ; Non-object heuristic: empty string is ambiguous but treat as string
-        ; (callers with null values should provide type hint)
+        ; Empty string without type hint treated as null (CouchDB: missing fields are null)
+        If pValue = "" { Set tRank = 0 Quit }
         If pValue = +pValue {
             Set tRank = 3
             Quit

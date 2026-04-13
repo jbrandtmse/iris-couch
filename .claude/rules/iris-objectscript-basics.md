@@ -48,6 +48,14 @@
    - CRITICAL: ObjectScript macro syntax must use triple dollar signs ($$$) not double ($$)
    - If encountering multiple $$ syntax errors in a file, use write_to_file for full replacement rather than multiple replace_in_file operations
    - %DynamicObject properties witih an underscore in the name must have qoutation marks around them because underscore is the concatination operator: Set request."max_results" = 5
+   - CRITICAL: To produce JSON null in %DynamicObject, use `%Set("key", "", "null")` — the third parameter is the type hint. Using `%Set("key", "null", "null")` produces the string `"null"` instead.
+
+## IRIS SQL Case Sensitivity
+   - IRIS SQL is case-insensitive by default for string comparisons
+   - All SELECT and WHERE clauses on string columns must wrap with `%EXACT()` to preserve case in returned values and ensure case-sensitive matching
+   - Example: `SELECT %EXACT(DocId) FROM ... WHERE %EXACT(FieldValue) = 'order-001'`
+   - Without `%EXACT()`, queries may return incorrect results due to case folding (e.g., "Order-001" matching "order-001")
+   - This applies to all IRIS SQL queries, including embedded SQL (`&sql()`) and dynamic SQL via `%SQL.Statement`
 
 ## QUIT Statement Restrictions in Try/Catch Blocks
    - **CRITICAL**: QUIT with arguments is NOT allowed within Try/Catch blocks (ERROR #1043)
@@ -130,6 +138,14 @@
    - `Config.Namespaces`, `Config.Databases`, `Config.Map*` classes only exist in %SYS — they require the namespace switch
    - `Security.Users`, `Security.Roles`, `Security.Resources`, `Security.Applications`, `Security.SSLConfigs` also require %SYS
    - For listing operations, prefer `##class(%ResultSet).%New("Config.Namespaces:List")` named queries over non-existent class methods like `Config.Namespaces.NamespaceList()`
+
+## CouchDB Mango Selector Semantics
+   - When a field referenced by a selector is **missing** from a document, CouchDB applies these rules:
+     - `$ne` and `$nin` return **true** for missing fields — a missing field is "not equal" to any value
+     - All other comparison operators (`$eq`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`) return **false** for missing fields
+     - `$exists: false` returns **true** for missing fields; `$exists: true` returns **false**
+   - This means queries like `{"status": {"$ne": "deleted"}}` will match documents that have no "status" field at all
+   - The IRISCouch MangoSelector implementation must preserve these semantics in `EvalOperator` for correct CouchDB compatibility
 
 ## Storage Sections
    - IMPORTANT: Storage sections of ObjectScript classes should NEVER be edited or added.  The compiler will add/maintain these sections of the class based on properties declared in the class and superclasses.

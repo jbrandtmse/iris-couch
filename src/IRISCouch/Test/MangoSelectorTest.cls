@@ -266,6 +266,20 @@ Method TestCompareNumberLtString()
     Do $$$AssertTrue(tCmp < 0, "Number is less than string in CouchDB ordering")
 }
 
+/// <p>Test cross-type comparison: null lt number.</p>
+Method TestCompareNullLtNumber()
+{
+    Set tCmp = ##class(IRISCouch.Query.MangoSelector).CompareValues("", 42)
+    Do $$$AssertTrue(tCmp < 0, "Null is less than number in CouchDB ordering")
+}
+
+/// <p>Test cross-type comparison: boolean lt string.</p>
+Method TestCompareBoolLtString()
+{
+    Set tCmp = ##class(IRISCouch.Query.MangoSelector).CompareValues(1, "hello")
+    Do $$$AssertTrue(tCmp < 0, "Boolean/number is less than string in CouchDB ordering")
+}
+
 /// <p>Test empty selector matches all documents.</p>
 Method TestEmptySelectorMatchesAll()
 {
