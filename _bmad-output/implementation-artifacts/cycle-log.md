@@ -378,6 +378,26 @@
 ### 2026-04-13T00:20:00Z — Story 6.2: Mango Query Execution, Selectors & Query Plan
 - **Create Story:** Story file created at `6-2-mango-query-execution-selectors-and-query-plan.md` with 12 tasks, 9 new files, 2 modified files
 - **Research:** Leveraged prior research from 3 agents (CouchDB mango_selector.erl 24+ operators, mango_cursor.erl index selection, mango_httpd.erl API formats, bookmark encoding, execution stats)
+- **Development:** All 12 tasks completed. 9 new files created (5 Query classes, 4 test classes). 2 files modified (MangoHandler, Router). 58 new tests (309 total).
+- **Code Review:** PASSED. 4 HIGH auto-resolved ($ne/$nin missing field semantics, TypeRank type hints, bookmark sort key encoding). 4 MEDIUM auto-resolved (type inference, field projection types, SQL ORDER BY). 1 LOW deferred (cross-type comparison test coverage).
+- **Commit:** `3895873` pushed to origin/main
+- **Status:** done
+
+### 2026-04-13T01:00:00Z — Post-Review Hotfix: %EXACT() + JSON null
+- Manual curl testing (55 tests across Epics 1-6) caught 2 issues:
+  1. IRIS SQL case insensitivity — DocIds returned uppercase in index-backed queries (13 SQL queries fixed with %EXACT())
+  2. JSON null rendered as string "null" in _all_docs ddoc and _explain covering fields
+- **Commit:** `0a3928c` pushed to origin/main
+
+### 2026-04-13T01:30:00Z — Phase 5: Epic Completion & Retrospective
+- Epic 6 complete: 3/3 stories done, 309 tests, 4 commits
+- Retro document: `epic-6-retro-2026-04-13.md`
+- Epic 5 retro action items: 12/12 completed (7 must-do + 5 should-do, all per user request)
+- Manual HTTP verification: 55/55 curl tests across all Epics 1-6, all passing
+- 5 action items for Epic 7 (all Must Do in Story 7.0), 5 deferred items, 7 lessons codified
+- Key learnings: %EXACT() for IRIS SQL case sensitivity, JSON null rendering, CouchDB $ne/$nin missing-field semantics, research-first with source code
+- Three new memories to save (IRIS SQL %EXACT, JSON null pattern, missing-field semantics)
+- Epic 6 retrospective status: done
 
 ### 2026-04-13T00:10:00Z — Story 6.1: Mango Index Management
 - **Research:** 3 parallel agents analyzed CouchDB source (mango_idx.erl, mango_httpd.erl, mango_selector.erl, mango_cursor.erl + 15 more files), Perplexity research on Mango APIs, architecture docs for projection design
