@@ -6,7 +6,10 @@
 /// <code>$System.Event</code> or the <code>timeout</code> expires.</p>
 /// <p>Supports query parameters: <code>since</code>, <code>limit</code>,
 /// <code>include_docs</code>, <code>style</code>, <code>descending</code>,
-/// <code>feed</code>, <code>timeout</code>, and <code>heartbeat</code>.</p>
+/// <code>feed</code>, <code>timeout</code>, <code>heartbeat</code>, and
+/// <code>filter</code>.</p>
+/// <p>Built-in filters: <code>_doc_ids</code>, <code>_selector</code>,
+/// <code>_design</code>.</p>
 Class IRISCouch.API.ChangesHandler Extends %RegisteredObject
 {
 
@@ -34,6 +37,10 @@ ClassMethod HandleChanges(pDB As %String) As %Status
         Set tFeed = "normal"
         Set tTimeout = 60000
         Set tHeartbeat = 0
+        Set tFilter = ""
+        Set tDocIdsParam = ""
+        Set tSelectorObj = ""
+        Set tBodyObj = ""
         ; For POST: read body parameters first (body is base, query overrides)
         If %request.Method = "POST" {
             Set tContent = ""
@@ -72,6 +79,15 @@ ClassMethod HandleChanges(pDB As %String) As %Status
                 If tBodyObj.%IsDefined("heartbeat") {
                     Set tHeartbeat = +tBodyObj.%Get("heartbeat")
                 }
+                If tBodyObj.%IsDefined("filter") {
+                    Set tFilter = tBodyObj.%Get("filter")
+                }
+                If tBodyObj.%IsDefined("doc_ids") {
+                    Set tDocIdsParam = tBodyObj.%Get("doc_ids")
+                }
+                If tBodyObj.%IsDefined("selector") {
+                    Set tSelectorObj = tBodyObj.%Get("selector")
+                }
             }
         }
         ; Query string parameters override body parameters
@@ -98,6 +114,42 @@ ClassMethod HandleChanges(pDB As %String) As %Status
         }
         If $Data(%request.Data("heartbeat", 1)) {
             Set tHeartbeat = +$Get(%request.Data("heartbeat", 1))
+        }
+        If $Data(%request.Data("filter", 1)) {
+            Set tFilter = $Get(%request.Data("filter", 1))
+        }
+        If $Data(%request.Data("doc_ids", 1)) {
+            Set tDocIdsParam = $Get(%request.Data("doc_ids", 1))
+        }
+        ; Validate filter value
+        If (tFilter '= "") && (tFilter '= "_doc_ids") && (tFilter '= "_selector") && (tFilter '= "_design") {
+            Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "missing")
+            Quit
+        }
+        ; Build doc_ids lookup array for _doc_ids filter
+        If tFilter = "_doc_ids" {
+            ; doc_ids from query string is a JSON-encoded array string
+            If '$IsObject(tDocIdsParam) && (tDocIdsParam '= "") {
+                Try {
+                    Set tDocIdsParam = ##class(%DynamicArray).%FromJSON(tDocIdsParam)
+                } Catch tParseDocIds {
+                    ; Invalid JSON — treat as empty
+                    Set tDocIdsParam = ##class(%DynamicArray).%New()
+                }
+            }
+            If $IsObject(tDocIdsParam) {
+                Set tDI = 0
+                While tDI < tDocIdsParam.%Size() {
+                    Set tDocIdFilter(tDocIdsParam.%Get(tDI)) = 1
+                    Set tDI = tDI + 1
+                }
+            }
+        }
+        ; Parse selector for _selector filter
+        If tFilter = "_selector" {
+            If '$IsObject(tSelectorObj) {
+                Set tSelectorObj = {}
+            }
         }
         ; Clamp negative timeout to 0 (immediate return)
         If tTimeout < 0 Set tTimeout = 0
@@ -170,12 +222,36 @@ ClassMethod HandleChanges(pDB As %String) As %Status
             Set tSeq = tEntry.%Get("seq")
             ; Get the rev from the first changes entry
             Set tRev = tEntry.%Get("changes").%Get(0).%Get("rev")
+            ; Apply filter early — skip non-matching entries before other processing
+            Set tSelectorDocObj = ""
+            If tFilter = "_doc_ids" {
+                If '$Data(tDocIdFilter(tDocId)) Continue
+            } ElseIf tFilter = "_design" {
+                If $Extract(tDocId, 1, 8) '= "_design/" Continue
+            } ElseIf tFilter = "_selector" {
+                ; Skip deleted documents for selector filter
+                Set tIsDeletedForFilter = ##class(IRISCouch.Storage.RevTree).IsDeleted(pDB, tDocId, tRev)
+                If tIsDeletedForFilter Continue
+                ; Read document body and match against selector
+                Set tDocBodyStr = ##class(IRISCouch.Storage.Document).Read(pDB, tDocId, tRev)
+                If tDocBodyStr = "" Continue
+                Try {
+                    Set tSelectorDocObj = ##class(%DynamicObject).%FromJSON(tDocBodyStr)
+                } Catch tFilterParseEx {
+                    Continue
+                }
+                If '..MatchesSelector(tSelectorObj, tSelectorDocObj) Continue
+            }
             ; Build the result entry
             Set tResultEntry = {}
             Do tResultEntry.%Set("seq", tSeq, "number")
             Do tResultEntry.%Set("id", tDocId)
             ; Check if this is a deleted document
-            Set tIsDeleted = ##class(IRISCouch.Storage.RevTree).IsDeleted(pDB, tDocId, tRev)
+            If tFilter '= "_selector" {
+                Set tIsDeleted = ##class(IRISCouch.Storage.RevTree).IsDeleted(pDB, tDocId, tRev)
+            } Else {
+                Set tIsDeleted = 0
+            }
             If tIsDeleted {
                 Do tResultEntry.%Set("deleted", 1, "boolean")
             }
@@ -209,9 +285,18 @@ ClassMethod HandleChanges(pDB As %String) As %Status
                     Do tDocObj.%Set("_deleted", 1, "boolean")
                     Do tResultEntry.%Set("doc", tDocObj)
                 } Else {
-                    Set tBodyStr = ##class(IRISCouch.Storage.Document).Read(pDB, tDocId, tRev)
-                    If tBodyStr '= "" {
-                        Set tDocObj = ##class(%DynamicObject).%FromJSON(tBodyStr)
+                    ; Reuse doc object from _selector filter if available
+                    If $IsObject(tSelectorDocObj) {
+                        Set tDocObj = tSelectorDocObj
+                    } Else {
+                        Set tBodyStr = ##class(IRISCouch.Storage.Document).Read(pDB, tDocId, tRev)
+                        If tBodyStr = "" {
+                            Set tDocObj = ""
+                        } Else {
+                            Set tDocObj = ##class(%DynamicObject).%FromJSON(tBodyStr)
+                        }
+                    }
+                    If $IsObject(tDocObj) {
                         Set tFullDoc = {}
                         Do tFullDoc.%Set("_id", tDocId)
                         Do tFullDoc.%Set("_rev", tRev)
@@ -238,6 +323,88 @@ ClassMethod HandleChanges(pDB As %String) As %Status
         Quit
     }
     Quit $$$OK
+}
+
+/// <p>Match a document against a Mango selector (simple subset).</p>
+/// <p>Supports equality, <code>$eq</code>, and <code>$exists</code> operators.
+/// Unsupported operators match permissively (return true).
+/// All selector conditions must match (implicit <code>$and</code>).</p>
+/// @param pSelector The Mango selector as a %DynamicObject
+/// @param pDoc The document body as a %DynamicObject
+/// @return %Boolean 1 if document matches, 0 otherwise
+ClassMethod MatchesSelector(pSelector As %DynamicObject, pDoc As %DynamicObject) As %Boolean
+{
+    Set tResult = 1
+    Try {
+        If '$IsObject(pSelector) Quit
+        If '$IsObject(pDoc) Quit
+        Set tIter = pSelector.%GetIterator()
+        While tIter.%GetNext(.tKey, .tVal) {
+            If '$IsObject(tVal) {
+                ; Scalar value — equality check
+                If pDoc.%Get(tKey) '= tVal {
+                    Set tResult = 0
+                    Quit
+                }
+            } Else {
+                ; Value is an object — check for operators
+                Set tOpIter = tVal.%GetIterator()
+                Set tHasOperator = 0
+                Set tAllOpsMatch = 1
+                While tOpIter.%GetNext(.tOpKey, .tOpVal) {
+                    If $Extract(tOpKey, 1) = "$" {
+                        Set tHasOperator = 1
+                        If tOpKey = "$eq" {
+                            If pDoc.%Get(tKey) '= tOpVal {
+                                Set tAllOpsMatch = 0
+                                Quit
+                            }
+                        } ElseIf tOpKey = "$exists" {
+                            Set tFieldExists = pDoc.%IsDefined(tKey)
+                            If tOpVal = 1 || (tOpVal = "true") {
+                                If 'tFieldExists {
+                                    Set tAllOpsMatch = 0
+                                    Quit
+                                }
+                            } Else {
+                                If tFieldExists {
+                                    Set tAllOpsMatch = 0
+                                    Quit
+                                }
+                            }
+                        }
+                        ; Unknown operators ($gt, $lt, etc.) — permissive, match all
+                    }
+                }
+                If tHasOperator {
+                    If 'tAllOpsMatch {
+                        Set tResult = 0
+                        Quit
+                    }
+                } Else {
+                    ; No operators found — nested object equality
+                    ; Treat as literal value equality (compare JSON)
+                    Set tDocVal = pDoc.%Get(tKey)
+                    If '$IsObject(tDocVal) {
+                        Set tResult = 0
+                        Quit
+                    }
+                    ; Compare by serializing both to JSON
+                    If tVal.%ToJSON() '= tDocVal.%ToJSON() {
+                        Set tResult = 0
+                        Quit
+                    }
+                }
+            }
+        }
+        Quit
+    }
+    Catch ex {
+        ; On error, match permissively
+        Set tResult = 1
+        Quit
+    }
+    Quit tResult
 }
 
 }

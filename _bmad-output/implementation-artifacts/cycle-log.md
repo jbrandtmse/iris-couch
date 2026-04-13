@@ -253,3 +253,10 @@
 - **Code Review:** PASSED. 1 high auto-resolved (inner catch Quit → Return for POST parse error), 1 medium auto-resolved (descending pending count fix). 1 low deferred (missing unsupported feed mode test).
 - **Commit:** `930ff41` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T10:00:00Z — Story 4.2: Longpoll Changes Feed
+- **Create Story:** Story file created at `4-2-longpoll-changes-feed.md`
+- **Development:** All 6 tasks completed. 2 files modified (DocumentEngine.cls, ChangesHandler.cls), 2 created (Test/LongpollTest.cls, Test/LongpollHttpTest.cls). Discovered $System.Event requires ##class(%SYSTEM.Event) syntax and global-reference-format event names. 149 tests pass (140 existing + 9 new), 0 regressions.
+- **Code Review:** PASSED. 1 medium auto-resolved (heartbeat > timeout cap). 2 low auto-resolved (dead code, negative timeout clamp). 1 low deferred (event name pattern duplication).
+- **Commit:** `6862b78` pushed to origin/main
+- **Status:** done

@@ -78,3 +78,8 @@
 ## Deferred from: code review of 4-2-longpoll-changes-feed (2026-04-12)
 
 - **Event resource name pattern duplicated in 4 locations** [DocumentEngine.cls:78,162,259 + ChangesHandler.cls:114] -- The event name string `"^IRISCouch.LPChanges(""" _ pDB _ """)"` is constructed identically in DocumentEngine.Save, SaveDeleted, SaveWithHistory, and ChangesHandler.HandleChanges. Should be extracted to a shared helper method or constant for maintainability. Code quality improvement, not a bug.
+
+## Deferred from: code review of 4-3-built-in-changes-filters (2026-04-12)
+
+- **Storage encapsulation: test files directly Kill ^IRISCouch.* globals** [ChangesFilterTest.cls:19-24, ChangesFilterHttpTest.cls:19-24] -- OnBeforeOneTest/OnAfterOneTest directly Kill ^IRISCouch.DB, ^IRISCouch.Docs, etc. instead of going through Storage.* classes. Pre-existing pattern used across all 24+ test files. Should be addressed project-wide when test infrastructure is refactored.
+- **Missing test: _selector filter with deleted documents** [ChangesFilterTest.cls] -- No unit test exercises the _selector filter's behavior with deleted documents (which should be skipped per the implementation). The handler code correctly skips them, but no test validates this edge case. Add when delete+filter interaction is explicitly specified or during test coverage expansion.
