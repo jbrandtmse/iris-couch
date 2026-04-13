@@ -430,3 +430,10 @@
   - **Dropped:** None
 - Story 7.0 created: `7-0-epic-6-deferred-cleanup.md`
 - Epic 7 status updated to `in-progress`
+
+### 2026-04-14T01:00:00Z — Story 7.0: Epic 6 Deferred Cleanup
+- **Create Story:** Story file created at `7-0-epic-6-deferred-cleanup.md`
+- **Development:** All 7 tasks completed. 2 production files modified (MangoSelector.cls, MangoIndex.cls), 2 test files modified (MangoSelectorTest.cls, ProjectionTest.cls), 1 rules file modified. 312 tests pass (309 existing + 3 new), 0 regressions. Key fix: TypeRank empty-string-to-null mapping corrected.
+- **Code Review:** PASSED. 0 critical/high. 2 medium auto-resolved (rules file method reference, deferred-work items marked resolved). 1 low deferred (TypeRank vs InferType inconsistency).
+- **Commit:** `3c4d211` pushed to origin/main
+- **Status:** done

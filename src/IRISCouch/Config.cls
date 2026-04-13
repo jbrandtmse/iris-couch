@@ -25,6 +25,13 @@ Parameter REVSLIMITDEFAULT = 1000;
 /// <p>Web application mount path</p>
 Parameter WEBAPPPATH = "/iris-couch/";
 
+/// <p>Per-instance secret for HMAC cookie signing (NFR-S3).</p>
+/// <p>If empty, auto-generated on first use by Auth.Session.GetSecret().</p>
+Parameter AUTHSECRET = "";
+
+/// <p>Session cookie timeout in seconds. CouchDB default is 600.</p>
+Parameter AUTHTIMEOUT = 600;
+
 /// <p>Retrieve a configuration value by key.</p>
 /// <p>Checks <code>^IRISCouch.Config(pKey)</code> first for a global override.
 /// If no override exists, returns the class parameter default.</p>
@@ -76,6 +83,13 @@ ClassMethod GetAll() As %DynamicObject
     Set tResult.METRICSENABLED = ..Get("METRICSENABLED")
     Set tResult.REVSLIMITDEFAULT = ..Get("REVSLIMITDEFAULT")
     Set tResult.WEBAPPPATH = ..Get("WEBAPPPATH")
+    Set tAuthSecret = ..Get("AUTHSECRET")
+    If tAuthSecret '= "" {
+        Set tResult.AUTHSECRET = "[REDACTED]"
+    } Else {
+        Set tResult.AUTHSECRET = ""
+    }
+    Set tResult.AUTHTIMEOUT = ..Get("AUTHTIMEOUT")
     Quit tResult
 }
 

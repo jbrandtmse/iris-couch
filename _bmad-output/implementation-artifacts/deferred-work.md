@@ -131,3 +131,8 @@
 ## Deferred from: code review of 7-0-epic-6-deferred-cleanup (2026-04-13)
 
 - **TypeRank vs InferType inconsistency on empty string** [MangoSelector.cls:820,914] -- `TypeRank("")` returns 0 (null) after the Story 7.0 fix, but `InferType("")` still returns "string" (line 914). When both are used on the same empty-string value, they disagree on the type. Currently safe because InferType is only called when field is found (tFound=true), while the empty-string-as-null path in TypeRank is for CompareValues direct calls. Pre-existing architectural inconsistency, not triggered by current code paths. Address if type detection is unified across the two methods.
+
+## Deferred from: code review of 7-1-session-authentication-and-basic-auth (2026-04-13)
+
+- **Username containing colons breaks cookie parsing** [Auth/Session.cls:59-61] -- Cookie format `username:hexTimestamp:hmacHex` uses `$Piece(tDecoded, ":", 1)` for username extraction. If a username contains a colon, parsing fails. Matches CouchDB's own colon-delimited format and IRIS usernames do not conventionally contain colons. Address if custom IRIS usernames with colons are supported.
+- **GetSecret() race condition under concurrent requests** [Auth/Session.cls:96-101] -- Two concurrent requests seeing empty AUTHSECRET could both generate different secrets; the second Config.Set overwrites the first. Cookies signed with the first secret immediately become invalid. Same single-process architecture constraint documented in multiple previous deferred items (e.g., doc_count race, FindByDefinition race). Address if concurrent process support is required.

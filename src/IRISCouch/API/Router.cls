@@ -15,6 +15,10 @@ Parameter CONTENTTYPE = "application/json";
 XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
+  <!-- Session authentication endpoints (Story 7.1) -->
+  <Route Url="/_session" Method="POST" Call="HandleSessionPost" />
+  <Route Url="/_session" Method="GET" Call="HandleSessionGet" />
+  <Route Url="/_session" Method="DELETE" Call="HandleSessionDelete" />
   <!-- Server-level endpoints (Story 1.2, 1.3) -->
   <Route Url="/_uuids" Method="GET" Call="HandleUUIDs" />
   <Route Url="/_all_dbs" Method="GET" Call="HandleAllDbs" />
@@ -220,6 +224,98 @@ ClassMethod HandleMangoIndexList(pDB As %String) As %Status
 ClassMethod HandleMangoIndexDelete(pDB As %String, pDDoc As %String, pType As %String, pName As %String) As %Status
 {
     Quit ##class(IRISCouch.API.MangoHandler).HandleDeleteIndex(pDB, pDDoc, pType, pName)
+}
+
+/// <p>Dispatch POST /_session to AuthHandler (login).</p>
+ClassMethod HandleSessionPost() As %Status
+{
+    Quit ##class(IRISCouch.API.AuthHandler).HandleSessionPost()
+}
+
+/// <p>Dispatch GET /_session to AuthHandler (session info).</p>
+ClassMethod HandleSessionGet() As %Status
+{
+    Quit ##class(IRISCouch.API.AuthHandler).HandleSessionGet()
+}
+
+/// <p>Dispatch DELETE /_session to AuthHandler (logout).</p>
+ClassMethod HandleSessionDelete() As %Status
+{
+    Quit ##class(IRISCouch.API.AuthHandler).HandleSessionDelete()
+}
+
+/// <p>Authentication middleware — establishes user context on every request.</p>
+/// <p>Checks for <code>AuthSession</code> cookie or <code>Authorization: Basic</code>
+/// header and sets process-private <code>%IRISCouchUser</code>,
+/// <code>%IRISCouchRoles</code>, and <code>%IRISCouchAuthMethod</code> variables.
+/// If no auth present, sets anonymous context (empty user, empty roles).</p>
+/// <p>Always returns <code>$$$OK</code> with <code>pContinue=1</code> — auth is
+/// established but not enforced at this layer (enforcement is Story 7.4).</p>
+/// @param pUrl The request URL
+/// @param pMethod The HTTP method
+/// @param pContinue Output: set to 1 to continue dispatch
+/// @return %Status
+ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue As %Boolean) As %Status
+{
+    Set pContinue = 1
+    Set %IRISCouchUser = ""
+    Set %IRISCouchRoles = []
+    Set %IRISCouchAuthMethod = ""
+    Try {
+        ; Check for AuthSession cookie first
+        Set tCookieHeader = %request.GetCgiEnv("HTTP_COOKIE", "")
+        If tCookieHeader '= "" {
+            Set tCookieValue = ..ExtractAuthSessionCookie(tCookieHeader)
+            If tCookieValue '= "" {
+                Set tValid = ##class(IRISCouch.Auth.Session).ValidateCookie(tCookieValue, .tUsername)
+                If tValid {
+                    Set %IRISCouchUser = tUsername
+                    Set %IRISCouchRoles = ##class(IRISCouch.Auth.Basic).GetUserRoles(tUsername)
+                    Set %IRISCouchAuthMethod = "cookie"
+                    Quit
+                }
+            }
+        }
+        ; Check for Authorization: Basic header
+        Set tAuthHeader = %request.GetCgiEnv("HTTP_AUTHORIZATION", "")
+        If tAuthHeader '= "" {
+            Set tOK = ##class(IRISCouch.Auth.Basic).Authenticate(tAuthHeader, .tUsername, .tRoles)
+            If tOK {
+                Set %IRISCouchUser = tUsername
+                Set %IRISCouchRoles = tRoles
+                Set %IRISCouchAuthMethod = "default"
+                Quit
+            }
+        }
+        ; No valid auth — anonymous context (already set above)
+        Quit
+    }
+    Catch ex {
+        ; On error, remain anonymous — don't block the request
+        Quit
+    }
+    Quit $$$OK
+}
+
+/// <p>Extract the AuthSession cookie value from the Cookie header string.</p>
+/// <p>Parses the raw <code>Cookie</code> header to find the <code>AuthSession</code>
+/// key and returns its value.</p>
+/// @param pCookieHeader The raw Cookie header value
+/// @return The AuthSession cookie value, or empty string if not found
+ClassMethod ExtractAuthSessionCookie(pCookieHeader As %String) As %String [ Private ]
+{
+    ; Cookie header format: "key1=val1; key2=val2; ..."
+    Set tFound = ""
+    For i = 1:1:$Length(pCookieHeader, ";") {
+        Set tPair = $ZStrip($Piece(pCookieHeader, ";", i), "<>W")
+        Set tKey = $ZStrip($Piece(tPair, "=", 1), "<>W")
+        Set tVal = $ZStrip($Piece(tPair, "=", 2, *), "<>W")
+        If tKey = "AuthSession" {
+            Set tFound = tVal
+            Quit
+        }
+    }
+    Quit tFound
 }
 
 /// <p>Override to return CouchDB-compatible JSON error envelopes for HTTP errors.</p>
