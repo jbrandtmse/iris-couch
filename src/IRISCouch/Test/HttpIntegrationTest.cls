@@ -24,7 +24,15 @@ Method %OnNew(initvalue As %String = "") As %Status
 /// @param pBody Output: Parsed JSON response body as %DynamicObject
 /// @param pRequestBody Optional: Request body string to send with the request
 /// @return %Status indicating transport-level success/failure
-ClassMethod MakeRequest(pMethod As %String, pPath As %String, Output pStatusCode As %Integer, Output pBody As %DynamicObject, pRequestBody As %String = "") As %Status
+/// @param pMethod HTTP method (GET, PUT, POST, DELETE)
+/// @param pPath Request path relative to webapp root (e.g., "/" or "/_uuids")
+/// @param pStatusCode Output: HTTP status code from response
+/// @param pBody Output: Parsed JSON response body as %DynamicObject
+/// @param pRequestBody Optional: Request body string to send with the request
+/// @param pContentType Optional: Custom Content-Type header (defaults to application/json)
+/// @param pBinaryBody Optional: Binary stream to send as request body (overrides pRequestBody)
+/// @return %Status indicating transport-level success/failure
+ClassMethod MakeRequest(pMethod As %String, pPath As %String, Output pStatusCode As %Integer, Output pBody As %DynamicObject, pRequestBody As %String = "", pContentType As %String = "", pBinaryBody As %Stream.Object = "") As %Status
 {
     Set tSC = $$$OK
     Set pStatusCode = 0
@@ -35,9 +43,17 @@ ClassMethod MakeRequest(pMethod As %String, pPath As %String, Output pStatusCode
         Set tReq.Port = 52773
         Set tReq.Username = "_SYSTEM"
         Set tReq.Password = "SYS"
-        Set tReq.ContentType = "application/json"
-        ; Write request body if provided
-        If pRequestBody '= "" {
+        ; Set content type — custom or default
+        If pContentType '= "" {
+            Set tReq.ContentType = pContentType
+        } Else {
+            Set tReq.ContentType = "application/json"
+        }
+        ; Write request body: binary stream takes precedence over string
+        If $IsObject(pBinaryBody) {
+            Do pBinaryBody.Rewind()
+            Do tReq.EntityBody.CopyFrom(pBinaryBody)
+        } ElseIf pRequestBody '= "" {
             Do tReq.EntityBody.Write(pRequestBody)
         }
         ; Build full path with webapp prefix

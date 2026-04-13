@@ -141,7 +141,11 @@ Method TestStubPreservation()
     Do $$$AssertEquals(tStream.Read(), "hello", "existing.txt content preserved")
 }
 
-/// <p>AC #1: Invalid base64 data returns empty revision (error).</p>
+/// <p>AC #1: Invalid base64 data returns empty revision (rollback).</p>
+/// <p>ObjectScript's <code>$System.Encryption.Base64Decode</code> returns "" for
+/// invalid input, which triggers the rollback path in SaveWithAttachments.
+/// This test verifies SaveWithAttachments rejects invalid base64 by returning
+/// an empty revision and that no document or attachment data is persisted.</p>
 Method TestInvalidBase64()
 {
     Set tAttachments = {}
@@ -150,11 +154,70 @@ Method TestInvalidBase64()
     Do tAttEntry.%Set("data", "!!!invalid-base64!!!")
     Do tAttachments.%Set("bad.txt", tAttEntry)
     Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments("testinline", "baddoc", "{}", "", tAttachments)
-    ; Note: $System.Encryption.Base64Decode may return "" for invalid input
-    ; which should trigger the error path in SaveWithAttachments
-    ; Either way, verify the operation handled the bad data gracefully
-    ; (it may succeed with empty content or fail — both are acceptable as long as no crash)
-    Do $$$AssertTrue(1, "Invalid base64 handled without crash")
+    ; $System.Encryption.Base64Decode returns "" for invalid input,
+    ; which triggers the rollback in SaveWithAttachments (empty binary check)
+    Do $$$AssertEquals(tNewRev, "", "SaveWithAttachments returns empty rev for invalid base64")
+    ; Verify no document was persisted (transaction rolled back)
+    Do $$$AssertTrue('##class(IRISCouch.Storage.Document).Exists("testinline", "baddoc"), "No document persisted for invalid base64")
+    ; Verify no attachment was persisted
+    Do $$$AssertTrue('##class(IRISCouch.Storage.Attachment).Exists("testinline", "baddoc", "bad.txt"), "No attachment persisted for invalid base64")
+}
+
+/// <p>AC: Stream-based attachment path stores data without base64 round-trip.</p>
+/// <p>Verifies that passing a stream via the _stream key in the attachments
+/// object stores the attachment correctly through SaveWithAttachments.</p>
+Method TestStreamBasedAttachment()
+{
+    ; Build _attachments with a stream (bypasses base64 encode/decode)
+    Set tStream = ##class(%Stream.GlobalBinary).%New()
+    Do tStream.Write("direct stream data")
+    Do tStream.Rewind()
+    Set tAttachments = {}
+    Set tAttEntry = {}
+    Do tAttEntry.%Set("content_type", "text/plain")
+    Do tAttEntry.%Set("_stream", tStream)
+    Do tAttachments.%Set("streamed.txt", tAttEntry)
+    ; Save document with stream-based attachment
+    Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments("testinline", "streamdoc", "{""mode"":""stream""}", "", tAttachments)
+    Do $$$AssertTrue(tNewRev '= "", "SaveWithAttachments with stream returns new revision")
+    ; Verify attachment was stored correctly
+    Set tSC = ##class(IRISCouch.Storage.Attachment).Get("testinline", "streamdoc", "streamed.txt", .tRetStream, .tType, .tLen, .tDigest, tNewRev)
+    Do $$$AssertStatusOK(tSC, "Get stream attachment succeeds")
+    Do tRetStream.Rewind()
+    Set tContent = tRetStream.Read()
+    Do $$$AssertEquals(tContent, "direct stream data", "Stream attachment content matches")
+    Do $$$AssertEquals(tType, "text/plain", "Stream attachment content type matches")
+}
+
+/// <p>AC: Mixed stream and base64 attachments stored correctly in one call.</p>
+Method TestMixedStreamAndBase64Attachments()
+{
+    ; Stream-based attachment
+    Set tStream = ##class(%Stream.GlobalBinary).%New()
+    Do tStream.Write("from stream")
+    Do tStream.Rewind()
+    Set tAttachments = {}
+    Set tStreamEntry = {}
+    Do tStreamEntry.%Set("content_type", "text/plain")
+    Do tStreamEntry.%Set("_stream", tStream)
+    Do tAttachments.%Set("stream.txt", tStreamEntry)
+    ; Base64 attachment ("base64" = YmFzZTY0)
+    Set tB64Entry = {}
+    Do tB64Entry.%Set("content_type", "application/json")
+    Do tB64Entry.%Set("data", "YmFzZTY0")
+    Do tAttachments.%Set("b64.txt", tB64Entry)
+    Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments("testinline", "mixdoc", "{""mixed"":true}", "", tAttachments)
+    Do $$$AssertTrue(tNewRev '= "", "Mixed attachment save succeeds")
+    ; Verify stream attachment
+    Set tSC = ##class(IRISCouch.Storage.Attachment).Get("testinline", "mixdoc", "stream.txt", .tS1, .tT1, .tL1, .tD1, tNewRev)
+    Do $$$AssertStatusOK(tSC, "Get stream.txt succeeds")
+    Do tS1.Rewind()
+    Do $$$AssertEquals(tS1.Read(), "from stream", "stream.txt content correct")
+    ; Verify base64 attachment
+    Set tSC = ##class(IRISCouch.Storage.Attachment).Get("testinline", "mixdoc", "b64.txt", .tS2, .tT2, .tL2, .tD2, tNewRev)
+    Do $$$AssertStatusOK(tSC, "Get b64.txt succeeds")
+    Do tS2.Rewind()
+    Do $$$AssertEquals(tS2.Read(), "base64", "b64.txt content correct")
 }
 
 /// <p>AC #4: SaveWithAttachments is atomic — transaction rolls back on DB error.</p>

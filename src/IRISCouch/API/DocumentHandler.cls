@@ -139,13 +139,11 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
                         If tPartType = "" Set tPartType = "application/octet-stream"
                         Set tFilename = tMStream.FileName
                         If tFilename = "" Set tFilename = "attachment_" _ tMI
-                        ; Base64-encode for the SaveWithAttachments path
+                        ; Pass stream directly — no base64 encode/decode round-trip
                         Do tMStream.Rewind()
-                        Set tBinaryData = tMStream.Read()
-                        Set tBase64 = $System.Encryption.Base64Encode(tBinaryData)
                         Set tAttEntry = {}
                         Do tAttEntry.%Set("content_type", tPartType)
-                        Do tAttEntry.%Set("data", tBase64)
+                        Do tAttEntry.%Set("_stream", tMStream)
                         Do tAttachments.%Set(tFilename, tAttEntry)
                     }
                 }
@@ -439,9 +437,7 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
             Set tWantMultipart = ($Find($ZConvert(tAccept, "L"), "multipart/mixed") > 0)
             If tWantMultipart {
                 ; Generate multipart/mixed MIME response
-                Set tBoundary = "iriscouch_" _ $System.Encryption.Base64Encode($System.Encryption.GenCryptRand(16))
-                ; Remove any newlines from the base64 boundary
-                Set tBoundary = $Translate(tBoundary, $Char(13,10), "")
+                Set tBoundary = "iriscouch_" _ ##class(%xsd.hexBinary).LogicalToXSD($System.Encryption.GenCryptRand(16))
                 Set %response.ContentType = "multipart/mixed; boundary=" _ tBoundary
                 Set %response.Status = "200 OK"
                 Set tCRLF = $Char(13,10)
@@ -529,6 +525,21 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
                     ; Add _attachments stubs for this revision
                     Set tAttMeta = ##class(IRISCouch.Storage.Attachment).GetMetadata(pDB, pDocId, tLeafRev)
                     If $IsObject(tAttMeta) && (tAttMeta.%Size() > 0) {
+                        ; Check ?attachments=true — include base64 data in open_revs response
+                        If $Get(%request.Data("attachments", 1)) = "true" {
+                            Set tAttIter = tAttMeta.%GetIterator()
+                            While tAttIter.%GetNext(.tAttName, .tAttStub) {
+                                Set tGetSC = ##class(IRISCouch.Storage.Attachment).Get(pDB, pDocId, tAttName, .tStream, .tCT, .tLen, .tDig, tLeafRev)
+                                If $$$ISOK(tGetSC) && $IsObject(tStream) {
+                                    Do tStream.Rewind()
+                                    Set tBinary = ""
+                                    While 'tStream.AtEnd { Set tBinary = tBinary _ tStream.Read(32000) }
+                                    Set tB64 = $System.Encryption.Base64Encode(tBinary)
+                                    Do tAttStub.%Set("data", tB64)
+                                    Do tAttStub.%Remove("stub")
+                                }
+                            }
+                        }
                         Do tDocObj.%Set("_attachments", tAttMeta)
                     }
                     Set tEntry = {}
@@ -588,7 +599,8 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
                     Set tGetSC = ##class(IRISCouch.Storage.Attachment).Get(pDB, pDocId, tAttName, .tStream, .tCT, .tLen, .tDig, tRev)
                     If $$$ISOK(tGetSC) && $IsObject(tStream) {
                         Do tStream.Rewind()
-                        Set tBinary = tStream.Read()
+                        Set tBinary = ""
+                        While 'tStream.AtEnd { Set tBinary = tBinary _ tStream.Read(32000) }
                         Set tB64 = $System.Encryption.Base64Encode(tBinary)
                         Do tAttStub.%Set("data", tB64)
                         Do tAttStub.%Remove("stub")
@@ -601,8 +613,8 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
                 Try {
                     Set tAttsSince = ##class(%DynamicArray).%FromJSON(tAttsSinceParam)
                 } Catch tParseEx {
-                    ; Invalid atts_since — just return stubs
-                    Set tAttsSince = ""
+                    Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid JSON in atts_since parameter")
+                    Return $$$OK
                 }
                 If $IsObject(tAttsSince) {
                     ; Find max generation across all atts_since revisions
@@ -620,7 +632,8 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
                             Set tGetSC = ##class(IRISCouch.Storage.Attachment).Get(pDB, pDocId, tAttName, .tStream, .tCT, .tLen, .tDig, tRev)
                             If $$$ISOK(tGetSC) && $IsObject(tStream) {
                                 Do tStream.Rewind()
-                                Set tBinary = tStream.Read()
+                                Set tBinary = ""
+                                While 'tStream.AtEnd { Set tBinary = tBinary _ tStream.Read(32000) }
                                 Set tB64 = $System.Encryption.Base64Encode(tBinary)
                                 Do tAttStub.%Set("data", tB64)
                                 Do tAttStub.%Remove("stub")

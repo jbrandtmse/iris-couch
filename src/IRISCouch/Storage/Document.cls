@@ -66,7 +66,7 @@ ClassMethod Exists(pDB As %String, pDocId As %String) As %Boolean
 /// @param pDocId The document identifier
 /// @param pRev The revision string
 /// @return %Boolean 1 if the specific revision exists, 0 otherwise
-ClassMethod DocumentExists(pDB As %String, pDocId As %String, pRev As %String) As %Boolean
+ClassMethod RevisionExists(pDB As %String, pDocId As %String, pRev As %String) As %Boolean
 {
     Quit $Data(^IRISCouch.Docs(pDB, pDocId, pRev))>0
 }

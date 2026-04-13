@@ -349,3 +349,24 @@
 - Key learnings: %request.MimeData for multipart, argumented Quit in For loops, fully automated dev cycle proven
 - Two new memories saved (MimeData pattern, Quit in For loops)
 - Epic 5 retrospective status: done
+
+## Epic 6: Mango Query Engine
+
+### 2026-04-13T00:00:00Z — Cycle started
+- **Scope:** Epic 6, Stories 6.0 through 6.2
+- **Sprint status:** All stories at `backlog`, epic at `backlog`
+
+### 2026-04-13T00:00:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml refreshed (last_updated → 2026-04-13)
+- 14 epics, 55+ stories tracked (added 6.0 cleanup story)
+- Epic 6 stories confirmed: 6.0, 6.1, 6.2
+
+### 2026-04-13T00:00:00Z — Phase 0.5: Retrospective Review
+- Epic 5 retrospective found: `epic-5-retro-2026-04-13.md`
+- 7 must-do items triaged: 2 already done (memory), 5 included in Story 6.0
+- 5 should-do items triaged: ALL included in Story 6.0 per user request
+- Story 6.0 created with 12 acceptance criteria covering all retro + deferred items
+- Epic 6 status updated to `in-progress`
+
+### 2026-04-13T00:01:00Z — Story 6.0: Epic 5 Deferred Cleanup
+- **Create Story:** Story file created at `6-0-epic-5-deferred-cleanup.md`

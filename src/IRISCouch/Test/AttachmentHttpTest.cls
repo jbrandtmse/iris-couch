@@ -51,67 +51,12 @@ ClassMethod GetCurrentRev() As %String
     Quit ##class(IRISCouch.Storage.RevTree).GetWinner("testatthttp", "testdoc")
 }
 
-/// <p>Helper to make a binary HTTP request with custom content type.</p>
-/// <p>Unlike the standard MakeRequest which sets application/json, this method
-/// allows arbitrary content types for binary attachment uploads.</p>
-/// @param pMethod HTTP method
-/// @param pPath Request path
-/// @param pContentType Content-Type header for the request
-/// @param pBinaryContent Binary content string to send
-/// @param Output pStatusCode HTTP status code
-/// @param Output pRespBody Parsed response body or raw string
-/// @return %Status
-ClassMethod MakeBinaryRequest(pMethod As %String, pPath As %String, pContentType As %String, pBinaryContent As %String, Output pStatusCode As %Integer, Output pRespBody) As %Status
-{
-    Set tSC = $$$OK
-    Set pStatusCode = 0
-    Set pRespBody = ""
-    Try {
-        Set tReq = ##class(%Net.HttpRequest).%New()
-        Set tReq.Server = "localhost"
-        Set tReq.Port = 52773
-        Set tReq.Username = "_SYSTEM"
-        Set tReq.Password = "SYS"
-        Set tReq.ContentType = pContentType
-        ; Write binary body
-        If pBinaryContent '= "" {
-            Do tReq.EntityBody.Write(pBinaryContent)
-        }
-        ; Build full path with webapp prefix
-        Set tFullPath = "/iris-couch" _ pPath
-        If pMethod = "GET" {
-            Set tSC = tReq.Get(tFullPath)
-        } ElseIf pMethod = "PUT" {
-            Set tSC = tReq.Put(tFullPath)
-        } ElseIf pMethod = "DELETE" {
-            Set tSC = tReq.Delete(tFullPath)
-        }
-        If $$$ISERR(tSC) Quit
-        Set pStatusCode = tReq.HttpResponse.StatusCode
-        Set tRespStr = tReq.HttpResponse.Data.Read()
-        If tRespStr '= "" {
-            Set tFirstChar = $Extract($ZStrip(tRespStr, "<W"), 1)
-            If (tFirstChar = "{") || (tFirstChar = "[") {
-                Set pRespBody = ##class(%DynamicAbstractObject).%FromJSON(tRespStr)
-            } Else {
-                Set pRespBody = tRespStr
-            }
-        }
-        Quit
-    }
-    Catch ex {
-        Set tSC = ex.AsStatus()
-        Quit
-    }
-    Quit tSC
-}
-
 /// <p>AC #1: PUT attachment returns 201 with new rev.</p>
 Method TestPutAttachment()
 {
     Set tRev = ..GetCurrentRev()
     Set tContent = "Hello from attachment test!"
-    Set tSC = ..MakeBinaryRequest("PUT", "/testatthttp/testdoc/hello.txt?rev="_tRev, "text/plain", tContent, .tStatus, .tBody)
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testatthttp/testdoc/hello.txt?rev="_tRev, .tStatus, .tBody, tContent, "text/plain")
     Do $$$AssertStatusOK(tSC, "PUT attachment request completed")
     Do $$$AssertEquals(tStatus, 201, "PUT attachment returns HTTP 201")
     Do $$$AssertTrue($IsObject(tBody), "Response is JSON object")
@@ -127,7 +72,7 @@ Method TestGetAttachment()
     ; First PUT an attachment
     Set tRev = ..GetCurrentRev()
     Set tContent = "Get me back!"
-    Set tSC = ..MakeBinaryRequest("PUT", "/testatthttp/testdoc/getme.txt?rev="_tRev, "text/plain", tContent, .tStatus, .tBody)
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testatthttp/testdoc/getme.txt?rev="_tRev, .tStatus, .tBody, tContent, "text/plain")
     Do $$$AssertStatusOK(tSC, "PUT attachment completed")
     Do $$$AssertEquals(tStatus, 201, "PUT returns 201")
     ; GET the attachment
@@ -163,7 +108,7 @@ Method TestDeleteAttachment()
     ; PUT an attachment first
     Set tRev = ..GetCurrentRev()
     Set tContent = "Delete this!"
-    Set tSC = ..MakeBinaryRequest("PUT", "/testatthttp/testdoc/deleteme.txt?rev="_tRev, "text/plain", tContent, .tStatus, .tBody)
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testatthttp/testdoc/deleteme.txt?rev="_tRev, .tStatus, .tBody, tContent, "text/plain")
     Do $$$AssertStatusOK(tSC, "PUT attachment completed")
     Do $$$AssertEquals(tStatus, 201, "PUT returns 201")
     Set tNewRev = tBody.rev
@@ -184,7 +129,7 @@ Method TestDeleteAttachment()
 Method TestPutWithoutRevConflict()
 {
     Set tContent = "conflict test"
-    Set tSC = ..MakeBinaryRequest("PUT", "/testatthttp/testdoc/conflict.txt", "text/plain", tContent, .tStatus, .tBody)
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testatthttp/testdoc/conflict.txt", .tStatus, .tBody, tContent, "text/plain")
     Do $$$AssertStatusOK(tSC, "PUT without rev request completed")
     Do $$$AssertEquals(tStatus, 409, "PUT without rev returns HTTP 409")
     Do $$$AssertTrue($IsObject(tBody), "Response is JSON object")
@@ -195,7 +140,7 @@ Method TestPutWithoutRevConflict()
 Method TestPutNonExistentDatabase()
 {
     Set tContent = "no db"
-    Set tSC = ..MakeBinaryRequest("PUT", "/nosuchdb/doc1/file.txt", "text/plain", tContent, .tStatus, .tBody)
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/nosuchdb/doc1/file.txt", .tStatus, .tBody, tContent, "text/plain")
     Do $$$AssertStatusOK(tSC, "PUT to non-existent db request completed")
     Do $$$AssertEquals(tStatus, 404, "PUT to non-existent db returns HTTP 404")
     Do $$$AssertTrue($IsObject(tBody), "Response is JSON object")

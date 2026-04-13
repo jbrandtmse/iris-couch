@@ -510,7 +510,20 @@ ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %Str
         Set tIter = pAttachments.%GetIterator()
         While tIter.%GetNext(.tAttName, .tAttObj) {
             If '$IsObject(tAttObj) Continue
-            If tAttObj.%Get("data") '= "" {
+            If $IsObject(tAttObj.%Get("_stream")) {
+                ; Stream-based attachment (from multipart upload path — no base64 round-trip)
+                Set tStream = tAttObj.%Get("_stream")
+                Set tContentType = tAttObj.%Get("content_type")
+                If tContentType = "" Set tContentType = "application/octet-stream"
+                Do tStream.Rewind()
+                ; Store via Storage.Attachment — stream passed directly
+                Set tSC = ##class(IRISCouch.Storage.Attachment).Store(pDB, pDocId, tNewRev, tAttName, tContentType, tStream, tGeneration, .tDigest, .tLength)
+                If $$$ISERR(tSC) {
+                    TROLLBACK  Set tInTrans = 0
+                    Set tNewRev = ""
+                    Quit
+                }
+            } ElseIf tAttObj.%Get("data") '= "" {
                 ; New attachment with base64 data
                 Set tBase64 = tAttObj.%Get("data")
                 Set tContentType = tAttObj.%Get("content_type")

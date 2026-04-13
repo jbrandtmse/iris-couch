@@ -184,6 +184,44 @@ Method TestGetMultipartMixed()
     Do $$$AssertTrue(tRespStr [ "hello world", "Response contains attachment binary content")
 }
 
+/// <p>AC: GET with ?atts_since=invalid returns HTTP 400 with error envelope.</p>
+Method TestGetDocInvalidAttsSinceReturns400()
+{
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/testretrhttp/rdoc1?atts_since=not-json", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "GET with invalid atts_since request completed")
+    Do $$$AssertEquals(tStatus, 400, "GET returns HTTP 400 for invalid atts_since JSON")
+    Do $$$AssertTrue($IsObject(tBody), "Response is JSON object")
+    Do $$$AssertEquals(tBody.error, "bad_request", "Error slug is bad_request")
+    Do $$$AssertTrue(tBody.reason [ "atts_since", "Error reason mentions atts_since")
+}
+
+/// <p>AC: GET with ?open_revs=all&attachments=true returns base64 data in JSON array path.</p>
+Method TestGetOpenRevsWithAttachmentsTrue()
+{
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/testretrhttp/rdoc1?open_revs=all&attachments=true", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "GET open_revs+attachments=true request completed")
+    Do $$$AssertEquals(tStatus, 200, "GET returns HTTP 200")
+    Do $$$AssertTrue($IsObject(tBody), "Response is a JSON array")
+    Do $$$AssertTrue(tBody.%Size() > 0, "Array has at least one entry")
+    ; Get the first revision entry
+    Set tEntry = tBody.%Get(0)
+    Do $$$AssertTrue($IsObject(tEntry), "First entry is an object")
+    Set tOk = tEntry.%Get("ok")
+    Do $$$AssertTrue($IsObject(tOk), "Entry has ok field")
+    ; Check _attachments has data (not stub)
+    Set tAtts = tOk.%Get("_attachments")
+    Do $$$AssertTrue($IsObject(tAtts), "_attachments object exists in open_revs response")
+    Set tStub = tAtts.%Get("greet.txt")
+    Do $$$AssertTrue($IsObject(tStub), "greet.txt entry exists")
+    Set tData = tStub.%Get("data")
+    Do $$$AssertTrue(tData '= "", "data field is present with base64 content")
+    ; Decode and verify
+    Set tDecoded = $System.Encryption.Base64Decode(tData)
+    Do $$$AssertEquals(tDecoded, "hello world", "Decoded base64 matches original content")
+    ; stub should be removed
+    Do $$$AssertTrue(tStub.%Get("stub") = "", "stub field is removed when data is present")
+}
+
 /// <p>AC #4: Multipart response has correct boundaries and Content-Type headers.</p>
 Method TestMultipartBoundaryFormat()
 {
@@ -220,4 +258,85 @@ Method TestMultipartBoundaryFormat()
     Do $$$AssertTrue(tCount >= 3, "At least 3 boundary markers present (JSON part + attachment part + closing)")
 }
 
+/// <p>AC: Multipart/mixed response with conflicting revisions each having different attachments.</p>
+/// <p>Creates a conflict by grafting an external revision (new_edits=false pattern),
+/// attaches different files to each leaf, then verifies the multipart response
+/// includes parts for both revisions with their respective attachment binaries.</p>
+Method TestMultipartWithConflictingRevisions()
+{
+    ; Get the current winning rev for rdoc1 (rev 1)
+    Set tRev1 = ##class(IRISCouch.Storage.RevTree).GetWinner("testretrhttp", "rdoc1")
+    Do $$$AssertTrue(tRev1 '= "", "Rev1 exists: " _ tRev1)
+    ; Create a conflicting revision by grafting a separate chain (simulates new_edits=false)
+    Set tConflictRev = "1-conflicthash999"
+    Set tSC = ##class(IRISCouch.Storage.Document).Write("testretrhttp", "rdoc1", tConflictRev, "{""name"":""conflict branch""}")
+    Do $$$AssertStatusOK(tSC, "Conflict revision body written")
+    ; Graft as an independent chain — creates a separate root, making 2 leaf revisions
+    Set tChain = []
+    Do tChain.%Push(tConflictRev)
+    Set tSC = ##class(IRISCouch.Storage.RevTree).GraftChain("testretrhttp", "rdoc1", tChain, tConflictRev, 0)
+    Do $$$AssertStatusOK(tSC, "Conflict branch grafted into rev tree")
+    ; Verify we now have 2 leaf revisions
+    Set tLeaves = ##class(IRISCouch.Storage.RevTree).GetLeafRevs("testretrhttp", "rdoc1")
+    Do $$$AssertTrue(tLeaves.%Size() >= 2, "At least 2 leaf revisions exist (conflict)")
+    ; Add attachment "b.txt" to the conflict revision
+    Set tStream2 = ##class(%Stream.GlobalBinary).%New()
+    Do tStream2.Write("conflict attachment data")
+    Do tStream2.Rewind()
+    Set tSC = ##class(IRISCouch.Storage.Attachment).Store("testretrhttp", "rdoc1", tConflictRev, "b.txt", "text/plain", tStream2, 1, .tDig2, .tLen2)
+    Do $$$AssertStatusOK(tSC, "Attachment b.txt stored on conflict revision")
+    ; Now GET with Accept: multipart/mixed and open_revs=all
+    Set tReq = ##class(%Net.HttpRequest).%New()
+    Set tReq.Server = "localhost"
+    Set tReq.Port = 52773
+    Set tReq.Username = "_SYSTEM"
+    Set tReq.Password = "SYS"
+    Do tReq.SetHeader("Accept", "multipart/mixed")
+    Set tSC = tReq.Get("/iris-couch/testretrhttp/rdoc1?open_revs=all")
+    Do $$$AssertStatusOK(tSC, "GET multipart/mixed with conflicts completed")
+    Do $$$AssertEquals(tReq.HttpResponse.StatusCode, 200, "GET returns HTTP 200")
+    ; Check Content-Type is multipart/mixed
+    Set tRespCT = tReq.HttpResponse.ContentType
+    Do $$$AssertTrue(tRespCT [ "multipart/mixed", "Content-Type is multipart/mixed")
+    ; Extract boundary
+    Set tBoundary = ""
+    For tPI = 1:1:$Length(tRespCT, ";") {
+        Set tPart = $ZStrip($Piece(tRespCT, ";", tPI), "<>W")
+        If $Extract(tPart, 1, 9) = "boundary=" {
+            Set tBoundary = $Extract(tPart, 10, *)
+        }
+    }
+    Do $$$AssertTrue(tBoundary '= "", "Boundary extracted")
+    ; Read full response body
+    Set tRespStr = tReq.HttpResponse.Data.Read()
+    ; Verify both revisions appear in the multipart response
+    Do $$$AssertTrue(tRespStr [ """_rev"":""" _ tRev1 _ """", "Response contains rev1")
+    Do $$$AssertTrue(tRespStr [ """_rev"":""" _ tConflictRev _ """", "Response contains conflict rev")
+    ; Verify both attachments appear
+    Do $$$AssertTrue(tRespStr [ "hello world", "Response contains greet.txt content from rev1")
+    Do $$$AssertTrue(tRespStr [ "conflict attachment data", "Response contains b.txt content from conflict rev")
+    ; Verify MIME boundaries are correct
+    Do $$$AssertTrue(tRespStr [ ("--" _ tBoundary), "Response contains opening boundary")
+    Do $$$AssertTrue(tRespStr [ ("--" _ tBoundary _ "--"), "Response contains closing boundary")
+    ; Verify each part has proper Content-Type
+    Do $$$AssertTrue(tRespStr [ "Content-Type: application/json", "Response has JSON Content-Type parts")
+    Do $$$AssertTrue(tRespStr [ "Content-Type: text/plain", "Response has text/plain Content-Type for attachment parts")
+    ; Verify Content-Disposition headers for both attachments
+    Do $$$AssertTrue(tRespStr [ "filename=""greet.txt""", "Response has greet.txt Content-Disposition")
+    Do $$$AssertTrue(tRespStr [ "filename=""b.txt""", "Response has b.txt Content-Disposition")
+    ; Verify boundary contains only hex chars (no MIME-special characters)
+    ; Strip "iriscouch_" prefix
+    Set tHexPart = $Piece(tBoundary, "_", 2)
+    Set tIsHex = 1
+    For tCI = 1:1:$Length(tHexPart) {
+        Set tChar = $Extract(tHexPart, tCI)
+        If '((tChar?1N) || ((tChar >= "A") && (tChar <= "F")) || ((tChar >= "a") && (tChar <= "f"))) {
+            Set tIsHex = 0
+            Quit
+        }
+    }
+    Do $$$AssertTrue(tIsHex, "Boundary hex part contains only hex characters (no +/= MIME-special chars)")
 }
+
+}
+

@@ -128,6 +128,15 @@ ClassMethod Delete(pDB As %String, pDocId As %String, pRev As %String, pAttName 
 {
     Set tSC = $$$OK
     Try {
+        ; Delete the underlying stream object to prevent OID leaks
+        Set tOID = $Get(^IRISCouch.Atts(pDB, pDocId, pRev, pAttName, "stream"))
+        If tOID '= "" {
+            Set tStream = ##class(%Stream.GlobalBinary).%Open(tOID)
+            If $IsObject(tStream) {
+                Do tStream.Clear()
+                Do tStream.%Save()
+            }
+        }
         ; Kill the attachment data for this revision
         Kill ^IRISCouch.Atts(pDB, pDocId, pRev, pAttName)
         Quit
@@ -203,13 +212,16 @@ ClassMethod Exists(pDB As %String, pDocId As %String, pAttName As %String) As %B
 /// @return %String The revision string, or "" if not found
 ClassMethod FindRevWithAttachment(pDB As %String, pDocId As %String, pAttName As %String) As %String
 {
-    Set tFoundRev = ""
-    Set tRev = ""
+    Set tRev = "", tMaxGen = 0, tFoundRev = ""
     For {
         Set tRev = $Order(^IRISCouch.Atts(pDB, pDocId, tRev))
         Quit:tRev=""
         If $Data(^IRISCouch.Atts(pDB, pDocId, tRev, pAttName)) {
-            Set tFoundRev = tRev
+            Set tGen = +$Piece(tRev, "-", 1)
+            If tGen > tMaxGen {
+                Set tMaxGen = tGen
+                Set tFoundRev = tRev
+            }
         }
     }
     Quit tFoundRev
