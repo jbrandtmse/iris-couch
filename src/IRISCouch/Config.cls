@@ -32,6 +32,18 @@ Parameter AUTHSECRET = "";
 /// <p>Session cookie timeout in seconds. CouchDB default is 600.</p>
 Parameter AUTHTIMEOUT = 600;
 
+/// <p>Expected JWT issuer (<code>iss</code> claim). Empty string disables JWT auth.</p>
+Parameter JWTISSUER = "";
+
+/// <p>Shared secret for HMAC-based JWT validation (HS256). Empty string disables JWT auth.</p>
+Parameter JWTSECRET = "";
+
+/// <p>JWT claim name containing the user roles array.</p>
+Parameter JWTROLESCLAIM = "roles";
+
+/// <p>Shared secret for proxy authentication HMAC validation. Empty string disables proxy auth.</p>
+Parameter PROXYAUTHSECRET = "";
+
 /// <p>Retrieve a configuration value by key.</p>
 /// <p>Checks <code>^IRISCouch.Config(pKey)</code> first for a global override.
 /// If no override exists, returns the class parameter default.</p>
@@ -90,6 +102,20 @@ ClassMethod GetAll() As %DynamicObject
         Set tResult.AUTHSECRET = ""
     }
     Set tResult.AUTHTIMEOUT = ..Get("AUTHTIMEOUT")
+    Set tResult.JWTISSUER = ..Get("JWTISSUER")
+    Set tJwtSecret = ..Get("JWTSECRET")
+    If tJwtSecret '= "" {
+        Set tResult.JWTSECRET = "[REDACTED]"
+    } Else {
+        Set tResult.JWTSECRET = ""
+    }
+    Set tResult.JWTROLESCLAIM = ..Get("JWTROLESCLAIM")
+    Set tProxySecret = ..Get("PROXYAUTHSECRET")
+    If tProxySecret '= "" {
+        Set tResult.PROXYAUTHSECRET = "[REDACTED]"
+    } Else {
+        Set tResult.PROXYAUTHSECRET = ""
+    }
     Quit tResult
 }
 

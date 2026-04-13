@@ -437,3 +437,10 @@
 - **Code Review:** PASSED. 0 critical/high. 2 medium auto-resolved (rules file method reference, deferred-work items marked resolved). 1 low deferred (TypeRank vs InferType inconsistency).
 - **Commit:** `3c4d211` pushed to origin/main
 - **Status:** done
+
+### 2026-04-14T02:00:00Z — Story 7.1: Session Authentication & Basic Auth
+- **Create Story:** Story file created at `7-1-session-authentication-and-basic-auth.md` with 9 tasks, 5 new files, 2 modified files
+- **Development:** All 9 tasks completed. 5 files created (Auth/Session.cls, Auth/Basic.cls, API/AuthHandler.cls, Test/AuthTest.cls, Test/AuthHttpTest.cls), 2 modified (Router.cls, Config.cls). 328 tests pass (312 existing + 16 new), 0 regressions. Key: HMAC-SHA256 cookie signing, OnPreDispatch middleware, _session CRUD endpoints.
+- **Code Review:** PASSED. 1 high auto-resolved (AUTHSECRET exposure in GetAll). 3 medium auto-resolved (timing-safe HMAC comparison, boolean ok:true, future-dated cookie rejection). 2 low deferred (colon in username, GetSecret race).
+- **Commit:** `84cb686` pushed to origin/main
+- **Status:** done

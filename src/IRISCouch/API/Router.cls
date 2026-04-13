@@ -262,7 +262,7 @@ ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue A
     Set %IRISCouchRoles = []
     Set %IRISCouchAuthMethod = ""
     Try {
-        ; Check for AuthSession cookie first
+        ; Priority 1: Check for AuthSession cookie
         Set tCookieHeader = %request.GetCgiEnv("HTTP_COOKIE", "")
         If tCookieHeader '= "" {
             Set tCookieValue = ..ExtractAuthSessionCookie(tCookieHeader)
@@ -276,9 +276,30 @@ ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue A
                 }
             }
         }
-        ; Check for Authorization: Basic header
+        ; Priority 2: Check for Authorization: Bearer (JWT) header
         Set tAuthHeader = %request.GetCgiEnv("HTTP_AUTHORIZATION", "")
-        If tAuthHeader '= "" {
+        If (tAuthHeader '= "") && ($ZConvert($Piece(tAuthHeader, " ", 1), "U") = "BEARER") {
+            Set tOK = ##class(IRISCouch.Auth.JWT).Validate(tAuthHeader, .tUsername, .tRoles)
+            If tOK {
+                Set %IRISCouchUser = tUsername
+                Set %IRISCouchRoles = tRoles
+                Set %IRISCouchAuthMethod = "jwt"
+                Quit
+            }
+        }
+        ; Priority 3: Check for X-Auth-CouchDB-UserName proxy auth header
+        Set tProxyUser = %request.GetCgiEnv("HTTP_X_AUTH_COUCHDB_USERNAME", "")
+        If tProxyUser '= "" {
+            Set tOK = ##class(IRISCouch.Auth.Proxy).Authenticate(.tUsername, .tRoles)
+            If tOK {
+                Set %IRISCouchUser = tUsername
+                Set %IRISCouchRoles = tRoles
+                Set %IRISCouchAuthMethod = "proxy"
+                Quit
+            }
+        }
+        ; Priority 4: Check for Authorization: Basic header
+        If (tAuthHeader '= "") && ($ZConvert($Piece(tAuthHeader, " ", 1), "U") = "BASIC") {
             Set tOK = ##class(IRISCouch.Auth.Basic).Authenticate(tAuthHeader, .tUsername, .tRoles)
             If tOK {
                 Set %IRISCouchUser = tUsername
