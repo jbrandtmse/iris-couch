@@ -37,9 +37,9 @@
 generated: 2026-04-12
 last_updated: 2026-04-12
 last_review: 2026-04-12
-last_story_reviewed: 5-2-inline-and-multipart-attachment-upload
-last_story_in_progress:
-last_story_completed: 5-2-inline-and-multipart-attachment-upload
+last_story_reviewed: 5-3-attachment-retrieval-options-and-multipart-response
+last_story_in_progress: 5-3-attachment-retrieval-options-and-multipart-response
+last_story_completed: 5-3-attachment-retrieval-options-and-multipart-response
 last_story_created: 3-1-single-document-create-and-read
 project: iris-couch
 project_key: NOKEY
@@ -88,7 +88,7 @@ development_status:
   5-0-epic-4-deferred-cleanup: done
   5-1-standalone-attachment-upload-and-download: done
   5-2-inline-and-multipart-attachment-upload: done
-  5-3-attachment-retrieval-options-and-multipart-response: backlog
+  5-3-attachment-retrieval-options-and-multipart-response: done
   epic-5-retrospective: optional
 
   # Epic 6: Mango Query Engine

@@ -318,3 +318,10 @@
 - **Code Review:** PASSED. 0 critical/high. 1 medium auto-resolved (DB delete missing attachment cleanup). 3 deferred (duplicated HTTP helper, FindRevWithAttachment sort, stream OID leak on delete).
 - **Commit:** `5339746` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T17:00:00Z — Story 5.2: Inline & Multipart Attachment Upload
+- **Create Story:** Story file created at `5-2-inline-and-multipart-attachment-upload.md`
+- **Development:** All 6 tasks completed. 2 files created (Test/InlineAttachmentTest, Test/InlineAttachmentHttpTest), 2 modified (DocumentEngine, DocumentHandler). 197 tests pass (184 existing + 13 new), 0 regressions. Key discovery: %CSP.REST pre-parses multipart into %request.MimeData, so used that instead of %Net.MIMEReader.
+- **Code Review:** PASSED. 2 high auto-resolved (storage encapsulation in SaveWithAttachments stub copy + substring matching bug). 3 deferred (base64 empty check, double encode/decode, weak test assertion).
+- **Commit:** `28379b8` pushed to origin/main
+- **Status:** done

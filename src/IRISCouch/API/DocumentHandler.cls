@@ -434,6 +434,85 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
                     Quit
                 }
             }
+            ; Check if multipart/mixed response is requested
+            Set tAccept = %request.GetCgiEnv("HTTP_ACCEPT")
+            Set tWantMultipart = ($Find($ZConvert(tAccept, "L"), "multipart/mixed") > 0)
+            If tWantMultipart {
+                ; Generate multipart/mixed MIME response
+                Set tBoundary = "iriscouch_" _ $System.Encryption.Base64Encode($System.Encryption.GenCryptRand(16))
+                ; Remove any newlines from the base64 boundary
+                Set tBoundary = $Translate(tBoundary, $Char(13,10), "")
+                Set %response.ContentType = "multipart/mixed; boundary=" _ tBoundary
+                Set %response.Status = "200 OK"
+                Set tCRLF = $Char(13,10)
+                Set tI = 0
+                While tI < tRevArray.%Size() {
+                    Set tLeafRev = tRevArray.%Get(tI)
+                    Set tLeafBody = ##class(IRISCouch.Storage.Document).Read(pDB, pDocId, tLeafRev)
+                    If tLeafBody '= "" {
+                        Set tLeafObj = ##class(%DynamicObject).%FromJSON(tLeafBody)
+                        Set tDocObj = {}
+                        Do tDocObj.%Set("_id", pDocId)
+                        Do tDocObj.%Set("_rev", tLeafRev)
+                        Set tDocIter = tLeafObj.%GetIterator()
+                        While tDocIter.%GetNext(.tDocKey, .tDocVal) {
+                            Do tDocObj.%Set(tDocKey, tDocVal)
+                        }
+                        ; Get attachment metadata for this revision
+                        Set tAttMeta = ##class(IRISCouch.Storage.Attachment).GetMetadata(pDB, pDocId, tLeafRev)
+                        If $IsObject(tAttMeta) && (tAttMeta.%Size() > 0) {
+                            ; In multipart mode, use "follows":true instead of "stub":true
+                            Set tFollowsMeta = {}
+                            Set tAttIter2 = tAttMeta.%GetIterator()
+                            While tAttIter2.%GetNext(.tAN, .tAV) {
+                                Set tFollowStub = {}
+                                Do tFollowStub.%Set("content_type", tAV.%Get("content_type"))
+                                Do tFollowStub.%Set("length", tAV.%Get("length"), "number")
+                                Do tFollowStub.%Set("digest", tAV.%Get("digest"))
+                                Do tFollowStub.%Set("revpos", tAV.%Get("revpos"), "number")
+                                Do tFollowStub.%Set("follows", 1, "boolean")
+                                Do tFollowsMeta.%Set(tAN, tFollowStub)
+                            }
+                            Do tDocObj.%Set("_attachments", tFollowsMeta)
+                        }
+                        ; Write JSON part
+                        Write "--" _ tBoundary _ tCRLF
+                        Write "Content-Type: application/json" _ tCRLF
+                        Write tCRLF
+                        Write tDocObj.%ToJSON() _ tCRLF
+                        ; Write binary attachment parts
+                        If $IsObject(tAttMeta) && (tAttMeta.%Size() > 0) {
+                            Set tAttIter3 = tAttMeta.%GetIterator()
+                            While tAttIter3.%GetNext(.tAttName, .tAttStub) {
+                                Set tGetSC = ##class(IRISCouch.Storage.Attachment).Get(pDB, pDocId, tAttName, .tStream, .tCT, .tLen, .tDig, tLeafRev)
+                                If $$$ISOK(tGetSC) && $IsObject(tStream) {
+                                    Write "--" _ tBoundary _ tCRLF
+                                    Write "Content-Type: " _ tCT _ tCRLF
+                                    Write "Content-Disposition: attachment; filename=""" _ tAttName _ """" _ tCRLF
+                                    Write tCRLF
+                                    Do tStream.Rewind()
+                                    While 'tStream.AtEnd {
+                                        Write tStream.Read(32000)
+                                    }
+                                    Write tCRLF
+                                }
+                            }
+                        }
+                    } Else {
+                        ; Missing revision — write JSON error part
+                        Write "--" _ tBoundary _ tCRLF
+                        Write "Content-Type: application/json" _ tCRLF
+                        Write tCRLF
+                        Set tMissObj = {"missing":""} Do tMissObj.%Set("missing", tLeafRev)
+                        Write tMissObj.%ToJSON() _ tCRLF
+                    }
+                    Set tI = tI + 1
+                }
+                ; Write closing boundary
+                Write "--" _ tBoundary _ "--" _ tCRLF
+                Quit
+            }
+            ; Standard JSON array response for open_revs
             Set tI = 0
             While tI < tRevArray.%Size() {
                 Set tLeafRev = tRevArray.%Get(tI)
@@ -446,6 +525,11 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
                     Set tDocIter = tLeafObj.%GetIterator()
                     While tDocIter.%GetNext(.tDocKey, .tDocVal) {
                         Do tDocObj.%Set(tDocKey, tDocVal)
+                    }
+                    ; Add _attachments stubs for this revision
+                    Set tAttMeta = ##class(IRISCouch.Storage.Attachment).GetMetadata(pDB, pDocId, tLeafRev)
+                    If $IsObject(tAttMeta) && (tAttMeta.%Size() > 0) {
+                        Do tDocObj.%Set("_attachments", tAttMeta)
                     }
                     Set tEntry = {}
                     Do tEntry.%Set("ok", tDocObj)
@@ -493,6 +577,59 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
         Set tIter = tStoredObj.%GetIterator()
         While tIter.%GetNext(.tKey, .tValue) {
             Do tRespObj.%Set(tKey, tValue)
+        }
+        ; Add _attachments based on query parameters
+        Set tAttMeta = ##class(IRISCouch.Storage.Attachment).GetMetadata(pDB, pDocId, tRev)
+        If $IsObject(tAttMeta) && (tAttMeta.%Size() > 0) {
+            ; Check ?attachments=true — include base64 data
+            If $Get(%request.Data("attachments", 1)) = "true" {
+                Set tAttIter = tAttMeta.%GetIterator()
+                While tAttIter.%GetNext(.tAttName, .tAttStub) {
+                    Set tGetSC = ##class(IRISCouch.Storage.Attachment).Get(pDB, pDocId, tAttName, .tStream, .tCT, .tLen, .tDig, tRev)
+                    If $$$ISOK(tGetSC) && $IsObject(tStream) {
+                        Do tStream.Rewind()
+                        Set tBinary = tStream.Read()
+                        Set tB64 = $System.Encryption.Base64Encode(tBinary)
+                        Do tAttStub.%Set("data", tB64)
+                        Do tAttStub.%Remove("stub")
+                    }
+                }
+            }
+            ; Check ?atts_since=["rev1","rev2"] — conditional inclusion
+            ElseIf $Data(%request.Data("atts_since", 1)) {
+                Set tAttsSinceParam = $Get(%request.Data("atts_since", 1))
+                Try {
+                    Set tAttsSince = ##class(%DynamicArray).%FromJSON(tAttsSinceParam)
+                } Catch tParseEx {
+                    ; Invalid atts_since — just return stubs
+                    Set tAttsSince = ""
+                }
+                If $IsObject(tAttsSince) {
+                    ; Find max generation across all atts_since revisions
+                    Set tMaxGen = 0
+                    For tASI = 0:1:(tAttsSince.%Size()-1) {
+                        Set tSinceRev = tAttsSince.%Get(tASI)
+                        Set tGen = +$Piece(tSinceRev, "-", 1)
+                        If tGen > tMaxGen Set tMaxGen = tGen
+                    }
+                    ; For each attachment: if revpos > maxGen, include data; else stub
+                    Set tAttIter = tAttMeta.%GetIterator()
+                    While tAttIter.%GetNext(.tAttName, .tAttStub) {
+                        Set tRevPos = +tAttStub.%Get("revpos")
+                        If tRevPos > tMaxGen {
+                            Set tGetSC = ##class(IRISCouch.Storage.Attachment).Get(pDB, pDocId, tAttName, .tStream, .tCT, .tLen, .tDig, tRev)
+                            If $$$ISOK(tGetSC) && $IsObject(tStream) {
+                                Do tStream.Rewind()
+                                Set tBinary = tStream.Read()
+                                Set tB64 = $System.Encryption.Base64Encode(tBinary)
+                                Do tAttStub.%Set("data", tB64)
+                                Do tAttStub.%Remove("stub")
+                            }
+                        }
+                    }
+                }
+            }
+            Do tRespObj.%Set("_attachments", tAttMeta)
         }
         ; Add _conflicts if requested
         If $Get(%request.Data("conflicts", 1)) = "true" {
