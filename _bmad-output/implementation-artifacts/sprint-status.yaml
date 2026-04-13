@@ -75,12 +75,12 @@ development_status:
   epic-3-retrospective: done
 
   # Epic 4: Real-Time Change Tracking
-  epic-4: in-progress
+  epic-4: done
   4-0-epic-3-deferred-cleanup: done
   4-1-normal-changes-feed: done
   4-2-longpoll-changes-feed: done
   4-3-built-in-changes-filters: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
 
   # Epic 5: Binary Attachment Management
   epic-5: backlog

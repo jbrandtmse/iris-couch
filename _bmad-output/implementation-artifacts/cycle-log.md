@@ -260,3 +260,25 @@
 - **Code Review:** PASSED. 1 medium auto-resolved (heartbeat > timeout cap). 2 low auto-resolved (dead code, negative timeout clamp). 1 low deferred (event name pattern duplication).
 - **Commit:** `6862b78` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T12:00:00Z — Story 4.3: Built-In Changes Filters
+- **Create Story:** Story file created at `4-3-built-in-changes-filters.md`
+- **Development:** All 8 tasks completed. 1 file modified (ChangesHandler.cls), 2 created (Test/ChangesFilterTest.cls, Test/ChangesFilterHttpTest.cls). Added _doc_ids, _design, _selector filters with simple Mango selector matcher. 162 tests pass (149 existing + 13 new), 0 regressions.
+- **Code Review:** PASSED. 1 medium auto-resolved (redundant document read with selector+include_docs). 2 low deferred (test encapsulation, missing deleted+selector test).
+- **Commit:** `2b2466d` pushed to origin/main
+- **Status:** done
+
+### 2026-04-12T12:30:00Z — Epic 4 Complete
+- All 4 stories done (4.0, 4.1, 4.2, 4.3)
+- **Total files created:** 9 new ObjectScript classes (1 handler + 1 storage + 7 test)
+- **Total files modified:** 5 existing classes (DocumentEngine, ChangesHandler [created in 4.1], Router, Storage/Changes, RevTree) + BulkHandler, AllDocsHandler, DocumentHandler (split)
+- **Total tests:** 162 passing, 0 failures across 26 test classes
+- **Deferred items:** ~8 new items added to deferred-work.md
+
+### 2026-04-12T13:00:00Z — Retrospective Complete
+- Retro document: `epic-4-retro-2026-04-12.md`
+- Epic 3 retro action items: 3/3 completed (all fulfilled in Story 4.0)
+- Manual HTTP verification: 20+ curl tests, all passing
+- 3 action items for Epic 5, 5 deferred items, 6 lessons codified
+- Key learnings: $System.Event API constraints, Return vs Quit in nested blocks
+- Epic 4 retrospective status: done
