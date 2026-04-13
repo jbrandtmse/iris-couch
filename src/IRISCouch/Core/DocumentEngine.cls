@@ -441,4 +441,151 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
     Quit tSC
 }
 
+/// <p>Save a document with multiple inline attachments atomically.</p>
+/// <p>Handles both new attachments (with base64 <code>"data"</code> field) and
+/// stub attachments (<code>"stub":true</code>) carried forward from a previous
+/// revision. All operations occur within a single
+/// <code>TSTART</code>/<code>TCOMMIT</code> transaction.</p>
+/// <h4>Transaction steps:</h4>
+/// <ol>
+/// <li>Write document body (without <code>_attachments</code> data fields)</li>
+/// <li>Update revision tree</li>
+/// <li>For each new attachment: base64-decode and store via Storage.Attachment</li>
+/// <li>For stub attachments: copy forward from previous revision</li>
+/// <li>Record change in changes feed</li>
+/// <li>Update database metadata</li>
+/// </ol>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pBody The raw JSON body string (without _attachments data)
+/// @param pParentRev The parent revision string (empty for new documents)
+/// @param pAttachments The _attachments %DynamicObject with data and/or stub entries
+/// @return %String The new revision string on success, empty string on failure
+ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %String, pParentRev As %String = "", pAttachments As %DynamicObject = "") As %String
+{
+    Set tNewRev = ""
+    Set tInTrans = 0
+    Try {
+        ; Validate database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Quit
+        }
+        ; Validate attachments object
+        If '$IsObject(pAttachments) {
+            Quit
+        }
+        ; Determine generation
+        If pParentRev = "" {
+            Set tGeneration = 1
+        } Else {
+            Set tGeneration = +$Piece(pParentRev, "-", 1) + 1
+        }
+        ; Mint new revision
+        Set tNewRev = ##class(IRISCouch.Core.RevHash).MintRev(tGeneration, pBody, pParentRev)
+        If tNewRev = "" Quit
+        ; Begin transaction
+        TSTART
+        Set tInTrans = 1
+        ; 1. Write document body (without _attachments data fields)
+        Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, tNewRev, pBody)
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 2. Update revision tree
+        If tGeneration = 1 {
+            Set tSC = ##class(IRISCouch.Storage.RevTree).Init(pDB, pDocId, tNewRev)
+        } Else {
+            Set tSC = ##class(IRISCouch.Storage.RevTree).AddChild(pDB, pDocId, pParentRev, tNewRev)
+        }
+        If $$$ISERR(tSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
+        ; 3. Process each attachment
+        ; Build delimited list of stub attachment names to copy forward
+        Set tStubNames = ""
+        Set tIter = pAttachments.%GetIterator()
+        While tIter.%GetNext(.tAttName, .tAttObj) {
+            If '$IsObject(tAttObj) Continue
+            If tAttObj.%Get("data") '= "" {
+                ; New attachment with base64 data
+                Set tBase64 = tAttObj.%Get("data")
+                Set tContentType = tAttObj.%Get("content_type")
+                If tContentType = "" Set tContentType = "application/octet-stream"
+                ; Base64 decode
+                Set tBinary = $System.Encryption.Base64Decode(tBase64)
+                If tBinary = "" {
+                    ; Invalid base64 — rollback
+                    TROLLBACK  Set tInTrans = 0
+                    Set tNewRev = ""
+                    Quit
+                }
+                ; Create stream from decoded data
+                Set tStream = ##class(%Stream.GlobalBinary).%New()
+                Do tStream.Write(tBinary)
+                Do tStream.Rewind()
+                ; Store via Storage.Attachment
+                Set tSC = ##class(IRISCouch.Storage.Attachment).Store(pDB, pDocId, tNewRev, tAttName, tContentType, tStream, tGeneration, .tDigest, .tLength)
+                If $$$ISERR(tSC) {
+                    TROLLBACK  Set tInTrans = 0
+                    Set tNewRev = ""
+                    Quit
+                }
+            } ElseIf tAttObj.%Get("stub") = 1 || (tAttObj.%Get("stub") = "true") {
+                ; Stub attachment — carry forward from previous rev
+                Set tStubNames = tStubNames _ $Select(tStubNames'="":"||", 1:"") _ tAttName
+            } ElseIf tAttObj.%Get("follows") = 1 || (tAttObj.%Get("follows") = "true") {
+                ; Multipart "follows" marker — handled by caller who provides streams
+                ; Skip here; caller should have replaced "follows" with "data" or stream
+                Continue
+            }
+        }
+        ; Check if we had a rollback from the inner loop
+        If tNewRev = "" Quit
+        ; 4. Copy forward stub attachments from previous revision
+        ; Uses Storage.Attachment.CopyStubByName to preserve encapsulation
+        If (pParentRev '= "") && (tStubNames '= "") {
+            ; Iterate the delimited stub list and copy each one individually
+            Set tStubCount = $Length(tStubNames, "||")
+            For tSI = 1:1:tStubCount {
+                Set tStubName = $Piece(tStubNames, "||", tSI)
+                If tStubName = "" Continue
+                Set tSC = ##class(IRISCouch.Storage.Attachment).CopyOneAttachment(pDB, pDocId, pParentRev, tNewRev, tStubName)
+                If $$$ISERR(tSC) {
+                    TROLLBACK  Set tInTrans = 0
+                    Set tNewRev = ""
+                    Quit
+                }
+            }
+            ; Check if rollback occurred in the loop
+            If tNewRev = "" Quit
+        }
+        ; 5. Record change in changes feed
+        Set tSeq = ##class(IRISCouch.Storage.Changes).RecordChange(pDB, pDocId, tNewRev)
+        ; 6. Update database metadata
+        If tGeneration = 1 {
+            Do ##class(IRISCouch.Storage.Database).IncrementDocCount(pDB)
+        }
+        Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
+        ; Commit transaction
+        TCOMMIT
+        Set tInTrans = 0
+        ; Signal longpoll waiters AFTER commit
+        Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)
+        If ##class(%SYSTEM.Event).Defined(tEventName) {
+            Set tEvtSignal = ##class(%SYSTEM.Event).Signal(tEventName)
+        }
+        Quit
+    }
+    Catch ex {
+        If tInTrans { TROLLBACK  Set tInTrans = 0 }
+        Set tNewRev = ""
+        Quit
+    }
+    Quit tNewRev
+}
+
 }

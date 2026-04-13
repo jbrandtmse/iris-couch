@@ -311,3 +311,10 @@
 - **Code Review:** PASSED. 0 critical/high/medium. 4 low items deferred (naming inconsistency, unused locals, missing doc comment, test Kill pattern).
 - **Commit:** `01f4f78` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T15:30:00Z — Story 5.1: Standalone Attachment Upload & Download
+- **Create Story:** Story file created at `5-1-standalone-attachment-upload-and-download.md`
+- **Development:** All 6 tasks completed. 4 files created (Storage/Attachment, API/AttachmentHandler, Test/AttachmentTest, Test/AttachmentHttpTest), 3 modified (DocumentEngine, Router, Storage/Database). 184 tests pass (169 existing + 15 new), 0 regressions. Curl verification: all 5 scenarios passed (text upload/download, binary PNG round-trip, DELETE + 404).
+- **Code Review:** PASSED. 0 critical/high. 1 medium auto-resolved (DB delete missing attachment cleanup). 3 deferred (duplicated HTTP helper, FindRevWithAttachment sort, stream OID leak on delete).
+- **Commit:** `5339746` pushed to origin/main
+- **Status:** done

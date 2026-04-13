@@ -47,12 +47,32 @@ ClassMethod HandlePost(pDB As %String) As %Status
         }
         ; POST always generates a server UUID — ignore any client _id
         Set tDocId = ##class(IRISCouch.Util.UUID).Generate()
+        ; Check for inline _attachments with data fields
+        Set tHasInlineAtts = 0
+        Set tAttachments = ""
+        If tBody.%IsDefined("_attachments") {
+            Set tAttachments = tBody.%Get("_attachments")
+            If $IsObject(tAttachments) {
+                Set tAttIter = tAttachments.%GetIterator()
+                While tAttIter.%GetNext(.tAttKey, .tAttVal) {
+                    If $IsObject(tAttVal) && (tAttVal.%Get("data") '= "") {
+                        Set tHasInlineAtts = 1
+                        Quit
+                    }
+                }
+            }
+        }
         ; Remove metadata fields before storing
         If tBody.%IsDefined("_id") Do tBody.%Remove("_id")
         If tBody.%IsDefined("_rev") Do tBody.%Remove("_rev")
         If tBody.%IsDefined("_deleted") Do tBody.%Remove("_deleted")
-        ; Save document
-        Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tBody.%ToJSON())
+        If tBody.%IsDefined("_attachments") Do tBody.%Remove("_attachments")
+        ; Save document — with or without inline attachments
+        If tHasInlineAtts && $IsObject(tAttachments) {
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, tDocId, tBody.%ToJSON(), "", tAttachments)
+        } Else {
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tBody.%ToJSON())
+        }
         If tNewRev = "" {
             Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: save error")
             Quit
@@ -86,6 +106,120 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
         ; Check database exists
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "Database does not exist.")
+            Quit
+        }
+        ; Detect multipart/related Content-Type
+        Set tContentType = %request.ContentType
+        Set tIsMultipart = 0
+        If $Find($ZConvert(tContentType, "L"), "multipart/related") > 0 {
+            Set tIsMultipart = 1
+        }
+        If tIsMultipart {
+            ; Parse multipart/related request using %request.MimeData
+            ; %CSP automatically parses multipart bodies into MimeData, keyed by
+            ; CONTENTn (no filename) or FILEn (with filename from Content-Disposition).
+            ; Find the JSON document part (first CONTENT key)
+            Set tJsonStream = ""
+            Set tAttachments = {}
+            Set tMimeKey = ""
+            For {
+                Set tMimeKey = $Order(%request.MimeData(tMimeKey))
+                Quit:tMimeKey=""
+                Set tMimeCount = $Order(%request.MimeData(tMimeKey, ""), -1)
+                For tMI = 1:1:tMimeCount {
+                    Set tMStream = %request.MimeData(tMimeKey, tMI)
+                    If '$IsObject(tMStream) Continue
+                    Do tMStream.Rewind()
+                    If '$IsObject(tJsonStream) {
+                        ; First part = JSON document body
+                        Set tJsonStream = tMStream
+                    } Else {
+                        ; Subsequent parts = binary attachments
+                        Set tPartType = tMStream.ContentType
+                        If tPartType = "" Set tPartType = "application/octet-stream"
+                        Set tFilename = tMStream.FileName
+                        If tFilename = "" Set tFilename = "attachment_" _ tMI
+                        ; Base64-encode for the SaveWithAttachments path
+                        Do tMStream.Rewind()
+                        Set tBinaryData = tMStream.Read()
+                        Set tBase64 = $System.Encryption.Base64Encode(tBinaryData)
+                        Set tAttEntry = {}
+                        Do tAttEntry.%Set("content_type", tPartType)
+                        Do tAttEntry.%Set("data", tBase64)
+                        Do tAttachments.%Set(tFilename, tAttEntry)
+                    }
+                }
+            }
+            If '$IsObject(tJsonStream) {
+                Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Multipart message must contain at least one part")
+                Quit
+            }
+            ; Parse JSON from first part
+            Do tJsonStream.Rewind()
+            Set tJsonContent = tJsonStream.Read()
+            Try {
+                Set tBody = ##class(%DynamicObject).%FromJSON(tJsonContent)
+            } Catch tParseEx {
+                Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON in first MIME part")
+                Quit
+            }
+            ; Merge "follows":true and stub entries from JSON _attachments
+            If tBody.%IsDefined("_attachments") {
+                Set tDocAtts = tBody.%Get("_attachments")
+                If $IsObject(tDocAtts) {
+                    Set tDocAttIter = tDocAtts.%GetIterator()
+                    While tDocAttIter.%GetNext(.tFollowName, .tFollowObj) {
+                        If '$IsObject(tFollowObj) Continue
+                        If (tFollowObj.%Get("stub") = 1) || (tFollowObj.%Get("stub") = "true") {
+                            Do tAttachments.%Set(tFollowName, tFollowObj)
+                        }
+                    }
+                }
+            }
+            ; Now proceed with the standard inline attachment path
+            ; Validate underscore fields
+            Set tValErr = ..ValidateFields(tBody)
+            If tValErr '= "" {
+                Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#DOCVALIDATION, "Bad special document member: " _ tValErr)
+                Quit
+            }
+            ; Extract _rev from body or query param
+            Set tRev = ""
+            If tBody.%IsDefined("_rev") {
+                Set tRev = tBody.%Get("_rev")
+            }
+            If (tRev = "") && ($Data(%request.Data("rev", 1))) {
+                Set tRev = $Get(%request.Data("rev", 1))
+            }
+            ; Optimistic concurrency check
+            If ##class(IRISCouch.Storage.Document).Exists(pDB, pDocId) {
+                If tRev = "" {
+                    Do ##class(IRISCouch.Util.Error).Render(409, ##class(IRISCouch.Util.Error).#CONFLICT, "Document update conflict.")
+                    Quit
+                }
+                Set tCurrentWinner = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, pDocId)
+                If tRev '= tCurrentWinner {
+                    Do ##class(IRISCouch.Util.Error).Render(409, ##class(IRISCouch.Util.Error).#CONFLICT, "Document update conflict.")
+                    Quit
+                }
+            }
+            ; Remove metadata fields
+            If tBody.%IsDefined("_id") Do tBody.%Remove("_id")
+            If tBody.%IsDefined("_rev") Do tBody.%Remove("_rev")
+            If tBody.%IsDefined("_deleted") Do tBody.%Remove("_deleted")
+            If tBody.%IsDefined("_attachments") Do tBody.%Remove("_attachments")
+            ; Save with attachments
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, pDocId, tBody.%ToJSON(), tRev, tAttachments)
+            If tNewRev = "" {
+                Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: multipart save error")
+                Quit
+            }
+            ; Return 201 Created
+            Set tResp = {}
+            Do tResp.%Set("ok", 1, "boolean")
+            Do tResp.%Set("id", pDocId)
+            Do tResp.%Set("rev", tNewRev)
+            Do ##class(IRISCouch.Util.Response).JSONStatus(201, tResp)
             Quit
         }
         ; Read JSON body
@@ -159,12 +293,33 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
             Do ##class(IRISCouch.Util.Response).JSON(tResp)
             Quit
         }
+        ; Check for inline _attachments with data fields
+        Set tHasInlineAtts = 0
+        Set tAttachments = ""
+        If tBody.%IsDefined("_attachments") {
+            Set tAttachments = tBody.%Get("_attachments")
+            If $IsObject(tAttachments) {
+                ; Check if any attachment has "data" field (new inline attachment)
+                Set tAttIter = tAttachments.%GetIterator()
+                While tAttIter.%GetNext(.tAttKey, .tAttVal) {
+                    If $IsObject(tAttVal) && (tAttVal.%Get("data") '= "") {
+                        Set tHasInlineAtts = 1
+                        Quit
+                    }
+                }
+            }
+        }
         ; Remove metadata fields before storing
         If tBody.%IsDefined("_id") Do tBody.%Remove("_id")
         If tBody.%IsDefined("_rev") Do tBody.%Remove("_rev")
         If tBody.%IsDefined("_deleted") Do tBody.%Remove("_deleted")
-        ; Save document
-        Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, pDocId, tBody.%ToJSON(), tRev)
+        If tBody.%IsDefined("_attachments") Do tBody.%Remove("_attachments")
+        ; Save document — with or without inline attachments
+        If tHasInlineAtts && $IsObject(tAttachments) {
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, pDocId, tBody.%ToJSON(), tRev, tAttachments)
+        } Else {
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, pDocId, tBody.%ToJSON(), tRev)
+        }
         If tNewRev = "" {
             Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: save error")
             Quit

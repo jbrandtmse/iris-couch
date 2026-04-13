@@ -250,6 +250,39 @@ ClassMethod CopyAttachments(pDB As %String, pDocId As %String, pFromRev As %Stri
     Quit tSC
 }
 
+/// <p>Copy a single named attachment from one revision to another.</p>
+/// <p>Copies metadata and stream OID reference for one specific attachment.
+/// Used by <method>DocumentEngine.SaveWithAttachments</method> to carry forward
+/// individual stub attachments without copying the entire revision's attachments.</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @param pFromRev The source revision
+/// @param pToRev The target revision
+/// @param pAttName The attachment name to copy
+/// @return %Status
+ClassMethod CopyOneAttachment(pDB As %String, pDocId As %String, pFromRev As %String, pToRev As %String, pAttName As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        If '$Data(^IRISCouch.Atts(pDB, pDocId, pFromRev, pAttName)) {
+            ; Attachment not found on source revision — not an error, just skip
+            Quit
+        }
+        ; Copy metadata
+        Set ^IRISCouch.Atts(pDB, pDocId, pToRev, pAttName) = ^IRISCouch.Atts(pDB, pDocId, pFromRev, pAttName)
+        ; Copy stream reference (share the same stream OID)
+        If $Data(^IRISCouch.Atts(pDB, pDocId, pFromRev, pAttName, "stream")) {
+            Set ^IRISCouch.Atts(pDB, pDocId, pToRev, pAttName, "stream") = ^IRISCouch.Atts(pDB, pDocId, pFromRev, pAttName, "stream")
+        }
+        Quit
+    }
+    Catch ex {
+        Set tSC = ex.AsStatus()
+        Quit
+    }
+    Quit tSC
+}
+
 /// <p>Clean up all attachments for a database.</p>
 /// <p>Used during database deletion to remove all attachment data.</p>
 /// @param pDB The database name
