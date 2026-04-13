@@ -325,3 +325,27 @@
 - **Code Review:** PASSED. 2 high auto-resolved (storage encapsulation in SaveWithAttachments stub copy + substring matching bug). 3 deferred (base64 empty check, double encode/decode, weak test assertion).
 - **Commit:** `28379b8` pushed to origin/main
 - **Status:** done
+
+### 2026-04-12T18:30:00Z — Story 5.3: Attachment Retrieval Options & Multipart Response
+- **Create Story:** Story file created at `5-3-attachment-retrieval-options-and-multipart-response.md`
+- **Development:** All 5 tasks completed. 2 files created (Test/AttachmentRetrievalTest, Test/AttachmentRetrievalHttpTest), 1 modified (DocumentHandler). 208 tests pass (197 existing + 11 new), 0 regressions. Implemented 4 retrieval modes: default stubs, attachments=true (base64), atts_since (conditional), multipart/mixed (MIME streaming).
+- **Code Review:** PASSED. 0 critical/high/medium. 1 low auto-resolved (property accessor consistency). 5 deferred (buffering limitation, boundary chars, silent fallback, open_revs+attachments, multi-conflict test).
+- **Commit:** `cbbc539` pushed to origin/main
+- **Status:** done
+
+### 2026-04-12T19:00:00Z — Epic 5 Complete
+- All 4 stories done (5.0, 5.1, 5.2, 5.3)
+- **Total files created:** 10 new ObjectScript classes (2 production + 8 test)
+- **Total files modified:** DocumentEngine, DocumentHandler, Router, Storage/Attachment, Storage/Database, Storage/Changes, Storage/Document, Storage/RevTree, BulkHandler, ChangesHandler
+- **Total tests:** 208 passing, 0 failures across 34+ test classes
+- **Test growth:** 162 → 169 → 184 → 197 → 208 (zero-regression streak continues, 5th consecutive epic)
+- **Deferred items:** ~15 new items added to deferred-work.md across Epic 5 (all low/medium severity)
+
+### 2026-04-13T07:00:00Z — Retrospective Complete
+- Retro document: `epic-5-retro-2026-04-13.md`
+- Epic 4 retro action items: 3/3 completed (all fulfilled in Story 5.0)
+- Manual HTTP verification: 19/19 curl tests, all passing
+- 7 action items for Epic 6 (all Must Do in Story 6.0), 5 deferred items, 6 lessons codified
+- Key learnings: %request.MimeData for multipart, argumented Quit in For loops, fully automated dev cycle proven
+- Two new memories saved (MimeData pattern, Quit in For loops)
+- Epic 5 retrospective status: done
