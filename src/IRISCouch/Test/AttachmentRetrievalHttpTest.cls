@@ -147,10 +147,10 @@ Method TestGetMultipartMixed()
 {
     ; Make a raw HTTP request with Accept: multipart/mixed header
     Set tReq = ##class(%Net.HttpRequest).%New()
-    Set tReq.Server = "localhost"
-    Set tReq.Port = 52773
-    Set tReq.Username = "_SYSTEM"
-    Set tReq.Password = "SYS"
+    Set tReq.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+    Set tReq.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
+    Set tReq.Username = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+    Set tReq.Password = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPassword()
     Do tReq.SetHeader("Accept", "multipart/mixed")
     Set tSC = tReq.Get("/iris-couch/testretrhttp/rdoc1?open_revs=all")
     Do $$$AssertStatusOK(tSC, "GET multipart/mixed request completed")
@@ -226,10 +226,10 @@ Method TestGetOpenRevsWithAttachmentsTrue()
 Method TestMultipartBoundaryFormat()
 {
     Set tReq = ##class(%Net.HttpRequest).%New()
-    Set tReq.Server = "localhost"
-    Set tReq.Port = 52773
-    Set tReq.Username = "_SYSTEM"
-    Set tReq.Password = "SYS"
+    Set tReq.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+    Set tReq.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
+    Set tReq.Username = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+    Set tReq.Password = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPassword()
     Do tReq.SetHeader("Accept", "multipart/mixed")
     Set tSC = tReq.Get("/iris-couch/testretrhttp/rdoc1?open_revs=all")
     Do $$$AssertStatusOK(tSC, "GET multipart/mixed request completed")
@@ -287,10 +287,10 @@ Method TestMultipartWithConflictingRevisions()
     Do $$$AssertStatusOK(tSC, "Attachment b.txt stored on conflict revision")
     ; Now GET with Accept: multipart/mixed and open_revs=all
     Set tReq = ##class(%Net.HttpRequest).%New()
-    Set tReq.Server = "localhost"
-    Set tReq.Port = 52773
-    Set tReq.Username = "_SYSTEM"
-    Set tReq.Password = "SYS"
+    Set tReq.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+    Set tReq.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
+    Set tReq.Username = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+    Set tReq.Password = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPassword()
     Do tReq.SetHeader("Accept", "multipart/mixed")
     Set tSC = tReq.Get("/iris-couch/testretrhttp/rdoc1?open_revs=all")
     Do $$$AssertStatusOK(tSC, "GET multipart/mixed with conflicts completed")

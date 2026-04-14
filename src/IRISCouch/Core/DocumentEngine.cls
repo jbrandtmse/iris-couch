@@ -703,10 +703,12 @@ ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %Str
                 Set tBase64 = tAttObj.%Get("data")
                 Set tContentType = tAttObj.%Get("content_type")
                 If tContentType = "" Set tContentType = "application/octet-stream"
-                ; Base64 decode
+                ; Base64 decode — distinguish invalid base64 from legitimate zero-byte content
+                ; Empty base64 input ("") decodes to "" and is a valid zero-byte attachment
+                ; Non-empty base64 that decodes to "" is likely invalid
                 Set tBinary = $System.Encryption.Base64Decode(tBase64)
-                If tBinary = "" {
-                    ; Invalid base64 — rollback
+                If (tBinary = "") && (tBase64 '= "") {
+                    ; Non-empty base64 that decoded to empty — likely invalid base64
                     TROLLBACK  Set tInTrans = 0
                     Set tNewRev = ""
                     Quit

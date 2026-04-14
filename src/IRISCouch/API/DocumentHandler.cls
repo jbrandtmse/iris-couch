@@ -437,7 +437,8 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
             Set tWantMultipart = ($Find($ZConvert(tAccept, "L"), "multipart/mixed") > 0)
             If tWantMultipart {
                 ; Generate multipart/mixed MIME response
-                Set tBoundary = "iriscouch_" _ ##class(%xsd.hexBinary).LogicalToXSD($System.Encryption.GenCryptRand(16))
+                ; Use hex encoding to avoid MIME-special characters (+, /, =) that base64 produces
+                Set tBoundary = "iriscouch_" _ $ZConvert(##class(%xsd.hexBinary).LogicalToXSD($System.Encryption.GenCryptRand(16)), "L")
                 Set %response.ContentType = "multipart/mixed; boundary=" _ tBoundary
                 Set %response.Status = "200 OK"
                 Set tCRLF = $Char(13,10)

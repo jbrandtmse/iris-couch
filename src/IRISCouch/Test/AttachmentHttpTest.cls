@@ -77,10 +77,10 @@ Method TestGetAttachment()
     Do $$$AssertEquals(tStatus, 201, "PUT returns 201")
     ; GET the attachment
     Set tReq = ##class(%Net.HttpRequest).%New()
-    Set tReq.Server = "localhost"
-    Set tReq.Port = 52773
-    Set tReq.Username = "_SYSTEM"
-    Set tReq.Password = "SYS"
+    Set tReq.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+    Set tReq.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
+    Set tReq.Username = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+    Set tReq.Password = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPassword()
     Set tSC = tReq.Get("/iris-couch/testatthttp/testdoc/getme.txt")
     Do $$$AssertStatusOK(tSC, "GET attachment request completed")
     Do $$$AssertEquals(tReq.HttpResponse.StatusCode, 200, "GET attachment returns HTTP 200")

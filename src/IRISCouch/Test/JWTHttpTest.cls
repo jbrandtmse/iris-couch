@@ -128,15 +128,16 @@ Method TestAuthPriorityOrder()
     Set tBody = ##class(%DynamicObject).%FromJSON(tBodyStr)
     ; Cookie should win over Bearer
     Do $$$AssertEquals(tBody.info.authenticated, "cookie", "Cookie takes priority over Bearer (auth method is cookie)")
-    Do $$$AssertEquals(tBody.userCtx.name, "_SYSTEM", "Cookie user (_SYSTEM) wins over JWT user")
+    Set tExpectedUser = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+    Do $$$AssertEquals(tBody.userCtx.name, tExpectedUser, "Cookie user wins over JWT user")
 }
 
 /// <p>Helper: Create an HTTP request with no credentials.</p>
 ClassMethod CreateRequestNoCreds() As %Net.HttpRequest
 {
     Set tReq = ##class(%Net.HttpRequest).%New()
-    Set tReq.Server = "localhost"
-    Set tReq.Port = 52773
+    Set tReq.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+    Set tReq.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
     Set tReq.ContentType = "application/json"
     Quit tReq
 }
@@ -147,10 +148,12 @@ ClassMethod LoginAndGetCookie() As %String
     Set tResult = ""
     Try {
         Set tReq = ##class(%Net.HttpRequest).%New()
-        Set tReq.Server = "localhost"
-        Set tReq.Port = 52773
+        Set tReq.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+        Set tReq.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
         Set tReq.ContentType = "application/json"
-        Do tReq.EntityBody.Write("{""name"":""_SYSTEM"",""password"":""SYS""}")
+        Set tUser = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+        Set tPass = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPassword()
+        Do tReq.EntityBody.Write("{""name"":""" _ tUser _ """,""password"":""" _ tPass _ """}")
         Set tSC = tReq.Post("/iris-couch/_session")
         If $$$ISERR(tSC) Quit
         If tReq.HttpResponse.StatusCode '= 200 Quit

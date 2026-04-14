@@ -127,11 +127,7 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
             ; Validate underscore fields
             Set tValErr = ##class(IRISCouch.API.DocumentHandler).ValidateFields(tDoc)
             If tValErr '= "" {
-                Set tEntry = {}
-                Do tEntry.%Set("id", tDocId)
-                Do tEntry.%Set("error", "bad_request")
-                Do tEntry.%Set("reason", "Bad special document member: " _ tValErr)
-                Do tResults.%Push(tEntry)
+                Do tResults.%Push(..BuildErrorEntry(tDocId, "bad_request", "Bad special document member: " _ tValErr))
                 Continue
             }
             ; Check for _deleted:true
@@ -144,38 +140,22 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
             If tDeleted {
                 ; Need a valid _rev to delete
                 If tRev = "" {
-                    Set tEntry = {}
-                    Do tEntry.%Set("id", tDocId)
-                    Do tEntry.%Set("error", "conflict")
-                    Do tEntry.%Set("reason", "Document update conflict.")
-                    Do tResults.%Push(tEntry)
+                    Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
                     Continue
                 }
                 ; Verify doc exists and rev matches winner
                 If '##class(IRISCouch.Storage.Document).Exists(pDB, tDocId) {
-                    Set tEntry = {}
-                    Do tEntry.%Set("id", tDocId)
-                    Do tEntry.%Set("error", "not_found")
-                    Do tEntry.%Set("reason", "missing")
-                    Do tResults.%Push(tEntry)
+                    Do tResults.%Push(..BuildErrorEntry(tDocId, "not_found", "missing"))
                     Continue
                 }
                 Set tCurrentWinner = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, tDocId)
                 If tRev '= tCurrentWinner {
-                    Set tEntry = {}
-                    Do tEntry.%Set("id", tDocId)
-                    Do tEntry.%Set("error", "conflict")
-                    Do tEntry.%Set("reason", "Document update conflict.")
-                    Do tResults.%Push(tEntry)
+                    Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
                     Continue
                 }
                 Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, tDocId, tRev)
                 If tNewRev = "" {
-                    Set tEntry = {}
-                    Do tEntry.%Set("id", tDocId)
-                    Do tEntry.%Set("error", "conflict")
-                    Do tEntry.%Set("reason", "Document update conflict.")
-                    Do tResults.%Push(tEntry)
+                    Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
                     Continue
                 }
                 Set tEntry = {}
@@ -189,21 +169,13 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
             If ##class(IRISCouch.Storage.Document).Exists(pDB, tDocId) {
                 If tRev = "" {
                     ; Doc exists but no _rev provided — conflict
-                    Set tEntry = {}
-                    Do tEntry.%Set("id", tDocId)
-                    Do tEntry.%Set("error", "conflict")
-                    Do tEntry.%Set("reason", "Document update conflict.")
-                    Do tResults.%Push(tEntry)
+                    Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
                     Continue
                 }
                 ; Verify _rev matches current winner
                 Set tCurrentWinner = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, tDocId)
                 If tRev '= tCurrentWinner {
-                    Set tEntry = {}
-                    Do tEntry.%Set("id", tDocId)
-                    Do tEntry.%Set("error", "conflict")
-                    Do tEntry.%Set("reason", "Document update conflict.")
-                    Do tResults.%Push(tEntry)
+                    Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
                     Continue
                 }
             }
@@ -214,11 +186,7 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
             ; Save document
             Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tDoc.%ToJSON(), tRev)
             If tNewRev = "" {
-                Set tEntry = {}
-                Do tEntry.%Set("id", tDocId)
-                Do tEntry.%Set("error", "conflict")
-                Do tEntry.%Set("reason", "Document update conflict.")
-                Do tResults.%Push(tEntry)
+                Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
                 Continue
             }
             Set tEntry = {}
@@ -267,7 +235,7 @@ ClassMethod HandleBulkGet(pDB As %String) As %Status
             Set tBody = ##class(%DynamicObject).%FromJSON(tContent)
         } Catch tParseEx {
             Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
-            Quit
+            Return $$$OK
         }
         ; Extract docs array
         If 'tBody.%IsDefined("docs") || (tBody.%GetTypeOf("docs") '= "array") {
@@ -404,6 +372,23 @@ ClassMethod HandleBulkGet(pDB As %String) As %Status
         Quit
     }
     Quit $$$OK
+}
+
+/// <p>Build an error entry for bulk docs response.</p>
+/// <p>Constructs a <class>%DynamicObject</class> with <code>id</code>, <code>error</code>,
+/// and <code>reason</code> fields. Used by <method>HandleBulkDocs</method> to avoid
+/// repetitive error-entry construction across multiple error paths.</p>
+/// @param pDocId The document identifier
+/// @param pError The error slug (e.g., "conflict", "not_found", "bad_request")
+/// @param pReason The human-readable reason string
+/// @return %DynamicObject The error entry
+ClassMethod BuildErrorEntry(pDocId As %String, pError As %String, pReason As %String) As %DynamicObject
+{
+    Set tEntry = {}
+    Do tEntry.%Set("id", pDocId)
+    Do tEntry.%Set("error", pError)
+    Do tEntry.%Set("reason", pReason)
+    Quit tEntry
 }
 
 }

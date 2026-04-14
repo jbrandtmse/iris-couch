@@ -129,7 +129,7 @@ development_status:
   epic-8-retrospective: done
 
   # Epic 9: Observability & Audit Trail
-  epic-9: in-progress
+  epic-9: done
   9-0-epic-8-deferred-cleanup: done
   9-1-prometheus-opentelemetry-metrics-endpoint: done
   9-2-audit-event-emission: done

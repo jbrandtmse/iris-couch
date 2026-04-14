@@ -24,8 +24,10 @@ Method OnAfterOneTest() As %Status
 /// <p>AC #1: Login with valid credentials returns ok:true, name, roles, and AuthSession cookie.</p>
 Method TestSessionPostSuccess()
 {
+    Set tUser = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+    Set tPass = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPassword()
     Set tReq = ..CreateRequest()
-    Do tReq.EntityBody.Write("{""name"":""_SYSTEM"",""password"":""SYS""}")
+    Do tReq.EntityBody.Write("{""name"":""" _ tUser _ """,""password"":""" _ tPass _ """}")
     Set tSC = tReq.Post("/iris-couch/_session")
     Do $$$AssertStatusOK(tSC, "POST /_session request completed")
     Do $$$AssertEquals(tReq.HttpResponse.StatusCode, 200, "POST /_session returns 200")
@@ -33,7 +35,7 @@ Method TestSessionPostSuccess()
     Set tBodyStr = tReq.HttpResponse.Data.Read()
     Set tBody = ##class(%DynamicObject).%FromJSON(tBodyStr)
     Do $$$AssertTrue(tBody.ok, "Response has ok:true")
-    Do $$$AssertEquals(tBody.name, "_SYSTEM", "Response has correct name")
+    Do $$$AssertEquals(tBody.name, tUser, "Response has correct name")
     Do $$$AssertTrue($IsObject(tBody.roles), "Response has roles array")
     ; Check Set-Cookie header
     Set tCookie = tReq.HttpResponse.GetHeader("SET-COOKIE")
@@ -44,8 +46,9 @@ Method TestSessionPostSuccess()
 /// <p>AC #1: Login with wrong credentials returns unauthorized error.</p>
 Method TestSessionPostBadPassword()
 {
+    Set tUser = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
     Set tReq = ..CreateRequest()
-    Do tReq.EntityBody.Write("{""name"":""_SYSTEM"",""password"":""WRONGPASSWORD""}")
+    Do tReq.EntityBody.Write("{""name"":""" _ tUser _ """,""password"":""WRONGPASSWORD""}")
     Set tSC = tReq.Post("/iris-couch/_session")
     Do $$$AssertStatusOK(tSC, "POST /_session bad password request completed")
     Do $$$AssertEquals(tReq.HttpResponse.StatusCode, 401, "POST /_session with bad password returns 401")
@@ -70,7 +73,8 @@ Method TestSessionGetAuthenticated()
     Set tBodyStr = tReq.HttpResponse.Data.Read()
     Set tBody = ##class(%DynamicObject).%FromJSON(tBodyStr)
     Do $$$AssertTrue(tBody.ok, "Response has ok:true")
-    Do $$$AssertEquals(tBody.userCtx.name, "_SYSTEM", "userCtx.name is _SYSTEM")
+    Set tExpectedUser = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+    Do $$$AssertEquals(tBody.userCtx.name, tExpectedUser, "userCtx.name matches test user")
     Do $$$AssertTrue($IsObject(tBody.userCtx.roles), "userCtx.roles is an array")
     Do $$$AssertEquals(tBody.info.authenticated, "cookie", "info.authenticated is cookie")
 }
@@ -184,8 +188,8 @@ Method TestNonAdminUserAuth()
         Do $$$AssertTrue((tReq.HttpResponse.StatusCode = 201) || (tReq.HttpResponse.StatusCode = 200), "User doc created successfully")
         ; Verify Basic auth with non-admin user
         Set tReq2 = ##class(%Net.HttpRequest).%New()
-        Set tReq2.Server = "localhost"
-        Set tReq2.Port = 52773
+        Set tReq2.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+        Set tReq2.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
         Set tReq2.Username = tTestUser
         Set tReq2.Password = tTestPass
         Set tReq2.ContentType = "application/json"
@@ -267,10 +271,10 @@ ClassMethod CleanupTestUser(pUsername As %String)
 ClassMethod CreateRequest() As %Net.HttpRequest
 {
     Set tReq = ##class(%Net.HttpRequest).%New()
-    Set tReq.Server = "localhost"
-    Set tReq.Port = 52773
-    Set tReq.Username = "_SYSTEM"
-    Set tReq.Password = "SYS"
+    Set tReq.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+    Set tReq.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
+    Set tReq.Username = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+    Set tReq.Password = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPassword()
     Set tReq.ContentType = "application/json"
     Quit tReq
 }
@@ -279,8 +283,8 @@ ClassMethod CreateRequest() As %Net.HttpRequest
 ClassMethod CreateRequestNoCreds() As %Net.HttpRequest
 {
     Set tReq = ##class(%Net.HttpRequest).%New()
-    Set tReq.Server = "localhost"
-    Set tReq.Port = 52773
+    Set tReq.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+    Set tReq.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
     Set tReq.ContentType = "application/json"
     Quit tReq
 }
@@ -291,7 +295,9 @@ ClassMethod LoginAndGetCookie() As %String
     Set tResult = ""
     Try {
         Set tReq = ..CreateRequestNoCreds()
-        Do tReq.EntityBody.Write("{""name"":""_SYSTEM"",""password"":""SYS""}")
+        Set tUser = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+        Set tPass = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPassword()
+        Do tReq.EntityBody.Write("{""name"":""" _ tUser _ """,""password"":""" _ tPass _ """}")
         Set tSC = tReq.Post("/iris-couch/_session")
         If $$$ISERR(tSC) Quit
         If tReq.HttpResponse.StatusCode '= 200 Quit

@@ -6,6 +6,54 @@
 Class IRISCouch.Test.HttpIntegrationTest Extends %UnitTest.TestCase
 {
 
+/// <p>Default test server hostname. Override via <code>^IRISCouchTest("Server")</code> global.</p>
+Parameter TESTSERVER = "localhost";
+
+/// <p>Default test server port. Override via <code>^IRISCouchTest("Port")</code> global.</p>
+Parameter TESTPORT = 52773;
+
+/// <p>Default test username. Override via <code>^IRISCouchTest("Username")</code> global.</p>
+Parameter TESTUSERNAME = "_SYSTEM";
+
+/// <p>Default test password. Override via <code>^IRISCouchTest("Password")</code> global.</p>
+Parameter TESTPASSWORD = "SYS";
+
+/// <p>Get the configured test server hostname.</p>
+/// <p>Returns the value from <code>^IRISCouchTest("Server")</code> global if set,
+/// otherwise falls back to the <parameter>TESTSERVER</parameter> default.</p>
+/// @return %String The server hostname
+ClassMethod GetTestServer() As %String
+{
+    Quit $Get(^IRISCouchTest("Server"), ..#TESTSERVER)
+}
+
+/// <p>Get the configured test server port.</p>
+/// <p>Returns the value from <code>^IRISCouchTest("Port")</code> global if set,
+/// otherwise falls back to the <parameter>TESTPORT</parameter> default.</p>
+/// @return %Integer The server port
+ClassMethod GetTestPort() As %Integer
+{
+    Quit +$Get(^IRISCouchTest("Port"), ..#TESTPORT)
+}
+
+/// <p>Get the configured test username.</p>
+/// <p>Returns the value from <code>^IRISCouchTest("Username")</code> global if set,
+/// otherwise falls back to the <parameter>TESTUSERNAME</parameter> default.</p>
+/// @return %String The test username
+ClassMethod GetTestUsername() As %String
+{
+    Quit $Get(^IRISCouchTest("Username"), ..#TESTUSERNAME)
+}
+
+/// <p>Get the configured test password.</p>
+/// <p>Returns the value from <code>^IRISCouchTest("Password")</code> global if set,
+/// otherwise falls back to the <parameter>TESTPASSWORD</parameter> default.</p>
+/// @return %String The test password
+ClassMethod GetTestPassword() As %String
+{
+    Quit $Get(^IRISCouchTest("Password"), ..#TESTPASSWORD)
+}
+
 /// <p>Handle initvalue parameter from parent class.</p>
 Method %OnNew(initvalue As %String = "") As %Status
 {
@@ -39,10 +87,10 @@ ClassMethod MakeRequest(pMethod As %String, pPath As %String, Output pStatusCode
     Set pBody = ""
     Try {
         Set tReq = ##class(%Net.HttpRequest).%New()
-        Set tReq.Server = "localhost"
-        Set tReq.Port = 52773
-        Set tReq.Username = "_SYSTEM"
-        Set tReq.Password = "SYS"
+        Set tReq.Server = ..GetTestServer()
+        Set tReq.Port = ..GetTestPort()
+        Set tReq.Username = ..GetTestUsername()
+        Set tReq.Password = ..GetTestPassword()
         ; Set content type — custom or default
         If pContentType '= "" {
             Set tReq.ContentType = pContentType

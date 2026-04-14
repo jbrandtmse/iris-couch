@@ -143,6 +143,11 @@ ClassMethod EventResourceName(pDB As %String) As %String
 /// <p>Record a change entry for a document and return the new sequence number.</p>
 /// <p>Atomically increments <code>^IRISCouch.Seq(pDB)</code> and writes the change
 /// entry to <code>^IRISCouch.Changes(pDB, seq)</code> as <code>$ListBuild(pDocId, pRev)</code>.</p>
+/// <p><b>Transaction requirement:</b> This method performs two operations
+/// (<code>$Increment</code> + <code>Set</code>) that are not independently atomic.
+/// Callers MUST wrap this call within a <code>TSTART</code>/<code>TCOMMIT</code>
+/// transaction to ensure both operations commit together. All current callers
+/// (DocumentEngine.Save, SaveDeleted, SaveWithHistory, etc.) satisfy this requirement.</p>
 /// @param pDB The database name
 /// @param pDocId The document identifier
 /// @param pRev The revision string

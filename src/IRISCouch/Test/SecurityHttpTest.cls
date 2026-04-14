@@ -100,10 +100,10 @@ Method TestCErrorAndBypass()
 ClassMethod CreateRequest() As %Net.HttpRequest
 {
     Set tReq = ##class(%Net.HttpRequest).%New()
-    Set tReq.Server = "localhost"
-    Set tReq.Port = 52773
-    Set tReq.Username = "_SYSTEM"
-    Set tReq.Password = "SYS"
+    Set tReq.Server = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestServer()
+    Set tReq.Port = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPort()
+    Set tReq.Username = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestUsername()
+    Set tReq.Password = ##class(IRISCouch.Test.HttpIntegrationTest).GetTestPassword()
     Set tReq.ContentType = "application/json"
     Quit tReq
 }
