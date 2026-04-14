@@ -249,6 +249,8 @@ ClassMethod RunReplication(pDB As %String, pDocId As %String, pSource As %String
         ; Compute replication ID for cancellation checks
         Set tRepId = ##class(IRISCouch.Replication.ReplicationId).Compute(pSource, pTarget, tOptions)
         Set tAttempt = 0
+        ; Audit replication start (Story 9.2)
+        Do ##class(IRISCouch.Audit.Emit).ReplicationStart(pSource, pTarget, $Get(%IRISCouchUser))
         ; Main replication loop
         For {
             ; Check cancellation before each iteration
@@ -266,6 +268,8 @@ ClassMethod RunReplication(pDB As %String, pDocId As %String, pSource As %String
                 If 'pContinuous {
                     ; One-shot: mark completed and exit
                     Do ..UpdateReplicatorDoc(pDB, pDocId, "completed", tStatsObj)
+                    ; Audit replication complete (Story 9.2)
+                    Do ##class(IRISCouch.Audit.Emit).ReplicationComplete(pSource, pTarget, tStatsObj, $Get(%IRISCouchUser))
                     ; Clean up job tracking
                     Kill ^IRISCouch.Jobs(tRepId)
                     Quit

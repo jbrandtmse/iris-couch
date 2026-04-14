@@ -452,7 +452,12 @@ ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue A
                 Set %IRISCouchUser = tUsername
                 Set %IRISCouchRoles = tRoles
                 Set %IRISCouchAuthMethod = "default"
+                ; Audit successful Basic auth (Story 9.2)
+                Do ##class(IRISCouch.Audit.Emit).AuthSuccess(tUsername, "basic")
                 Quit
+            } Else {
+                ; Audit failed Basic auth (Story 9.2)
+                Do ##class(IRISCouch.Audit.Emit).AuthFailure($Get(tUsername, ""), "basic", "Invalid credentials")
             }
         }
         ; No valid auth — anonymous context (already set above)

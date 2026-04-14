@@ -22,6 +22,13 @@
 - Epic 9 stories confirmed: 9.1-9.3 (plus 9.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T00:30:00Z — Story 9.1: Prometheus / OpenTelemetry Metrics Endpoint
+- **Create Story:** Story file created at `9-1-prometheus-opentelemetry-metrics-endpoint.md`
+- **Development:** All 7 tasks completed. 3 new Metrics classes (Collector, Record, Endpoint), 2 test classes (11+3 tests), Router modified (32 wrappers + OnPreDispatch + route). 0 regressions.
+- **Code Review:** 1 HIGH + 2 MEDIUM auto-resolved (histogram double-counting, security-denied metrics, test assertions). 1 LOW deferred.
+- **Commit:** `48d82a4` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T00:10:00Z — Story 9.0: Epic 8 Deferred Cleanup
 - **Create Story:** Story file created at `9-0-epic-8-deferred-cleanup.md`
 - **Development:** All 5 tasks completed. 3 files modified (DocumentEngine hook reorder, Database timestamp+cleanup, DatabaseTest +1 test). 0 regressions.

@@ -124,6 +124,12 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
                 Set tRepBodyObj = tModifiedRep
             }
         }
+        ; Audit event — within transaction (Story 9.2, NFR-O6)
+        Do ##class(IRISCouch.Audit.Emit).DocWrite(pDB, pDocId, tNewRev, $Get(%IRISCouchUser))
+        ; _users audit: emit UserWrite if this is a _users database write
+        If ##class(IRISCouch.Auth.Users).IsUsersDB(pDB) {
+            Do ##class(IRISCouch.Audit.Emit).UserWrite(pDB, pDocId, $Get(%IRISCouchUser))
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -237,6 +243,8 @@ ClassMethod SaveAttachment(pDB As %String, pDocId As %String, pParentRev As %Str
             Set tBodyObj = ##class(%DynamicObject).%FromJSON(tBodyStr)
             Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
         }
+        ; Audit event — within transaction (Story 9.2, NFR-O6)
+        Do ##class(IRISCouch.Audit.Emit).DocWrite(pDB, pDocId, tNewRev, $Get(%IRISCouchUser))
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -319,6 +327,8 @@ ClassMethod DeleteAttachment(pDB As %String, pDocId As %String, pParentRev As %S
             Set tBodyObj = ##class(%DynamicObject).%FromJSON(tBodyStr)
             Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
         }
+        ; Audit event — within transaction (Story 9.2, NFR-O6)
+        Do ##class(IRISCouch.Audit.Emit).DocWrite(pDB, pDocId, tNewRev, $Get(%IRISCouchUser))
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -417,6 +427,12 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, "", 1)
         ; 9. Remove from all MangoIndex rows (Story 6.1)
         Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+        ; Audit event — within transaction (Story 9.2, NFR-O6)
+        Do ##class(IRISCouch.Audit.Emit).DocDelete(pDB, pDocId, tNewRev, $Get(%IRISCouchUser))
+        ; _users audit: emit UserWrite for _users database deletions (AC #4)
+        If ##class(IRISCouch.Auth.Users).IsUsersDB(pDB) {
+            Do ##class(IRISCouch.Audit.Emit).UserWrite(pDB, pDocId, $Get(%IRISCouchUser))
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -564,6 +580,16 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
                 ; Deleted user doc: remove the corresponding IRIS user
                 Do ##class(IRISCouch.Auth.Users).OnUserDocDelete(pDB, pDocId)
             }
+        }
+        ; Audit event — within transaction (Story 9.2, NFR-O6)
+        If pDeleted {
+            Do ##class(IRISCouch.Audit.Emit).DocDelete(pDB, pDocId, pRev, $Get(%IRISCouchUser))
+        } Else {
+            Do ##class(IRISCouch.Audit.Emit).DocWrite(pDB, pDocId, pRev, $Get(%IRISCouchUser))
+        }
+        ; _users audit: emit UserWrite for all _users database writes (AC #4: create, update, or delete)
+        If ##class(IRISCouch.Auth.Users).IsUsersDB(pDB) {
+            Do ##class(IRISCouch.Audit.Emit).UserWrite(pDB, pDocId, $Get(%IRISCouchUser))
         }
         ; Commit transaction
         TCOMMIT
@@ -735,6 +761,8 @@ ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %Str
             Set tBodyObj = ##class(%DynamicObject).%FromJSON(pBody)
             Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
         }
+        ; Audit event — within transaction (Story 9.2, NFR-O6)
+        Do ##class(IRISCouch.Audit.Emit).DocWrite(pDB, pDocId, tNewRev, $Get(%IRISCouchUser))
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0

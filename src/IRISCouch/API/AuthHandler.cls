@@ -44,9 +44,13 @@ ClassMethod HandleSessionPost() As %Status
         }
         Set $Namespace = tOrigNS
         If 'tLoginOK {
+            ; Audit failed login attempt (Story 9.2)
+            Do ##class(IRISCouch.Audit.Emit).AuthFailure(tName, "cookie", "Invalid credentials")
             Do ##class(IRISCouch.Util.Error).Render(401, "unauthorized", "Name or password is incorrect.")
             Quit
         }
+        ; Audit successful login (Story 9.2)
+        Do ##class(IRISCouch.Audit.Emit).AuthSuccess(tName, "cookie")
         ; Create AuthSession cookie
         Set tCookieValue = ##class(IRISCouch.Auth.Session).CreateCookie(tName)
         Set tTimeout = ##class(IRISCouch.Config).Get("AUTHTIMEOUT")

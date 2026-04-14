@@ -64,6 +64,8 @@ ClassMethod HandlePut(pDB As %String) As %Status
             Do ##class(IRISCouch.Util.Error).Render(400, "bad_request", $System.Status.GetErrorText(tSC))
             Quit
         }
+        ; Audit security change (Story 9.2)
+        Do ##class(IRISCouch.Audit.Emit).SecurityChange(pDB, $Get(%IRISCouchUser))
         ; Return {"ok":true}
         Set tResponse = {}
         Do tResponse.%Set("ok", 1, "boolean")

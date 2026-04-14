@@ -40,9 +40,9 @@ last_story_completed: 8-3-replication-ready-bulk-get
 
 generated: 2026-04-12
 last_updated: 2026-04-13
-last_story_completed: 9-1-prometheus-opentelemetry-metrics-endpoint
-last_story_reviewed: 9-1-prometheus-opentelemetry-metrics-endpoint
-last_story_in_progress: 9-1-prometheus-opentelemetry-metrics-endpoint
+last_story_completed: 9-2-audit-event-emission
+last_story_reviewed: 9-2-audit-event-emission
+last_story_in_progress: 9-2-audit-event-emission
 last_review: 2026-04-13
 last_story_in_progress: 8-5-replicator-database-and-continuous-replication-jobs
 last_story_reviewed: 8-5-replicator-database-and-continuous-replication-jobs
@@ -132,7 +132,7 @@ development_status:
   epic-9: in-progress
   9-0-epic-8-deferred-cleanup: done
   9-1-prometheus-opentelemetry-metrics-endpoint: done
-  9-2-audit-event-emission: backlog
+  9-2-audit-event-emission: done
   9-3-operational-resilience-and-data-durability: backlog
   epic-9-retrospective: optional
 

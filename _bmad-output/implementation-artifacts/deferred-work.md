@@ -191,3 +191,8 @@
 ## Deferred from: code review of 9-1-prometheus-opentelemetry-metrics-endpoint (2026-04-13)
 
 - **BuildOutput string concatenation may exceed ObjectScript ~3.6MB string limit** [Endpoint.cls:40-49] -- All Prometheus metric output is concatenated into a single ObjectScript string variable `tOut` via `BuildOutput()`. If many endpoint/method/status combinations accumulate over time, this could approach the ~3.6MB ObjectScript string limit. Pre-existing architectural pattern (string concatenation for HTTP responses). Address when metrics cardinality grows or when a streaming response pattern is adopted for large outputs.
+
+## Deferred from: code review of 9-2-audit-event-emission (2026-04-13)
+
+- **TestEnsureEvents namespace switch has no Try/Catch** [AuditTest.cls:119-129] -- The test switches to %SYS to verify Security.Events registration but does not wrap assertions in Try/Catch. If any assertion fails, the namespace stays as %SYS for remaining tests, potentially corrupting test isolation. Pre-existing test pattern across multiple test files. Address when test infrastructure error handling is standardized.
+- **Hardcoded credentials (_SYSTEM/SYS) in AuditHttpTest** [AuditHttpTest.cls:93-94] -- Hardcoded credentials and connection params (localhost:52773). Pre-existing pattern across all HTTP test files (same as deferred items from 2-0 and 7-2 reviews). Address project-wide when test infrastructure is refactored.
