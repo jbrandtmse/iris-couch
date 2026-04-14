@@ -1,10 +1,18 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { AppComponent } from './app.component';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+      ],
     }).compileComponents();
   });
 
@@ -20,18 +28,17 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('iris-couch-ui');
   });
 
-  it('should render the iris-couch wordmark', () => {
+  it('should render the app-shell component', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.app-wordmark')?.textContent).toContain('iris-couch');
+    expect(compiled.querySelector('app-shell')).toBeTruthy();
   });
 
-  it('should use monospace font class on wordmark', () => {
+  it('should render the shortcut-overlay component', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    const wordmark = compiled.querySelector('.app-wordmark');
-    expect(wordmark?.classList.contains('mono')).toBeTrue();
+    expect(compiled.querySelector('app-shortcut-overlay')).toBeTruthy();
   });
 });

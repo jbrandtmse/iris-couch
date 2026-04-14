@@ -50,7 +50,7 @@ import { Component, Input } from '@angular/core';
     }
 
     .badge--error {
-      color: var(--color-error);
+      color: #9A2E2E;
       border-color: var(--color-error);
       background-color: rgba(195, 63, 63, 0.1);
     }

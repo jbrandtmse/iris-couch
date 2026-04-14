@@ -11,6 +11,13 @@
 - Epic 10 stories confirmed: 10.1-10.7 (plus 10.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T12:00:00Z — Story 10.2: Core UI Components
+- **Create Story:** Story file created at `10-2-core-ui-components.md`
+- **Development:** All 7 tasks completed. 5 components (Button, IconButton, Badge, TextInput, CopyButton) + axe-core test utils + barrel export. 58 new tests, 103 total. 60.52KB gzip build.
+- **Code Review:** 2 HIGH + 2 MED auto-resolved (TextInput id timing, barrel export leak, hardcoded hex, CopyButton OnDestroy). 3 LOW deferred.
+- **Commit:** `26bba59` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T11:00:00Z — Story 10.1: Angular Scaffold, Design Tokens & Icon System
 - **Create Story:** Story file created at `10-1-angular-scaffold-design-tokens-and-icon-system.md`
 - **Development:** All 8 tasks completed. Angular 18 scaffold with CDK, tokens.css (33 tokens), global.css, JetBrains Mono WOFF2 (21KB), 20 Lucide icon components, HTML config. 45/45 tests pass, 60KB gzip build.
