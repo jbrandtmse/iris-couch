@@ -458,3 +458,18 @@
 - **Code Review:** PASSED. 2 high auto-resolved (namespace restore in catch, MangoIndex re-index after body mod). 3 medium auto-resolved (delete status check, roles status check, PBKDF2 empty guard). 4 deferred.
 - **Commit:** `e26f66c` pushed to origin/main
 - **Status:** done
+
+### 2026-04-14T05:00:00Z — Story 7.4: Per-Database Security Configuration
+- **Create Story:** Story file created at `7-4-per-database-security-configuration.md` with 9 tasks, 4 new files, 2 modified files
+- **Development:** All 9 tasks completed. 4 files created (Auth/Security.cls, API/SecurityHandler.cls, Test/SecurityTest.cls, Test/SecurityHttpTest.cls), 2 modified (Router.cls, Storage/Database.cls). 375 tests pass (360 existing + 15 new), 0 regressions. Enforcement in OnPreDispatch, flag-variable pattern for For/Quit loops.
+- **Code Review:** CLEAN. 0 critical/high/medium/low. 10 findings dismissed. All 10 ACs verified. NFR-S6 enforcement confirmed.
+- **Commit:** `9bc0b91` pushed to origin/main
+- **Status:** done
+
+### 2026-04-14T05:30:00Z — Epic 7 Complete
+- All 5 stories done (7.0, 7.1, 7.2, 7.3, 7.4)
+- **Total files created:** 15 new ObjectScript classes (6 production: Auth/Session, Auth/Basic, Auth/JWT, Auth/Proxy, Auth/Users, Auth/Security, API/AuthHandler, API/SecurityHandler + 8 test classes: AuthTest, AuthHttpTest, JWTTest, JWTHttpTest, UsersTest, UsersHttpTest, SecurityTest, SecurityHttpTest)
+- **Total files modified:** Router.cls, Config.cls, DocumentEngine.cls, Storage/Database.cls, plus rules and deferred-work
+- **Total tests:** 375 passing, 0 failures across 48+ test classes
+- **Test growth:** 309 → 312 → 328 → 345 → 360 → 375 (zero-regression streak continues, 7th consecutive epic)
+- **Auth subsystem:** 4 auth mechanisms (cookie, JWT, proxy, basic), _users database sync, per-DB _security enforcement

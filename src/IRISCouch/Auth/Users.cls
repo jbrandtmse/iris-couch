@@ -165,6 +165,9 @@ ClassMethod OnUserDocDelete(pDB As %String, pDocId As %String)
 /// <p>Switches to <code>%SYS</code> namespace to access Security.Users.
 /// If the user exists, modifies password and roles. If new, creates the user.
 /// Restores namespace after operation.</p>
+/// <p>Infrastructure roles (<code>%DB_IRISCOUCH</code>, <code>%DB_IRISLIB</code>,
+/// <code>%DB_IRISTEMP</code>) are automatically appended to ensure the user
+/// can access the application namespace, library classes, and temp storage.</p>
 /// @param pUsername The IRIS username to create or update
 /// @param pPassword The cleartext password (IRIS hashes internally)
 /// @param pRoles Comma-separated role string
@@ -174,6 +177,13 @@ ClassMethod CreateOrUpdateIRISUser(pUsername As %String, pPassword As %String, p
     Set tSC = $$$OK
     Set tOrigNS = $Namespace
     Try {
+        ; Append infrastructure roles required for namespace access
+        Set tInfraRoles = "%DB_IRISCOUCH,%DB_IRISLIB,%DB_IRISTEMP"
+        If pRoles '= "" {
+            Set tAllRoles = pRoles _ "," _ tInfraRoles
+        } Else {
+            Set tAllRoles = tInfraRoles
+        }
         Set $Namespace = "%SYS"
         ; Check if user exists (Exists returns error status when not found
         ; and does NOT set the output parameter, so initialize first)
@@ -182,16 +192,12 @@ ClassMethod CreateOrUpdateIRISUser(pUsername As %String, pPassword As %String, p
         If tExists '= "" {
             ; Modify existing user
             Set tProps("Password") = pPassword
-            If pRoles '= "" {
-                Set tProps("Roles") = pRoles
-            }
+            Set tProps("Roles") = tAllRoles
             Set tSC = ##class(Security.Users).Modify(pUsername, .tProps)
         } Else {
             ; Create new user
             Set tProps("Password") = pPassword
-            If pRoles '= "" {
-                Set tProps("Roles") = pRoles
-            }
+            Set tProps("Roles") = tAllRoles
             Set tSC = ##class(Security.Users).Create(pUsername, .tProps)
         }
         Set $Namespace = tOrigNS
@@ -214,8 +220,15 @@ ClassMethod UpdateIRISUserRoles(pUsername As %String, pRoles As %String) As %Sta
     Set tSC = $$$OK
     Set tOrigNS = $Namespace
     Try {
+        ; Append infrastructure roles required for namespace access
+        Set tInfraRoles = "%DB_IRISCOUCH,%DB_IRISLIB,%DB_IRISTEMP"
+        If pRoles '= "" {
+            Set tAllRoles = pRoles _ "," _ tInfraRoles
+        } Else {
+            Set tAllRoles = tInfraRoles
+        }
         Set $Namespace = "%SYS"
-        Set tProps("Roles") = pRoles
+        Set tProps("Roles") = tAllRoles
         Set tSC = ##class(Security.Users).Modify(pUsername, .tProps)
         Set $Namespace = tOrigNS
         Quit
@@ -229,9 +242,8 @@ ClassMethod UpdateIRISUserRoles(pUsername As %String, pRoles As %String) As %Sta
 }
 
 /// <p>Compute PBKDF2-SHA256 key derivation.</p>
-/// <p>Implements PBKDF2 using iterated HMAC-SHA256, compatible with
-/// CouchDB's password hashing. Uses <code>$System.Encryption.HMACSHA(256)</code>
-/// as the underlying PRF.</p>
+/// <p>Delegates to the native <code>$System.Encryption.PBKDF2()</code> with
+/// SHA-256 PRF (bitlength 256). Compatible with CouchDB password hashing.</p>
 /// @param pPassword The password string
 /// @param pSalt The salt string (hex-encoded)
 /// @param pIterations Number of HMAC iterations
@@ -239,33 +251,7 @@ ClassMethod UpdateIRISUserRoles(pUsername As %String, pRoles As %String) As %Sta
 /// @return %String The derived key as raw bytes
 ClassMethod PBKDF2SHA256(pPassword As %String, pSalt As %String, pIterations As %Integer, pDKLen As %Integer) As %String
 {
-    Set tResult = ""
-    Try {
-        ; PBKDF2 with single block (dkLen <= hash output length of 32 bytes)
-        ; U1 = HMAC(password, salt || INT(1))
-        ; INT(1) is big-endian 4-byte representation of block number 1
-        Set tBlockNum = $Char(0, 0, 0, 1)
-        Set tU = $System.Encryption.HMACSHA(256, pSalt _ tBlockNum, pPassword)
-        Set tDK = tU
-        ; Iterate: U_i = HMAC(password, U_{i-1}), DK = DK XOR U_i
-        For tI = 2:1:pIterations {
-            Set tU = $System.Encryption.HMACSHA(256, tU, pPassword)
-            ; XOR the current U with accumulated DK
-            Set tNewDK = ""
-            For tJ = 1:1:$Length(tDK) {
-                Set tNewDK = tNewDK _ $Char($ZBoolean($Ascii(tDK, tJ), $Ascii(tU, tJ), 6))
-            }
-            Set tDK = tNewDK
-        }
-        ; Truncate to desired key length
-        Set tResult = $Extract(tDK, 1, pDKLen)
-        Quit
-    }
-    Catch ex {
-        Set tResult = ""
-        Quit
-    }
-    Quit tResult
+    Quit $System.Encryption.PBKDF2(pPassword, pIterations, pSalt, pDKLen, 256)
 }
 
 /// <p>Strip password fields and add CouchDB-compatible hashing metadata.</p>

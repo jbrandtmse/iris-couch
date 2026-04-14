@@ -7,8 +7,9 @@ Class IRISCouch.API.AuthHandler Extends %RegisteredObject
 
 /// <p>Handle <code>POST /_session</code> — authenticate and create session cookie.</p>
 /// <p>Reads JSON body with <code>name</code> and <code>password</code> fields,
-/// validates credentials against the IRIS user directory, and on success
-/// returns an HMAC-signed <code>AuthSession</code> cookie.</p>
+/// validates credentials via <code>Security.Users.CheckPassword()</code> in
+/// <code>%SYS</code> namespace (without switching process context), and on
+/// success returns an HMAC-signed <code>AuthSession</code> cookie.</p>
 /// @return %Status
 ClassMethod HandleSessionPost() As %Status
 {
@@ -31,7 +32,17 @@ ClassMethod HandleSessionPost() As %Status
             Quit
         }
         ; Validate credentials against IRIS user directory (NFR-S1)
-        Set tLoginOK = $System.Security.Login(tName, tPassword)
+        ; Use Security.Users.CheckPassword instead of $System.Security.Login
+        ; to avoid switching process security context (which breaks non-admin users)
+        Set tOrigNS = $Namespace
+        Set $Namespace = "%SYS"
+        Set tUserExists = ##class(Security.Users).Exists(tName, .tUserObj)
+        If tUserExists {
+            Set tLoginOK = ##class(Security.Users).CheckPassword(.tUserObj, tPassword)
+        } Else {
+            Set tLoginOK = 0
+        }
+        Set $Namespace = tOrigNS
         If 'tLoginOK {
             Do ##class(IRISCouch.Util.Error).Render(401, "unauthorized", "Name or password is incorrect.")
             Quit
@@ -53,6 +64,8 @@ ClassMethod HandleSessionPost() As %Status
         Quit
     }
     Catch ex {
+        ; Restore namespace on error
+        If $Get(tOrigNS) '= "" Set $Namespace = tOrigNS
         Do ##class(IRISCouch.Util.Error).RenderInternal("server_error", "session: login error", ex)
         Quit
     }

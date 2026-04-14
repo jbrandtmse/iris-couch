@@ -156,6 +156,113 @@ Method TestTamperedCookieViaHttp()
     Do $$$AssertEquals(tBody.userCtx.roles.%Size(), 0, "Tampered cookie results in empty roles")
 }
 
+/// <p>Test non-admin user authentication round-trip (AC #7).</p>
+/// <p>Creates a user via the <code>_users</code> API, verifies Basic auth returns 200,
+/// verifies session login returns 200 with cookie, and verifies cookie auth returns
+/// authenticated context. Cleans up after itself.</p>
+Method TestNonAdminUserAuth()
+{
+    Set tTestUser = "hotfix_test_user"
+    Set tTestPass = "hotfix_pass_42"
+    Try {
+        ; Clean up any leftover test user from previous runs
+        Do ..CleanupTestUser(tTestUser)
+        ; Ensure _users database exists
+        Set tReq = ..CreateRequest()
+        Set tSC = tReq.Put("/iris-couch/_users")
+        ; Create user via _users API
+        Set tReq = ..CreateRequest()
+        Set tUserBody = {}
+        Set tUserBody."_id" = "org.couchdb.user:" _ tTestUser
+        Set tUserBody.type = "user"
+        Set tUserBody.name = tTestUser
+        Set tUserBody.password = tTestPass
+        Set tUserBody.roles = ["reader"]
+        Do tReq.EntityBody.Write(tUserBody.%ToJSON())
+        Set tSC = tReq.Put("/iris-couch/_users/org.couchdb.user:" _ tTestUser)
+        Do $$$AssertStatusOK(tSC, "PUT _users doc request completed")
+        Do $$$AssertTrue((tReq.HttpResponse.StatusCode = 201) || (tReq.HttpResponse.StatusCode = 200), "User doc created successfully")
+        ; Verify Basic auth with non-admin user
+        Set tReq2 = ##class(%Net.HttpRequest).%New()
+        Set tReq2.Server = "localhost"
+        Set tReq2.Port = 52773
+        Set tReq2.Username = tTestUser
+        Set tReq2.Password = tTestPass
+        Set tReq2.ContentType = "application/json"
+        Set tSC = tReq2.Get("/iris-couch/")
+        Do $$$AssertStatusOK(tSC, "GET / with non-admin Basic auth request completed")
+        Do $$$AssertEquals(tReq2.HttpResponse.StatusCode, 200, "Non-admin Basic auth returns 200")
+        ; Verify session login with non-admin user
+        Set tReq3 = ..CreateRequestNoCreds()
+        Do tReq3.EntityBody.Write("{""name"":""" _ tTestUser _ """,""password"":""" _ tTestPass _ """}")
+        Set tSC = tReq3.Post("/iris-couch/_session")
+        Do $$$AssertStatusOK(tSC, "POST /_session with non-admin request completed")
+        Do $$$AssertEquals(tReq3.HttpResponse.StatusCode, 200, "Non-admin session login returns 200")
+        ; Parse session login response
+        Set tBodyStr = tReq3.HttpResponse.Data.Read()
+        Set tBody = ##class(%DynamicObject).%FromJSON(tBodyStr)
+        Do $$$AssertTrue(tBody.ok, "Session login response has ok:true")
+        Do $$$AssertEquals(tBody.name, tTestUser, "Session login response has correct name")
+        ; Extract cookie from Set-Cookie header
+        Set tSetCookie = tReq3.HttpResponse.GetHeader("SET-COOKIE")
+        Do $$$AssertTrue(tSetCookie [ "AuthSession=", "Set-Cookie contains AuthSession")
+        Set tCookiePart = $Piece(tSetCookie, ";", 1)
+        Set tCookieVal = $Piece(tCookiePart, "=", 2, *)
+        ; Verify cookie auth with non-admin user
+        Set tReq4 = ..CreateRequestNoCreds()
+        Do tReq4.SetHeader("Cookie", "AuthSession=" _ tCookieVal)
+        Set tSC = tReq4.Get("/iris-couch/_session")
+        Do $$$AssertStatusOK(tSC, "GET /_session with non-admin cookie request completed")
+        Do $$$AssertEquals(tReq4.HttpResponse.StatusCode, 200, "Non-admin cookie auth returns 200")
+        Set tBodyStr2 = tReq4.HttpResponse.Data.Read()
+        Set tBody2 = ##class(%DynamicObject).%FromJSON(tBodyStr2)
+        Do $$$AssertEquals(tBody2.userCtx.name, tTestUser, "Cookie auth returns correct non-admin username")
+        Do $$$AssertEquals(tBody2.info.authenticated, "cookie", "Cookie auth method is cookie")
+        ; Verify user has infrastructure roles
+        Set tHasDBRole = 0
+        Set tRoles = tBody2.userCtx.roles
+        For tI = 0:1:(tRoles.%Size() - 1) {
+            If tRoles.%Get(tI) = "%DB_IRISCOUCH" Set tHasDBRole = 1
+        }
+        Do $$$AssertTrue(tHasDBRole, "Non-admin user has %DB_IRISCOUCH role")
+        Quit
+    }
+    Catch ex {
+        Do $$$AssertTrue(0, "TestNonAdminUserAuth exception: " _ ex.DisplayString())
+        Quit
+    }
+    ; Cleanup: delete test user doc and IRIS user
+    Do ..CleanupTestUser(tTestUser)
+}
+
+/// <p>Helper: Clean up a test user created during non-admin auth testing.</p>
+/// <p>Deletes and recreates the <code>_users</code> database to clear tombstones,
+/// then deletes the IRIS user if it exists.</p>
+ClassMethod CleanupTestUser(pUsername As %String)
+{
+    Try {
+        ; Delete and recreate _users database to clear tombstones
+        Set tReq = ..CreateRequest()
+        Set tSC = tReq.Delete("/iris-couch/_users")
+        Set tReq2 = ..CreateRequest()
+        Set tSC = tReq2.Put("/iris-couch/_users")
+        ; Delete IRIS user directly
+        Set tOrigNS = $Namespace
+        Set $Namespace = "%SYS"
+        Set tExists = ""
+        Do ##class(Security.Users).Exists(pUsername, .tExists)
+        If tExists '= "" {
+            Do ##class(Security.Users).Delete(pUsername)
+        }
+        Set $Namespace = tOrigNS
+        Quit
+    }
+    Catch ex {
+        If $Get(tOrigNS) '= "" Set $Namespace = tOrigNS
+        Quit
+    }
+}
+
 /// <p>Helper: Create an HTTP request with Basic auth credentials.</p>
 ClassMethod CreateRequest() As %Net.HttpRequest
 {

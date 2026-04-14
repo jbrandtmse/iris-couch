@@ -143,6 +143,10 @@
 - **Proxy auth unit tests test HMAC computation but not Authenticate() directly** [Test/JWTTest.cls:183-196] -- TestProxyAuthValid verifies HMAC-SHA1 computation and IsEnabled() but cannot call Proxy.Authenticate() because it requires a live %request object. The HTTP integration test (JWTHttpTest.TestProxyAuthSuccess) covers the full Authenticate() flow. Consider adding a mock %request pattern if unit-level coverage of Authenticate() is needed.
 - **Hardcoded test credentials and connection params in JWTHttpTest** [Test/JWTHttpTest.cls:138-140,149-153] -- Hardcoded localhost:52773 and _SYSTEM/SYS credentials. Pre-existing pattern across all HTTP test files (same as deferred item from 2-0 review). Address project-wide when test infrastructure is refactored.
 
+## Deferred from: code review of 7-5-auth-hotfix-credential-validation-and-role-assignment (2026-04-13)
+
+- **CleanupTestUser swallows all exceptions silently** [Test/AuthHttpTest.cls:260] -- The catch block in CleanupTestUser discards all errors without logging. If cleanup fails (e.g., namespace switch error, user deletion failure), the test suite proceeds with stale state that could cause cascading test failures. Pre-existing test helper pattern used across multiple test files. Address when test infrastructure error handling is standardized.
+
 ## Deferred from: code review of 7-3-user-management-via-users-database (2026-04-13)
 
 - **SaveWithHistory does not call _users hooks** [DocumentEngine.cls:424-516] -- If a _users document is replicated in via SaveWithHistory (new_edits=false), no password hashing or IRIS user sync occurs. This could allow importing user docs without creating corresponding IRIS users. Not triggered in current architecture since replication protocol (Epic 8) is not yet implemented. Address when Story 8.4 (bidirectional replication) is implemented.

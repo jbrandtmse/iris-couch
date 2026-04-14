@@ -7,8 +7,9 @@ Class IRISCouch.Auth.Basic Extends %RegisteredObject
 
 /// <p>Authenticate a request using the HTTP Basic Authorization header.</p>
 /// <p>Parses the Base64-encoded <code>username:password</code> from the header,
-/// validates credentials via <code>$System.Security.Login()</code>, and retrieves
-/// user roles on success.</p>
+/// validates credentials via <code>Security.Users.CheckPassword()</code> in
+/// <code>%SYS</code> namespace (without switching process context), and
+/// retrieves user roles on success.</p>
 /// @param pAuthHeader The full Authorization header value (e.g., "Basic dXNlcjpwYXNz")
 /// @param pUsername Output: The authenticated username if valid
 /// @param pRoles Output: A %DynamicArray of role name strings
@@ -32,7 +33,17 @@ ClassMethod Authenticate(pAuthHeader As %String, Output pUsername As %String, Ou
         Set tPass = $Piece(tDecoded, ":", 2, *)
         If (tUser = "") || (tPass = "") Quit
         ; Validate against IRIS user directory (NFR-S1)
-        Set tLoginOK = $System.Security.Login(tUser, tPass)
+        ; Use Security.Users.CheckPassword instead of $System.Security.Login
+        ; to avoid switching process security context (which breaks non-admin users)
+        Set tOrigNS = $Namespace
+        Set $Namespace = "%SYS"
+        Set tUserExists = ##class(Security.Users).Exists(tUser, .tUserObj)
+        If tUserExists {
+            Set tLoginOK = ##class(Security.Users).CheckPassword(.tUserObj, tPass)
+        } Else {
+            Set tLoginOK = 0
+        }
+        Set $Namespace = tOrigNS
         If 'tLoginOK Quit
         ; Authentication succeeded
         Set pUsername = tUser
@@ -41,6 +52,8 @@ ClassMethod Authenticate(pAuthHeader As %String, Output pUsername As %String, Ou
         Quit
     }
     Catch ex {
+        ; Restore namespace on error
+        If $Get(tOrigNS) '= "" Set $Namespace = tOrigNS
         Set tResult = 0
         Quit
     }
