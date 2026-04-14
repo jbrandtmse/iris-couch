@@ -243,6 +243,25 @@ Method TestGetRevsLimitDefault()
     Do $$$AssertEquals(tLimit, 1000, "GetRevsLimit returns 1000 default from Create")
 }
 
+/// <p>AC #2 (Story 9.0): Created timestamp is ISO-8601 with T separator and Z suffix.</p>
+Method TestCreateTimestampFormat()
+{
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("testdb")
+    Do $$$AssertStatusOK(tSC, "Create testdb succeeds for timestamp format test")
+    ; Read the created field directly from the global
+    Set tCreated = $Get(^IRISCouch.DB("testdb", "created"))
+    Do $$$AssertTrue(tCreated '= "", "Created timestamp is not empty")
+    ; Assert it contains "T" separator
+    Do $$$AssertTrue($Find(tCreated, "T") > 0, "Timestamp contains T separator")
+    ; Assert it ends with "Z" suffix
+    Do $$$AssertEquals($Extract(tCreated, $Length(tCreated)), "Z", "Timestamp ends with Z suffix")
+    ; Assert full ISO-8601 pattern: YYYY-MM-DDTHH:MM:SSZ
+    ; Verify length is 20 characters (e.g., 2026-04-14T10:30:45Z)
+    Do $$$AssertEquals($Length(tCreated), 20, "Timestamp is 20 characters (ISO-8601 format)")
+    ; Verify the T is at position 11 (after YYYY-MM-DD)
+    Do $$$AssertEquals($Extract(tCreated, 11), "T", "T separator is at position 11")
+}
+
 /// <p>AC #4: GetInfo returns empty string for non-existent database.</p>
 Method TestGetInfoNotFound()
 {

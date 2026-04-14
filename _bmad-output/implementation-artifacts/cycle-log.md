@@ -11,6 +11,28 @@
 - Epic 8 stories confirmed: 8.1-8.5 (plus 8.0 cleanup from retro)
 - No issues surfaced
 
+## Epic 9: Observability & Audit Trail
+
+### 2026-04-14T00:00:00Z — Cycle started
+- **Scope:** Epic 9, Stories 9.0 (deferred cleanup) through 9.3
+- **Sprint status:** All Epic 9 stories at `backlog`
+
+### 2026-04-14T00:00:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml confirmed current (14 epics tracked)
+- Epic 9 stories confirmed: 9.1-9.3 (plus 9.0 cleanup from retro)
+- No issues surfaced
+
+### 2026-04-14T00:05:00Z — Phase 0.5: Retrospective Review & Story 9.0
+- Epic 8 retrospective found: `epic-8-retro-2026-04-13.md`
+- Triaged all action items:
+  - **Included in 9.0:** Fix SaveDeleted _users hook ordering (#1), fix ISO-8601 timestamp (#2), add status checking to Database.Delete() (#3)
+  - **Deferred:** Response.Binary() utility (#4) — LOW, not blocking
+  - **Dropped:** None
+- Story 9.0 created: `9-0-epic-8-deferred-cleanup.md`
+- Epic 9 status updated to `in-progress`
+
+---
+
 ### 2026-04-13T04:00:00Z — Epic 8 Complete & Retrospective
 - Manual HTTP verification: 25/25 curl tests pass (local docs, _revs_diff, _bulk_get, replication, _replicator)
 - Interactive retrospective conducted with full party mode

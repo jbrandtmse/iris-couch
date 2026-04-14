@@ -24,7 +24,7 @@ ClassMethod Create(pName As %String) As %Status
             Quit
         }
         ; Initialize metadata subscripts
-        Set ^IRISCouch.DB(pName, "created") = $ZDateTime($Horolog, 3)
+        Set ^IRISCouch.DB(pName, "created") = $Translate($ZDateTime($Horolog, 3, 1), " ", "T") _ "Z"
         Set ^IRISCouch.DB(pName, "doc_count") = 0
         Set ^IRISCouch.DB(pName, "doc_del_count") = 0
         Set ^IRISCouch.DB(pName, "update_seq") = 0
@@ -63,16 +63,28 @@ ClassMethod Delete(pName As %String) As %Status
         Kill ^IRISCouch.Tree(pName)
         Kill ^IRISCouch.Changes(pName)
         Kill ^IRISCouch.Seq(pName)
+        ; Best-effort cleanup: capture errors, continue all steps (Story 9.0)
+        Set tErrors = ""
         ; Clean up attachment data (Story 5.1)
-        Do ##class(IRISCouch.Storage.Attachment).CleanupDatabase(pName)
+        Set tSC2 = ##class(IRISCouch.Storage.Attachment).CleanupDatabase(pName)
+        If $$$ISERR(tSC2) Set tErrors = tErrors _ "Attachment cleanup failed; "
         ; Clean up projection data (Story 6.1)
-        Do ##class(IRISCouch.Projection.Winners).DeleteAll(pName)
-        Do ##class(IRISCouch.Projection.MangoIndex).DeleteAll(pName)
-        Do ##class(IRISCouch.Projection.MangoIndexDef).DeleteAll(pName)
+        Set tSC2 = ##class(IRISCouch.Projection.Winners).DeleteAll(pName)
+        If $$$ISERR(tSC2) Set tErrors = tErrors _ "Winners cleanup failed; "
+        Set tSC2 = ##class(IRISCouch.Projection.MangoIndex).DeleteAll(pName)
+        If $$$ISERR(tSC2) Set tErrors = tErrors _ "MangoIndex cleanup failed; "
+        Set tSC2 = ##class(IRISCouch.Projection.MangoIndexDef).DeleteAll(pName)
+        If $$$ISERR(tSC2) Set tErrors = tErrors _ "MangoIndexDef cleanup failed; "
         ; Clean up security configuration (Story 7.4)
+        ; Auth.Security.Delete has no return value (Kill global only), use Do
         Do ##class(IRISCouch.Auth.Security).Delete(pName)
         ; Clean up local documents (Story 8.1)
-        Do ##class(IRISCouch.Storage.Local).DeleteAll(pName)
+        Set tSC2 = ##class(IRISCouch.Storage.Local).DeleteAll(pName)
+        If $$$ISERR(tSC2) Set tErrors = tErrors _ "Local cleanup failed; "
+        ; Report accumulated errors if any
+        If tErrors '= "" {
+            Set tSC = $$$ERROR($$$GeneralError, "Database deletion had cleanup errors: " _ tErrors)
+        }
         Quit
     }
     Catch ex {

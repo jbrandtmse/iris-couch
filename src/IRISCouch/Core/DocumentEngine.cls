@@ -408,15 +408,15 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         If ##class(IRISCouch.Replication.Manager).IsReplicatorDB(pDB) {
             Do ##class(IRISCouch.Replication.Manager).OnReplicatorDocDelete(pDB, pDocId)
         }
-        ; 7. Update Projection.Winners with deletion (Story 6.1)
-        Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, "", 1)
-        ; 8. Remove from all MangoIndex rows (Story 6.1)
-        Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
-        ; 9. _users database sync (Story 7.3)
-        ; If this is a _users delete, remove the corresponding IRIS user
+        ; 7. _users database sync (Story 7.3, reordered Story 9.0)
+        ; Must run BEFORE Winners.Upsert clears body for consistency
         If ##class(IRISCouch.Auth.Users).IsUsersDB(pDB) {
             Do ##class(IRISCouch.Auth.Users).OnUserDocDelete(pDB, pDocId)
         }
+        ; 8. Update Projection.Winners with deletion (Story 6.1)
+        Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, "", 1)
+        ; 9. Remove from all MangoIndex rows (Story 6.1)
+        Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
