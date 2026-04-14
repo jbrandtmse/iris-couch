@@ -11,6 +11,13 @@
 - Epic 10 stories confirmed: 10.1-10.7 (plus 10.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T11:00:00Z — Story 10.1: Angular Scaffold, Design Tokens & Icon System
+- **Create Story:** Story file created at `10-1-angular-scaffold-design-tokens-and-icon-system.md`
+- **Development:** All 8 tasks completed. Angular 18 scaffold with CDK, tokens.css (33 tokens), global.css, JetBrains Mono WOFF2 (21KB), 20 Lucide icon components, HTML config. 45/45 tests pass, 60KB gzip build.
+- **Code Review:** CLEAN — 0 HIGH/MED. 3 LOW deferred (OnPush, signal inputs, font weight 500).
+- **Commit:** `e09eec4` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T10:30:00Z — Story 10.0: Epic 9 Deferred Cleanup
 - **Create Story:** Story file created at `10-0-epic-9-deferred-cleanup.md`
 - **Development:** All 3 tasks completed. Security.Events rule added, $Horolog→$ZTimeStamp fixed in 3 locations, 43 deferred items triaged. 20/20 tests pass.
