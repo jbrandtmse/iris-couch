@@ -1,5 +1,8 @@
 # generated: 2026-04-12
 # last_updated: 2026-04-13
+# last_story_in_progress: 8-3-replication-ready-bulk-get
+last_story_reviewed: 8-3-replication-ready-bulk-get
+last_story_completed: 8-3-replication-ready-bulk-get
 # last_story_reviewed: 8-0-epic-7-deferred-cleanup
 # project: iris-couch
 # project_key: NOKEY
@@ -117,7 +120,7 @@ development_status:
   8-0-epic-7-deferred-cleanup: done
   8-1-local-documents-and-replication-checkpoints: done
   8-2-revision-difference-calculation: done
-  8-3-replication-ready-bulk-get: backlog
+  8-3-replication-ready-bulk-get: done
   8-4-bidirectional-replication-protocol: backlog
   8-5-replicator-database-and-continuous-replication-jobs: backlog
   epic-8-retrospective: optional

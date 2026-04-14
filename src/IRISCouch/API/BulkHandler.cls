@@ -240,7 +240,8 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
 
 /// <p>Handle <code>POST /{db}/_bulk_get</code> — retrieve multiple documents by ID in a single request.</p>
 /// <p>Returns a results array with each document or an error entry for missing documents.
-/// Supports <code>?revs=true</code> to include revision history.</p>
+/// Supports <code>?revs=true</code> to include revision history and
+/// <code>?attachments=true</code> to include inline base64 attachment data.</p>
 /// @param pDB The database name from the URL path
 /// @return %Status
 ClassMethod HandleBulkGet(pDB As %String) As %Status
@@ -279,6 +280,8 @@ ClassMethod HandleBulkGet(pDB As %String) As %Status
         If $Get(%request.Data("revs", 1)) = "true" {
             Set tRevsFlag = 1
         }
+        ; Check for attachments=true query parameter
+        Set tAttachmentsFlag = ($Get(%request.Data("attachments", 1)) = "true")
         Set tResults = []
         Set tI = 0
         While tI < tDocs.%Size() {
@@ -322,6 +325,43 @@ ClassMethod HandleBulkGet(pDB As %String) As %Status
                 If tRevsFlag {
                     Set tRevisions = ##class(IRISCouch.Storage.RevTree).GetRevisions(pDB, tDocId, tRev)
                     Do tDocObj.%Set("_revisions", tRevisions)
+                }
+                ; Add _attachments if document has any
+                Set tAttMeta = ##class(IRISCouch.Storage.Attachment).GetMetadata(pDB, tDocId, tRev)
+                If $IsObject(tAttMeta) {
+                    If tAttachmentsFlag {
+                        ; Inline mode: replace stub:true with base64 data for each attachment
+                        ; Collect attachment names first to avoid mutating during iteration
+                        Set tAttNames = ""
+                        Set tAttIter = tAttMeta.%GetIterator()
+                        While tAttIter.%GetNext(.tAttName, .tAttStub) {
+                            Set tAttNames = tAttNames _ $ListBuild(tAttName)
+                        }
+                        ; Now iterate the collected names and replace stubs with inline data
+                        Set tAttIdx = 0
+                        While $ListNext(tAttNames, tAttIdx, tAttName) {
+                            Set tAttStub = tAttMeta.%Get(tAttName)
+                            Set tAttSC = ##class(IRISCouch.Storage.Attachment).Get(pDB, tDocId, tAttName, .tStream, .tCType, .tLen, .tDigest, tRev)
+                            If $$$ISOK(tAttSC) && $IsObject(tStream) {
+                                ; Build inline attachment entry
+                                Set tInline = {}
+                                Do tInline.%Set("content_type", tAttStub.%Get("content_type"))
+                                Do tInline.%Set("length", +tAttStub.%Get("length"), "number")
+                                Do tInline.%Set("digest", tAttStub.%Get("digest"))
+                                Do tInline.%Set("revpos", +tAttStub.%Get("revpos"), "number")
+                                ; Read entire stream and base64 encode in one pass
+                                ; Single Read() avoids multi-chunk padding issues (~2.7MB max)
+                                Do tStream.Rewind()
+                                Set tBinary = tStream.Read(3600000)
+                                Set tBase64 = $System.Encryption.Base64Encode(tBinary)
+                                Do tInline.%Set("data", tBase64)
+                                ; Replace stub entry with inline entry (no stub:true)
+                                Do tAttMeta.%Set(tAttName, tInline)
+                            }
+                        }
+                    }
+                    ; Include _attachments (stubs or inline depending on flag)
+                    Do tDocObj.%Set("_attachments", tAttMeta)
                 }
                 ; Copy stored fields
                 Set tStoredObj = ##class(%DynamicObject).%FromJSON(tBodyStr)

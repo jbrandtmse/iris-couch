@@ -11,6 +11,13 @@
 - Epic 8 stories confirmed: 8.1-8.5 (plus 8.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-13T01:00:00Z — Story 8.2: Revision Difference Calculation
+- **Create Story:** Story file created at `8-2-revision-difference-calculation.md`
+- **Development:** All 5 tasks completed. 2 files modified (ReplicationHandler.cls +HandleRevsDiff, Router.cls +route+wrapper), 2 created (RevsDiffTest.cls 6 tests, RevsDiffHttpTest.cls 5 tests). 0 regressions.
+- **Code Review:** CLEAN. 0 critical/high/medium. 1 LOW deferred (possible_ancestors generation filtering).
+- **Commit:** `98db6c8` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-13T00:30:00Z — Story 8.1: Local Documents & Replication Checkpoints
 - **Create Story:** Story file created at `8-1-local-documents-and-replication-checkpoints.md`
 - **Development:** All 8 tasks completed. 4 files created (Storage/Local.cls, API/ReplicationHandler.cls, Test/LocalDocTest.cls, Test/LocalDocHttpTest.cls), 2 modified (Router.cls routes+wrappers, Database.cls deletion cleanup). 15 new tests pass, 0 regressions.
