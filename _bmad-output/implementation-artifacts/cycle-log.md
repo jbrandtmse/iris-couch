@@ -11,6 +11,13 @@
 - Epic 8 stories confirmed: 8.1-8.5 (plus 8.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-13T00:30:00Z — Story 8.1: Local Documents & Replication Checkpoints
+- **Create Story:** Story file created at `8-1-local-documents-and-replication-checkpoints.md`
+- **Development:** All 8 tasks completed. 4 files created (Storage/Local.cls, API/ReplicationHandler.cls, Test/LocalDocTest.cls, Test/LocalDocHttpTest.cls), 2 modified (Router.cls routes+wrappers, Database.cls deletion cleanup). 15 new tests pass, 0 regressions.
+- **Code Review:** PASSED. 0 critical/high. 2 MEDIUM auto-resolved (response utility consistency). 3 LOW deferred.
+- **Commit:** `ff65e60` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-13T00:10:00Z — Story 8.0: Epic 7 Deferred Cleanup
 - **Create Story:** Story file created at `8-0-epic-7-deferred-cleanup.md`
 - **Development:** All 5 tasks completed. 3 files modified (iris-objectscript-basics.md rules, DocumentEngine.cls _users hooks, ReplicationTest.cls +2 tests). All classes compile. 0 regressions.

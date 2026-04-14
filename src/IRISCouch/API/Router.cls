@@ -40,6 +40,8 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db/_bulk_get" Method="POST" Call="HandleBulkGet" />
   <Route Url="/:db/_changes" Method="GET" Call="HandleChangesGet" />
   <Route Url="/:db/_changes" Method="POST" Call="HandleChangesPost" />
+  <!-- Replication endpoints (Story 8.2) -->
+  <Route Url="/:db/_revs_diff" Method="POST" Call="HandleRevsDiff" />
   <!-- Per-database security configuration (Story 7.4) -->
   <Route Url="/:db/_security" Method="GET" Call="HandleSecurityGet" />
   <Route Url="/:db/_security" Method="PUT" Call="HandleSecurityPut" />
@@ -279,6 +281,12 @@ ClassMethod HandleLocalPut(pDB As %String, pLocalId As %String) As %Status
 ClassMethod HandleLocalDelete(pDB As %String, pLocalId As %String) As %Status
 {
     Quit ##class(IRISCouch.API.ReplicationHandler).HandleLocalDelete(pDB, pLocalId)
+}
+
+/// <p>Dispatch POST /:db/_revs_diff to ReplicationHandler.</p>
+ClassMethod HandleRevsDiff(pDB As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.ReplicationHandler).HandleRevsDiff(pDB)
 }
 
 /// <p>Authentication middleware — establishes user context on every request.</p>

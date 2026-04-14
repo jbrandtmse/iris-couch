@@ -132,6 +132,79 @@ ClassMethod HandleLocalPut(pDB As %String, pLocalId As %String) As %Status
     Quit $$$OK
 }
 
+/// <p>Handle <code>POST /{db}/_revs_diff</code> — calculate revision differences.</p>
+/// <p>Accepts a JSON object mapping document IDs to arrays of revision strings.
+/// Returns only those documents that have missing revisions, along with
+/// <code>possible_ancestors</code> (known leaf revisions) when the document
+/// has an existing revision tree.</p>
+/// <p>An empty request <code>{}</code> returns an empty object <code>{}</code>.
+/// If all submitted revisions already exist locally, the response is also
+/// <code>{}</code>.</p>
+/// @param pDB The database name from the URL path
+/// @return %Status
+ClassMethod HandleRevsDiff(pDB As %String) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        ; Validate database exists
+        If '##class(IRISCouch.Storage.Database).Exists(pDB) {
+            Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "Database does not exist.")
+            Quit
+        }
+        ; Read request body
+        Set tContent = ""
+        If $IsObject(%request.Content) {
+            Set tContent = %request.Content.Read()
+        }
+        If tContent = "" {
+            ; Empty body treated as empty object
+            Do ##class(IRISCouch.Util.Response).JSON({})
+            Quit
+        }
+        ; Parse JSON body
+        Try {
+            Set tReqObj = ##class(%DynamicObject).%FromJSON(tContent)
+        } Catch tParseEx {
+            Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
+            Quit
+        }
+        ; Build response — only include docIds with missing revisions
+        Set tResponse = {}
+        Set tIter = tReqObj.%GetIterator()
+        While tIter.%GetNext(.tDocId, .tRevArray) {
+            ; Skip if value is not an array
+            If '$IsObject(tRevArray) Continue
+            ; Collect missing revisions for this docId
+            Set tMissing = []
+            Set tRevIter = tRevArray.%GetIterator()
+            While tRevIter.%GetNext(.tIdx, .tRev) {
+                If '##class(IRISCouch.Storage.RevTree).RevExists(pDB, tDocId, tRev) {
+                    Do tMissing.%Push(tRev)
+                }
+            }
+            ; Only include docId in response if it has missing revisions
+            If tMissing.%Size() > 0 {
+                Set tDocResult = {}
+                Do tDocResult.%Set("missing", tMissing)
+                ; Include possible_ancestors if doc has a known revision tree
+                Set tLeaves = ##class(IRISCouch.Storage.RevTree).GetLeafRevs(pDB, tDocId)
+                If tLeaves.%Size() > 0 {
+                    Do tDocResult.%Set("possible_ancestors", tLeaves)
+                }
+                Do tResponse.%Set(tDocId, tDocResult)
+            }
+        }
+        ; Return 200 with response
+        Do ##class(IRISCouch.Util.Response).JSON(tResponse)
+        Quit
+    }
+    Catch ex {
+        Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "revs_diff: processing error", ex)
+        Quit
+    }
+    Quit $$$OK
+}
+
 /// <p>Handle <code>DELETE /{db}/_local/{id}</code> — delete a local document.</p>
 /// <p>Requires a matching <code>rev</code> query parameter or <code>_rev</code>
 /// in the request body. Returns 404 if the document does not exist,
