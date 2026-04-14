@@ -11,6 +11,13 @@
 - Epic 8 stories confirmed: 8.1-8.5 (plus 8.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-13T02:30:00Z — Story 8.4: Bidirectional Replication Protocol
+- **Create Story:** Story file created at `8-4-bidirectional-replication-protocol.md`
+- **Development:** All 7 tasks completed. 4 new Replication classes (ReplicationId, Checkpoint, HttpClient, Replicator), 4 test classes. 28 new tests pass, 0 regressions.
+- **Code Review:** 1 HIGH + 3 MEDIUM auto-resolved (storage encapsulation, checkpoint error handling, corruption detection, attachment fetch). 5 LOW deferred.
+- **Commit:** `2a4b453` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-13T01:30:00Z — Story 8.3: Replication-Ready Bulk Get
 - **Create Story:** Story file created at `8-3-replication-ready-bulk-get.md`
 - **Development:** All 5 tasks completed. 1 file modified (BulkHandler.cls +attachments=true), 2 created (BulkGetReplicationTest.cls 8 tests, BulkGetReplicationHttpTest.cls 5 tests). 0 regressions.

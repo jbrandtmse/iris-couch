@@ -102,6 +102,28 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
                 }
             }
         }
+        ; 8. _replicator database sync (Story 8.5)
+        ; If this is a _replicator write, inject system fields (job started post-commit)
+        Set tRepBodyObj = ""
+        If ##class(IRISCouch.Replication.Manager).IsReplicatorDB(pDB) {
+            Set tRepBody = ##class(%DynamicObject).%FromJSON(pBody)
+            Set tModifiedRep = ##class(IRISCouch.Replication.Manager).OnReplicatorDocSave(pDB, pDocId, tRepBody)
+            If $IsObject(tModifiedRep) {
+                Set tModifiedRepJSON = tModifiedRep.%ToJSON()
+                If tModifiedRepJSON '= pBody {
+                    Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, tNewRev, tModifiedRepJSON)
+                    If $$$ISERR(tSC) {
+                        TROLLBACK  Set tInTrans = 0
+                        Set tNewRev = ""
+                        Quit
+                    }
+                    ; Update Winners projection with the modified body
+                    Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, tModifiedRepJSON, 0)
+                }
+                ; Save reference for post-commit job launch
+                Set tRepBodyObj = tModifiedRep
+            }
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
@@ -110,6 +132,10 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
         Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)
         If ##class(%SYSTEM.Event).Defined(tEventName) {
             Set tEvtSignal = ##class(%SYSTEM.Event).Signal(tEventName)
+        }
+        ; Start _replicator job AFTER commit so background job sees committed data
+        If $IsObject(tRepBodyObj) {
+            Do ##class(IRISCouch.Replication.Manager).StartJobFromBody(pDB, pDocId, tRepBodyObj)
         }
         Quit
     }
@@ -376,11 +402,17 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         ; Increment doc_del_count
         Do ##class(IRISCouch.Storage.Database).IncrementDelCount(pDB)
         Do ##class(IRISCouch.Storage.Database).SetUpdateSeq(pDB, tSeq)
-        ; 6. Update Projection.Winners with deletion (Story 6.1)
+        ; 6. _replicator database sync (Story 8.5)
+        ; Must run BEFORE Winners.Upsert clears body, so OnReplicatorDocDelete
+        ; can still read _replication_id from the Winners projection
+        If ##class(IRISCouch.Replication.Manager).IsReplicatorDB(pDB) {
+            Do ##class(IRISCouch.Replication.Manager).OnReplicatorDocDelete(pDB, pDocId)
+        }
+        ; 7. Update Projection.Winners with deletion (Story 6.1)
         Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, "", 1)
-        ; 7. Remove from all MangoIndex rows (Story 6.1)
+        ; 8. Remove from all MangoIndex rows (Story 6.1)
         Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
-        ; 8. _users database sync (Story 7.3)
+        ; 9. _users database sync (Story 7.3)
         ; If this is a _users delete, remove the corresponding IRIS user
         If ##class(IRISCouch.Auth.Users).IsUsersDB(pDB) {
             Do ##class(IRISCouch.Auth.Users).OnUserDocDelete(pDB, pDocId)

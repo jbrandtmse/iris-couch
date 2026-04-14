@@ -43,16 +43,24 @@ Parameter BATCHSIZE = 100;
 /// @param pSource The source database name or URL
 /// @param pTarget The target database name or URL
 /// @param pOptions Optional replication options
+/// @param pStats Output stats object with docs_read, docs_written, doc_write_failures, missing_checked, missing_found
 /// @return %Status
-ClassMethod Replicate(pSource As %String, pTarget As %String, pOptions As %DynamicObject = "") As %Status
+ClassMethod Replicate(pSource As %String, pTarget As %String, pOptions As %DynamicObject = "", Output pStats As %DynamicObject) As %Status
 {
     Set tSC = $$$OK
+    ; Initialize stats
+    Set pStats = {}
+    Do pStats.%Set("docs_read", 0, "number")
+    Do pStats.%Set("docs_written", 0, "number")
+    Do pStats.%Set("doc_write_failures", 0, "number")
+    Do pStats.%Set("missing_checked", 0, "number")
+    Do pStats.%Set("missing_found", 0, "number")
     Try {
         Set tSourceLocal = ##class(IRISCouch.Replication.ReplicationId).IsLocalDB(pSource)
         Set tTargetLocal = ##class(IRISCouch.Replication.ReplicationId).IsLocalDB(pTarget)
         If tSourceLocal && tTargetLocal {
             ; Local-to-local: both databases are in IRISCouch
-            Set tSC = ..ReplicateLocalToLocal(pSource, pTarget, pOptions)
+            Set tSC = ..ReplicateLocalToLocal(pSource, pTarget, pOptions, .pStats)
             Quit
         }
         If tSourceLocal && 'tTargetLocal {
@@ -92,10 +100,18 @@ ClassMethod Replicate(pSource As %String, pTarget As %String, pOptions As %Dynam
 /// @param pSourceDB The source database name
 /// @param pTargetDB The target database name
 /// @param pOptions Optional replication options
+/// @param pStats Output stats object with docs_read, docs_written, doc_write_failures, missing_checked, missing_found
 /// @return %Status
-ClassMethod ReplicateLocalToLocal(pSourceDB As %String, pTargetDB As %String, pOptions As %DynamicObject = "") As %Status
+ClassMethod ReplicateLocalToLocal(pSourceDB As %String, pTargetDB As %String, pOptions As %DynamicObject = "", Output pStats As %DynamicObject) As %Status
 {
     Set tSC = $$$OK
+    ; Initialize stats
+    Set pStats = {}
+    Do pStats.%Set("docs_read", 0, "number")
+    Do pStats.%Set("docs_written", 0, "number")
+    Do pStats.%Set("doc_write_failures", 0, "number")
+    Do pStats.%Set("missing_checked", 0, "number")
+    Do pStats.%Set("missing_found", 0, "number")
     Try {
         ; ---- Phase 1: Verify Peers ----
         If '##class(IRISCouch.Storage.Database).Exists(pSourceDB) {
@@ -151,6 +167,13 @@ ClassMethod ReplicateLocalToLocal(pSourceDB As %String, pTargetDB As %String, pO
         }
         ; Compute revs_diff locally against target
         Set tMissing = ..ComputeRevsDiffLocal(pTargetDB, tRevsDiffReq)
+        ; Track missing_checked (total revs checked) and missing_found
+        Set tMissingChecked = 0
+        Set tMissingFound = 0
+        Set tRevsDiffIter = tRevsDiffReq.%GetIterator()
+        While tRevsDiffIter.%GetNext(.tRDKey, .tRDVal) {
+            If $IsObject(tRDVal) Set tMissingChecked = tMissingChecked + tRDVal.%Size()
+        }
         ; If nothing missing, skip transfer
         Set tMissingIter = tMissing.%GetIterator()
         Set tHasMissing = 0
@@ -160,6 +183,7 @@ ClassMethod ReplicateLocalToLocal(pSourceDB As %String, pTargetDB As %String, pO
         }
         If 'tHasMissing {
             ; All revisions already present in target; update checkpoint
+            Do pStats.%Set("missing_checked", tMissingChecked, "number")
         } Else {
             ; ---- Phase 6: Replicate Changes ----
             ; Collect all missing doc/rev pairs
@@ -168,6 +192,7 @@ ClassMethod ReplicateLocalToLocal(pSourceDB As %String, pTargetDB As %String, pO
             While tMissingIter2.%GetNext(.tDocId, .tDocResult) {
                 Set tMissingRevs = tDocResult.%Get("missing")
                 If '$IsObject(tMissingRevs) Continue
+                Set tMissingFound = tMissingFound + tMissingRevs.%Size()
                 Set tK = 0
                 While tK < tMissingRevs.%Size() {
                     Set tPair = {}
@@ -177,6 +202,8 @@ ClassMethod ReplicateLocalToLocal(pSourceDB As %String, pTargetDB As %String, pO
                     Set tK = tK + 1
                 }
             }
+            Do pStats.%Set("missing_checked", tMissingChecked, "number")
+            Do pStats.%Set("missing_found", tMissingFound, "number")
             ; Process in batches
             Set tBatchSize = ..#BATCHSIZE
             If $IsObject(pOptions) && (pOptions.%IsDefined("batch_size")) {
@@ -227,6 +254,10 @@ ClassMethod ReplicateLocalToLocal(pSourceDB As %String, pTargetDB As %String, pO
                 If $$$ISERR(tSC) Quit
                 Set tBatchIdx = tBatchEnd + 1
             }
+            ; Populate stats from counters
+            Do pStats.%Set("docs_read", tDocsRead, "number")
+            Do pStats.%Set("docs_written", tDocsWritten, "number")
+            Do pStats.%Set("doc_write_failures", tDocWriteFailures, "number")
         }
         ; ---- Phase 9: Update Checkpoints ----
         If $$$ISOK(tSC) {
