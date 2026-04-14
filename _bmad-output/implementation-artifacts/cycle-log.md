@@ -22,6 +22,13 @@
 - Epic 9 stories confirmed: 9.1-9.3 (plus 9.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T01:00:00Z — Story 9.2: Audit Event Emission
+- **Create Story:** Story file created at `9-2-audit-event-emission.md`
+- **Development:** All 8 tasks completed. 1 new Audit class (Emit.cls with EnsureEvents), 2 test classes (17+3 tests), 5 production files modified (DocumentEngine 6 methods, AuthHandler, Router, SecurityHandler, Manager). 0 regressions.
+- **Code Review:** 2 MEDIUM auto-resolved (missing UserWrite on _users delete paths). 2 LOW deferred.
+- **Commit:** `2126bfb` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T00:30:00Z — Story 9.1: Prometheus / OpenTelemetry Metrics Endpoint
 - **Create Story:** Story file created at `9-1-prometheus-opentelemetry-metrics-endpoint.md`
 - **Development:** All 7 tasks completed. 3 new Metrics classes (Collector, Record, Endpoint), 2 test classes (11+3 tests), Router modified (32 wrappers + OnPreDispatch + route). 0 regressions.

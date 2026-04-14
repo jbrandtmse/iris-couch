@@ -76,6 +76,12 @@ ClassMethod RenderInternal(pSlug As %String, pReason As %String, pException As %
     If $IsObject(pException) {
         Do ##class(%SYS.System).WriteToConsoleLog("IRISCouch error: "_pException.DisplayString(), 0, 1)
     }
+    ; Structured log — internal error (Story 9.3, NFR-O5)
+    Set tLogData = {"reason":(pReason),"slug":(pSlug)}
+    If $IsObject(pException) {
+        Do tLogData.%Set("exception", pException.DisplayString())
+    }
+    Do ##class(IRISCouch.Util.Log).Error("system", "Internal error", tLogData)
     ; Send generic reason to client (NFR-S8)
     Do ..Render(500, pSlug, pReason)
     Quit

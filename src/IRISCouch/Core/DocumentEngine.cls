@@ -133,6 +133,9 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
+        ; Structured log AFTER commit (informational, not transactional — Story 9.3)
+        Set tLogData = {"db":(pDB),"docId":(pDocId),"rev":(tNewRev)}
+        Do ##class(IRISCouch.Util.Log).Info("document", "Document saved", tLogData)
         ; Signal longpoll waiters AFTER commit so readers see committed data
         ; Only signal if the event resource exists (created by a longpoll listener)
         Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)
@@ -436,6 +439,9 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0
+        ; Structured log AFTER commit (informational, not transactional — Story 9.3)
+        Set tLogData = {"db":(pDB),"docId":(pDocId),"rev":(tNewRev)}
+        Do ##class(IRISCouch.Util.Log).Info("document", "Document deleted", tLogData)
         ; Signal longpoll waiters AFTER commit so readers see committed data
         ; Only signal if the event resource exists (created by a longpoll listener)
         Set tEventName = ##class(IRISCouch.Storage.Changes).EventResourceName(pDB)

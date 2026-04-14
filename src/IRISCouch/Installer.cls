@@ -6,6 +6,33 @@
 /// <example language="objectscript">
 /// Do ##class(IRISCouch.Installer).Install($Namespace, "/iris-couch/")
 /// </example>
+///
+/// <h3>Namespace Requirements (Story 9.3)</h3>
+/// <p>IRISCouch must be installed into a dedicated IRIS namespace (e.g., IRISCOUCH)
+/// backed by its own database. All <code>^IRISCouch.*</code> globals reside within
+/// this namespace. No cross-namespace global references are used.</p>
+///
+/// <h3>Web Application Configuration</h3>
+/// <p>The installer creates a CSP web application entry pointing to
+/// <class>IRISCouch.API.Router</class> as the dispatch class. The web application
+/// is configured with password authentication (AutheEnabled=64) and is namespace-bound
+/// to the target namespace.</p>
+///
+/// <h3>IRIS High Availability (HA) Coverage</h3>
+/// <p>IRISCouch inherits IRIS HA capabilities automatically. Since all state resides
+/// in <code>^IRISCouch.*</code> globals within a single namespace database:</p>
+/// <ul>
+/// <li><b>Mirroring</b>: Configure IRIS database mirroring on the IRISCOUCH database
+/// to replicate all IRISCouch state to mirror members. No application-level
+/// replication is needed.</li>
+/// <li><b>Backup</b>: Standard IRIS online or freeze-based database backup covers
+/// all IRISCouch globals. No special pre/post backup procedures required.</li>
+/// <li><b>Journal Replay</b>: All writes are journaled. On crash recovery, IRIS
+/// journal replay restores consistent state. Document writes use
+/// <code>TSTART</code>/<code>TCOMMIT</code> for atomicity.</li>
+/// <li><b>ECP</b>: If using Enterprise Cache Protocol (ECP), the IRISCOUCH database
+/// can be served from an ECP data server to application servers.</li>
+/// </ul>
 Class IRISCouch.Installer Extends %RegisteredObject
 {
 

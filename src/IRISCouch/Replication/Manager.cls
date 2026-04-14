@@ -251,6 +251,9 @@ ClassMethod RunReplication(pDB As %String, pDocId As %String, pSource As %String
         Set tAttempt = 0
         ; Audit replication start (Story 9.2)
         Do ##class(IRISCouch.Audit.Emit).ReplicationStart(pSource, pTarget, $Get(%IRISCouchUser))
+        ; Structured log — replication started (Story 9.3)
+        Set tStartLog = {"source":(pSource),"target":(pTarget),"continuous":(pContinuous)}
+        Do ##class(IRISCouch.Util.Log).Info("replication", "Replication started", tStartLog)
         ; Main replication loop
         For {
             ; Check cancellation before each iteration
@@ -270,6 +273,9 @@ ClassMethod RunReplication(pDB As %String, pDocId As %String, pSource As %String
                     Do ..UpdateReplicatorDoc(pDB, pDocId, "completed", tStatsObj)
                     ; Audit replication complete (Story 9.2)
                     Do ##class(IRISCouch.Audit.Emit).ReplicationComplete(pSource, pTarget, tStatsObj, $Get(%IRISCouchUser))
+                    ; Structured log — replication completed (Story 9.3)
+                    Set tCompleteLog = {"source":(pSource),"target":(pTarget),"stats":(tStatsObj)}
+                    Do ##class(IRISCouch.Util.Log).Info("replication", "Replication completed", tCompleteLog)
                     ; Clean up job tracking
                     Kill ^IRISCouch.Jobs(tRepId)
                     Quit
@@ -295,6 +301,9 @@ ClassMethod RunReplication(pDB As %String, pDocId As %String, pSource As %String
                     Do tErrStats.%Set("error", tErrMsg)
                 }
                 Do ..UpdateReplicatorDoc(pDB, pDocId, "error", tErrStats)
+                ; Structured log — replication error (Story 9.3)
+                Set tErrLog = {"source":(pSource),"target":(pTarget),"error":(tErrMsg)}
+                Do ##class(IRISCouch.Util.Log).Error("replication", "Replication error", tErrLog)
                 If 'pContinuous {
                     ; One-shot error: clean up and exit
                     Kill ^IRISCouch.Jobs(tRepId)

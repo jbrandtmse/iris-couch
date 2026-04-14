@@ -196,3 +196,7 @@
 
 - **TestEnsureEvents namespace switch has no Try/Catch** [AuditTest.cls:119-129] -- The test switches to %SYS to verify Security.Events registration but does not wrap assertions in Try/Catch. If any assertion fails, the namespace stays as %SYS for remaining tests, potentially corrupting test isolation. Pre-existing test pattern across multiple test files. Address when test infrastructure error handling is standardized.
 - **Hardcoded credentials (_SYSTEM/SYS) in AuditHttpTest** [AuditHttpTest.cls:93-94] -- Hardcoded credentials and connection params (localhost:52773). Pre-existing pattern across all HTTP test files (same as deferred items from 2-0 and 7-2 reviews). Address project-wide when test infrastructure is refactored.
+
+## Deferred from: code review of 9-3-operational-resilience-and-data-durability (2026-04-13)
+
+- **Log.Debug() has no gating for debug-level logging** [Util/Log.cls:54-57] -- The doc comment says "Only emitted when IRIS debug logging is enabled" but the implementation always calls Emit unconditionally. IRIS does not have a built-in debug flag that can be checked via ObjectScript. Consider adding a Config parameter (e.g., LOGLEVEL) to control minimum log level, or checking a global flag before emitting debug messages. Low impact since Debug() is not currently called from any production code path.

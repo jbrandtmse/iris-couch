@@ -4,6 +4,44 @@
 /// over class parameter defaults.</p>
 /// <p>This is the ONLY class allowed to directly read <code>^IRISCouch.Config</code>.
 /// All other classes must call <code>Config.Get()</code>.</p>
+///
+/// <h3>IRISCouch Global Inventory (Story 9.3)</h3>
+/// <p>All IRISCouch state resides in <code>^IRISCouch.*</code> globals within the
+/// namespace. No cross-namespace globals are used.</p>
+/// <table>
+/// <tr><th>Global</th><th>Storage Class</th><th>Purpose</th></tr>
+/// <tr><td><code>^IRISCouch.Docs</code></td><td>Storage.Document</td><td>Document bodies (JSON)</td></tr>
+/// <tr><td><code>^IRISCouch.Tree</code></td><td>Storage.RevTree</td><td>Revision trees (R/L/W/D nodes)</td></tr>
+/// <tr><td><code>^IRISCouch.Changes</code></td><td>Storage.Changes</td><td>Changes feed entries</td></tr>
+/// <tr><td><code>^IRISCouch.Seq</code></td><td>Storage.Changes</td><td>Sequence counters</td></tr>
+/// <tr><td><code>^IRISCouch.DB</code></td><td>Storage.Database</td><td>Database metadata</td></tr>
+/// <tr><td><code>^IRISCouch.Atts</code></td><td>Storage.Attachment</td><td>Attachment streams and metadata</td></tr>
+/// <tr><td><code>^IRISCouch.Local</code></td><td>Storage.Local</td><td>Local documents / replication checkpoints</td></tr>
+/// <tr><td><code>^IRISCouch.Config</code></td><td>Core.Config</td><td>Configuration overrides</td></tr>
+/// <tr><td><code>^IRISCouch.Security</code></td><td>Auth.Security</td><td>Per-database security config</td></tr>
+/// <tr><td><code>^IRISCouch.Metrics</code></td><td>Metrics.Collector</td><td>Prometheus metrics accumulators</td></tr>
+/// <tr><td><code>^IRISCouch.Jobs</code></td><td>Replication.Manager</td><td>Background replication job state</td></tr>
+/// </table>
+///
+/// <h3>IRIS Mirroring and HA Coverage</h3>
+/// <p>All <code>^IRISCouch.*</code> globals are automatically:</p>
+/// <ul>
+/// <li><b>Journaled</b>: Every write is journaled for crash recovery via journal replay</li>
+/// <li><b>Mirrored</b>: If IRIS mirroring is configured, globals replicate to mirror members</li>
+/// <li><b>Backed up</b>: Standard IRIS database backup covers all globals in the database</li>
+/// </ul>
+/// <p>No additional configuration is needed for operational resilience.
+/// IRISCouch inherits IRIS platform capabilities automatically.</p>
+///
+/// <h3>Backup Procedure</h3>
+/// <p>Use standard IRIS database backup (online or freeze-based) to back up
+/// the IRISCOUCH database. All <code>^IRISCouch.*</code> globals are included.
+/// No special pre/post backup steps are required.</p>
+///
+/// <h3>Journal Replay Behavior</h3>
+/// <p>All document writes use <code>TSTART</code>/<code>TCOMMIT</code> for atomicity.
+/// On crash recovery, IRIS journal replay ensures either the entire write completed
+/// or was rolled back entirely. Partial state is impossible for transactional writes.</p>
 Class IRISCouch.Config Extends %RegisteredObject
 {
 
