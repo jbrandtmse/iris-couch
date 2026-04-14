@@ -187,3 +187,7 @@
 ## Deferred from: code review of 9-0-epic-8-deferred-cleanup (2026-04-13)
 
 - **$Horolog returns local time but timestamps append "Z" (UTC) suffix** [Storage/Database.cls:27, Replication/Manager.cls:70,170] -- All ISO-8601 timestamps use `$Translate($ZDateTime($Horolog, 3, 1), " ", "T") _ "Z"` which appends a UTC indicator to local server time. If the IRIS server is not in the UTC timezone, the stored timestamps will be semantically incorrect. The correct approach would be to use `$ZTimeStamp` (which returns UTC) instead of `$Horolog`. Pre-existing pattern introduced in Story 8.5, applied consistently in Story 9.0. Address when timezone-aware timestamp handling is implemented system-wide.
+
+## Deferred from: code review of 9-1-prometheus-opentelemetry-metrics-endpoint (2026-04-13)
+
+- **BuildOutput string concatenation may exceed ObjectScript ~3.6MB string limit** [Endpoint.cls:40-49] -- All Prometheus metric output is concatenated into a single ObjectScript string variable `tOut` via `BuildOutput()`. If many endpoint/method/status combinations accumulate over time, this could approach the ~3.6MB ObjectScript string limit. Pre-existing architectural pattern (string concatenation for HTTP responses). Address when metrics cardinality grows or when a streaming response pattern is adopted for large outputs.

@@ -22,6 +22,13 @@
 - Epic 9 stories confirmed: 9.1-9.3 (plus 9.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T00:10:00Z — Story 9.0: Epic 8 Deferred Cleanup
+- **Create Story:** Story file created at `9-0-epic-8-deferred-cleanup.md`
+- **Development:** All 5 tasks completed. 3 files modified (DocumentEngine hook reorder, Database timestamp+cleanup, DatabaseTest +1 test). 0 regressions.
+- **Code Review:** CLEAN. 0 critical/high/medium. 1 pre-existing LOW deferred (timezone).
+- **Commit:** `96dad9b` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T00:05:00Z — Phase 0.5: Retrospective Review & Story 9.0
 - Epic 8 retrospective found: `epic-8-retro-2026-04-13.md`
 - Triaged all action items:

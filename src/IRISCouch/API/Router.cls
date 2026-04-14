@@ -15,6 +15,8 @@ Parameter CONTENTTYPE = "application/json";
 XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
 <Routes>
+  <!-- Metrics endpoint (Story 9.1) -->
+  <Route Url="/_prometheus" Method="GET" Call="HandlePrometheus" />
   <!-- Session authentication endpoints (Story 7.1) -->
   <Route Url="/_session" Method="POST" Call="HandleSessionPost" />
   <Route Url="/_session" Method="GET" Call="HandleSessionGet" />
@@ -67,226 +69,326 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 </Routes>
 }
 
+/// <p>Dispatch GET /_prometheus to Metrics.Endpoint (Story 9.1).</p>
+/// <p>Does NOT record its own metrics to avoid self-referential recursion.</p>
+ClassMethod HandlePrometheus() As %Status
+{
+    Quit ##class(IRISCouch.Metrics.Endpoint).HandlePrometheus()
+}
+
 /// <p>Dispatch GET / to ServerHandler.</p>
 ClassMethod HandleWelcome() As %Status
 {
-    Quit ##class(IRISCouch.API.ServerHandler).HandleWelcome()
+    Set tSC = ##class(IRISCouch.API.ServerHandler).HandleWelcome()
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /_uuids to ServerHandler.</p>
 ClassMethod HandleUUIDs() As %Status
 {
-    Quit ##class(IRISCouch.API.ServerHandler).HandleUUIDs()
+    Set tSC = ##class(IRISCouch.API.ServerHandler).HandleUUIDs()
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch PUT /:db to DatabaseHandler.</p>
 ClassMethod HandleDatabaseCreate(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DatabaseHandler).HandleCreate(pDB)
+    Set tSC = ##class(IRISCouch.API.DatabaseHandler).HandleCreate(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch DELETE /:db to DatabaseHandler.</p>
 ClassMethod HandleDatabaseDelete(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DatabaseHandler).HandleDelete(pDB)
+    Set tSC = ##class(IRISCouch.API.DatabaseHandler).HandleDelete(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /_all_dbs to DatabaseHandler.</p>
 ClassMethod HandleAllDbs() As %Status
 {
-    Quit ##class(IRISCouch.API.DatabaseHandler).HandleAllDbs()
+    Set tSC = ##class(IRISCouch.API.DatabaseHandler).HandleAllDbs()
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /:db to DatabaseHandler.</p>
 ClassMethod HandleDatabaseInfo(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DatabaseHandler).HandleInfo(pDB)
+    Set tSC = ##class(IRISCouch.API.DatabaseHandler).HandleInfo(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /:db/_revs_limit to DatabaseHandler.</p>
 ClassMethod HandleRevsLimitGet(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DatabaseHandler).HandleRevsLimitGet(pDB)
+    Set tSC = ##class(IRISCouch.API.DatabaseHandler).HandleRevsLimitGet(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch PUT /:db/_revs_limit to DatabaseHandler.</p>
 ClassMethod HandleRevsLimitPut(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DatabaseHandler).HandleRevsLimitPut(pDB)
+    Set tSC = ##class(IRISCouch.API.DatabaseHandler).HandleRevsLimitPut(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_compact to DatabaseHandler.</p>
 ClassMethod HandleCompact(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DatabaseHandler).HandleCompact(pDB)
+    Set tSC = ##class(IRISCouch.API.DatabaseHandler).HandleCompact(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_ensure_full_commit to DatabaseHandler.</p>
 ClassMethod HandleEnsureFullCommit(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DatabaseHandler).HandleEnsureFullCommit(pDB)
+    Set tSC = ##class(IRISCouch.API.DatabaseHandler).HandleEnsureFullCommit(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db to DocumentHandler (create document with server-generated ID).</p>
 ClassMethod HandleDocumentPost(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DocumentHandler).HandlePost(pDB)
+    Set tSC = ##class(IRISCouch.API.DocumentHandler).HandlePost(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch PUT /:db/:docid to DocumentHandler (create/update document with client ID).</p>
 ClassMethod HandleDocumentPut(pDB As %String, pDocId As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DocumentHandler).HandlePut(pDB, pDocId)
+    Set tSC = ##class(IRISCouch.API.DocumentHandler).HandlePut(pDB, pDocId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /:db/:docid to DocumentHandler (retrieve document).</p>
 ClassMethod HandleDocumentGet(pDB As %String, pDocId As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DocumentHandler).HandleGet(pDB, pDocId)
+    Set tSC = ##class(IRISCouch.API.DocumentHandler).HandleGet(pDB, pDocId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch DELETE /:db/:docid to DocumentHandler (delete document).</p>
 ClassMethod HandleDocumentDelete(pDB As %String, pDocId As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.DocumentHandler).HandleDelete(pDB, pDocId)
+    Set tSC = ##class(IRISCouch.API.DocumentHandler).HandleDelete(pDB, pDocId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_bulk_docs to BulkHandler.</p>
 ClassMethod HandleBulkDocs(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.BulkHandler).HandleBulkDocs(pDB)
+    Set tSC = ##class(IRISCouch.API.BulkHandler).HandleBulkDocs(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_bulk_get to BulkHandler.</p>
 ClassMethod HandleBulkGet(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.BulkHandler).HandleBulkGet(pDB)
+    Set tSC = ##class(IRISCouch.API.BulkHandler).HandleBulkGet(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /:db/_all_docs to AllDocsHandler.</p>
 ClassMethod HandleAllDocs(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.AllDocsHandler).HandleAllDocs(pDB)
+    Set tSC = ##class(IRISCouch.API.AllDocsHandler).HandleAllDocs(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_all_docs to AllDocsHandler.</p>
 ClassMethod HandleAllDocsPost(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.AllDocsHandler).HandleAllDocsPost(pDB)
+    Set tSC = ##class(IRISCouch.API.AllDocsHandler).HandleAllDocsPost(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /:db/_changes to ChangesHandler.</p>
 ClassMethod HandleChangesGet(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.ChangesHandler).HandleChanges(pDB)
+    Set tSC = ##class(IRISCouch.API.ChangesHandler).HandleChanges(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_changes to ChangesHandler.</p>
 ClassMethod HandleChangesPost(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.ChangesHandler).HandleChanges(pDB)
+    Set tSC = ##class(IRISCouch.API.ChangesHandler).HandleChanges(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch PUT /:db/:docid/:attname to AttachmentHandler (upload attachment).</p>
 ClassMethod HandleAttachmentPut(pDB As %String, pDocId As %String, pAttName As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.AttachmentHandler).HandlePut(pDB, pDocId, pAttName)
+    Set tSC = ##class(IRISCouch.API.AttachmentHandler).HandlePut(pDB, pDocId, pAttName)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /:db/:docid/:attname to AttachmentHandler (download attachment).</p>
 ClassMethod HandleAttachmentGet(pDB As %String, pDocId As %String, pAttName As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.AttachmentHandler).HandleGet(pDB, pDocId, pAttName)
+    Set tSC = ##class(IRISCouch.API.AttachmentHandler).HandleGet(pDB, pDocId, pAttName)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch DELETE /:db/:docid/:attname to AttachmentHandler (delete attachment).</p>
 ClassMethod HandleAttachmentDelete(pDB As %String, pDocId As %String, pAttName As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.AttachmentHandler).HandleDelete(pDB, pDocId, pAttName)
+    Set tSC = ##class(IRISCouch.API.AttachmentHandler).HandleDelete(pDB, pDocId, pAttName)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_find to MangoHandler (execute Mango query).</p>
 ClassMethod HandleMangoFind(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.MangoHandler).HandleFind(pDB)
+    Set tSC = ##class(IRISCouch.API.MangoHandler).HandleFind(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_explain to MangoHandler (explain Mango query plan).</p>
 ClassMethod HandleMangoExplain(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.MangoHandler).HandleExplain(pDB)
+    Set tSC = ##class(IRISCouch.API.MangoHandler).HandleExplain(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_index to MangoHandler (create Mango index).</p>
 ClassMethod HandleMangoIndexCreate(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.MangoHandler).HandleCreateIndex(pDB)
+    Set tSC = ##class(IRISCouch.API.MangoHandler).HandleCreateIndex(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /:db/_index to MangoHandler (list Mango indexes).</p>
 ClassMethod HandleMangoIndexList(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.MangoHandler).HandleListIndexes(pDB)
+    Set tSC = ##class(IRISCouch.API.MangoHandler).HandleListIndexes(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch DELETE /:db/_index/:ddoc/:type/:name to MangoHandler (delete Mango index).</p>
 ClassMethod HandleMangoIndexDelete(pDB As %String, pDDoc As %String, pType As %String, pName As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.MangoHandler).HandleDeleteIndex(pDB, pDDoc, pType, pName)
+    Set tSC = ##class(IRISCouch.API.MangoHandler).HandleDeleteIndex(pDB, pDDoc, pType, pName)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /_session to AuthHandler (login).</p>
 ClassMethod HandleSessionPost() As %Status
 {
-    Quit ##class(IRISCouch.API.AuthHandler).HandleSessionPost()
+    Set tSC = ##class(IRISCouch.API.AuthHandler).HandleSessionPost()
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /_session to AuthHandler (session info).</p>
 ClassMethod HandleSessionGet() As %Status
 {
-    Quit ##class(IRISCouch.API.AuthHandler).HandleSessionGet()
+    Set tSC = ##class(IRISCouch.API.AuthHandler).HandleSessionGet()
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch DELETE /_session to AuthHandler (logout).</p>
 ClassMethod HandleSessionDelete() As %Status
 {
-    Quit ##class(IRISCouch.API.AuthHandler).HandleSessionDelete()
+    Set tSC = ##class(IRISCouch.API.AuthHandler).HandleSessionDelete()
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /:db/_security to SecurityHandler.</p>
 ClassMethod HandleSecurityGet(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.SecurityHandler).HandleGet(pDB)
+    Set tSC = ##class(IRISCouch.API.SecurityHandler).HandleGet(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch PUT /:db/_security to SecurityHandler.</p>
 ClassMethod HandleSecurityPut(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.SecurityHandler).HandlePut(pDB)
+    Set tSC = ##class(IRISCouch.API.SecurityHandler).HandlePut(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch GET /:db/_local/:localid to ReplicationHandler.</p>
 ClassMethod HandleLocalGet(pDB As %String, pLocalId As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.ReplicationHandler).HandleLocalGet(pDB, pLocalId)
+    Set tSC = ##class(IRISCouch.API.ReplicationHandler).HandleLocalGet(pDB, pLocalId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch PUT /:db/_local/:localid to ReplicationHandler.</p>
 ClassMethod HandleLocalPut(pDB As %String, pLocalId As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.ReplicationHandler).HandleLocalPut(pDB, pLocalId)
+    Set tSC = ##class(IRISCouch.API.ReplicationHandler).HandleLocalPut(pDB, pLocalId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch DELETE /:db/_local/:localid to ReplicationHandler.</p>
 ClassMethod HandleLocalDelete(pDB As %String, pLocalId As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.ReplicationHandler).HandleLocalDelete(pDB, pLocalId)
+    Set tSC = ##class(IRISCouch.API.ReplicationHandler).HandleLocalDelete(pDB, pLocalId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
 }
 
 /// <p>Dispatch POST /:db/_revs_diff to ReplicationHandler.</p>
 ClassMethod HandleRevsDiff(pDB As %String) As %Status
 {
-    Quit ##class(IRISCouch.API.ReplicationHandler).HandleRevsDiff(pDB)
+    Set tSC = ##class(IRISCouch.API.ReplicationHandler).HandleRevsDiff(pDB)
+    Do ..RecordRequestMetrics()
+    Quit tSC
+}
+
+/// <p>Record metrics for the current request (Story 9.1).</p>
+/// <p>Called at the end of each handler wrapper to record request count,
+/// status code, and latency. Uses process-private variables set by
+/// <method>OnPreDispatch</method> for start time and endpoint category.</p>
+/// <p>Wrapped in Try/Catch per NFR-O3: metrics failures never propagate.</p>
+ClassMethod RecordRequestMetrics() [ Private ]
+{
+    Try {
+        If $Get(%IRISCouchRequestStart) '= "" {
+            Set tDuration = ($ZHorolog - %IRISCouchRequestStart) * 1000
+            Set tStatus = +$Piece(%response.Status, " ", 1)
+            Do ##class(IRISCouch.Metrics.Record).Record($Get(%IRISCouchEndpoint, "unknown"), %request.Method, tStatus, tDuration)
+        }
+    }
+    Catch ex {
+        ; NFR-O3: never propagate metrics failures
+    }
 }
 
 /// <p>Authentication middleware — establishes user context on every request.</p>
@@ -365,11 +467,19 @@ ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue A
     ; Parse database name from URL (pUrl is relative: /{db}/... or /_session etc.)
     Set tPathSegment = $Piece(pUrl, "/", 2)
     ; Skip enforcement for server-level endpoints
-    If (tPathSegment = "") || (tPathSegment = "_session") || (tPathSegment = "_uuids") || (tPathSegment = "_all_dbs") {
+    If (tPathSegment = "") || (tPathSegment = "_session") || (tPathSegment = "_uuids") || (tPathSegment = "_all_dbs") || (tPathSegment = "_prometheus") {
+        ; Metrics: record request start time (Story 9.1)
+        Set %IRISCouchRequestStart = $ZHorolog
+        Set %IRISCouchEndpoint = ##class(IRISCouch.Metrics.Record).ClassifyEndpoint(%request.URL)
         Quit $$$OK
     }
     ; Skip enforcement for root URL
-    If pUrl = "/" Quit $$$OK
+    If pUrl = "/" {
+        ; Metrics: record request start time (Story 9.1)
+        Set %IRISCouchRequestStart = $ZHorolog
+        Set %IRISCouchEndpoint = ##class(IRISCouch.Metrics.Record).ClassifyEndpoint(%request.URL)
+        Quit $$$OK
+    }
     ; Only enforce on database-level URLs (skip if first segment starts with _ and is a known server endpoint)
     ; Database names can start with _ (e.g., _users, _replicator) so we only skip known server endpoints
     ; At this point tPathSegment is the database name
@@ -396,9 +506,23 @@ ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue A
             } Else {
                 Do ##class(IRISCouch.Util.Error).Render(403, "forbidden", "You are not allowed to access this db.")
             }
+            ; Metrics: record denied request (Story 9.1)
+            Try {
+                Set tDeniedStart = $ZHorolog
+                Set tDeniedEndpoint = ##class(IRISCouch.Metrics.Record).ClassifyEndpoint(%request.URL)
+                Set tDeniedStatus = +$Piece(%response.Status, " ", 1)
+                Set tDeniedDuration = ($ZHorolog - tDeniedStart) * 1000
+                Do ##class(IRISCouch.Metrics.Record).Record(tDeniedEndpoint, %request.Method, tDeniedStatus, tDeniedDuration)
+            }
+            Catch ex {
+                ; NFR-O3: never propagate metrics failures
+            }
             Quit $$$OK
         }
     }
+    ; Metrics: record request start time (Story 9.1)
+    Set %IRISCouchRequestStart = $ZHorolog
+    Set %IRISCouchEndpoint = ##class(IRISCouch.Metrics.Record).ClassifyEndpoint(%request.URL)
     Quit $$$OK
 }
 
