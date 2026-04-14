@@ -38,8 +38,8 @@
 generated: 2026-04-12
 last_updated: 2026-04-13
 last_review: 2026-04-13
-last_story_in_progress: 7-5-auth-hotfix-credential-validation-and-role-assignment
-last_story_reviewed: 7-5-auth-hotfix-credential-validation-and-role-assignment
+last_story_in_progress: 8-1-local-documents-and-replication-checkpoints
+last_story_reviewed: 8-1-local-documents-and-replication-checkpoints
 last_story_reviewed: 7-4-per-database-security-configuration
 last_story_in_progress: 7-4-per-database-security-configuration
 last_story_completed: 7-4-per-database-security-configuration
@@ -114,7 +114,7 @@ development_status:
   # Epic 8: Replication Protocol
   epic-8: in-progress
   8-0-epic-7-deferred-cleanup: done
-  8-1-local-documents-and-replication-checkpoints: backlog
+  8-1-local-documents-and-replication-checkpoints: done
   8-2-revision-difference-calculation: backlog
   8-3-replication-ready-bulk-get: backlog
   8-4-bidirectional-replication-protocol: backlog

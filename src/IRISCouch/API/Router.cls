@@ -43,6 +43,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <!-- Per-database security configuration (Story 7.4) -->
   <Route Url="/:db/_security" Method="GET" Call="HandleSecurityGet" />
   <Route Url="/:db/_security" Method="PUT" Call="HandleSecurityPut" />
+  <!-- Local document endpoints (Story 8.1) -->
+  <Route Url="/:db/_local/:localid" Method="PUT" Call="HandleLocalPut" />
+  <Route Url="/:db/_local/:localid" Method="GET" Call="HandleLocalGet" />
+  <Route Url="/:db/_local/:localid" Method="DELETE" Call="HandleLocalDelete" />
   <!-- Database endpoints - MUST be after underscore-prefixed routes (Story 2.1, 2.2) -->
   <Route Url="/:db" Method="POST" Call="HandleDocumentPost" />
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
@@ -257,6 +261,24 @@ ClassMethod HandleSecurityGet(pDB As %String) As %Status
 ClassMethod HandleSecurityPut(pDB As %String) As %Status
 {
     Quit ##class(IRISCouch.API.SecurityHandler).HandlePut(pDB)
+}
+
+/// <p>Dispatch GET /:db/_local/:localid to ReplicationHandler.</p>
+ClassMethod HandleLocalGet(pDB As %String, pLocalId As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.ReplicationHandler).HandleLocalGet(pDB, pLocalId)
+}
+
+/// <p>Dispatch PUT /:db/_local/:localid to ReplicationHandler.</p>
+ClassMethod HandleLocalPut(pDB As %String, pLocalId As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.ReplicationHandler).HandleLocalPut(pDB, pLocalId)
+}
+
+/// <p>Dispatch DELETE /:db/_local/:localid to ReplicationHandler.</p>
+ClassMethod HandleLocalDelete(pDB As %String, pLocalId As %String) As %Status
+{
+    Quit ##class(IRISCouch.API.ReplicationHandler).HandleLocalDelete(pDB, pLocalId)
 }
 
 /// <p>Authentication middleware — establishes user context on every request.</p>

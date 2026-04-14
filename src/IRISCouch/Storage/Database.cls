@@ -71,6 +71,8 @@ ClassMethod Delete(pName As %String) As %Status
         Do ##class(IRISCouch.Projection.MangoIndexDef).DeleteAll(pName)
         ; Clean up security configuration (Story 7.4)
         Do ##class(IRISCouch.Auth.Security).Delete(pName)
+        ; Clean up local documents (Story 8.1)
+        Do ##class(IRISCouch.Storage.Local).DeleteAll(pName)
         Quit
     }
     Catch ex {

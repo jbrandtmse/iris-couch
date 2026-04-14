@@ -11,6 +11,13 @@
 - Epic 8 stories confirmed: 8.1-8.5 (plus 8.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-13T00:10:00Z — Story 8.0: Epic 7 Deferred Cleanup
+- **Create Story:** Story file created at `8-0-epic-7-deferred-cleanup.md`
+- **Development:** All 5 tasks completed. 3 files modified (iris-objectscript-basics.md rules, DocumentEngine.cls _users hooks, ReplicationTest.cls +2 tests). All classes compile. 0 regressions.
+- **Code Review:** PASSED. 0 critical/high. 1 MEDIUM auto-resolved (missing MangoIndex re-index after _users body mod). 4 LOW dismissed.
+- **Commit:** `3e71d94` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-13T00:05:00Z — Phase 0.5: Retrospective Review & Story 8.0
 - Epic 7 retrospective found: `epic-7-retro-2026-04-14.md`
 - Triaged all action items:
