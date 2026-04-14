@@ -4,7 +4,7 @@
 
 ## 🚧 Pre-Alpha
 
-IRISCouch is under active development toward Milestone Alpha. The core foundation (configuration, HTTP routing, UUID generation, error handling, and installer) is implemented. The repository contains both planning artifacts and working ObjectScript code.
+IRISCouch is under active development toward Milestone Alpha. The full backend is implemented: document CRUD, revision trees, attachments, changes feeds, Mango queries, authentication (cookie/JWT/proxy/basic), bidirectional CouchDB replication, Prometheus metrics, audit trail, and operational resilience. The repository contains both planning artifacts and working ObjectScript code.
 
 - **[Product Requirements Document](_bmad-output/planning-artifacts/prd.md)** — 115 functional requirements, measurable success criteria, five narrative user journeys, and the complete capability contract for the MVP
 - **[Product Brief](_bmad-output/planning-artifacts/product-brief-iris-couch.md)** — vision, positioning, and origin story
@@ -51,18 +51,18 @@ See the [PRD § Project Scoping & Phased Development Strategy](_bmad-output/plan
 | 5 | Binary Attachment Management | 4/4 | 208 | Done |
 | 6 | Mango Query Engine | 3/3 | 309 | Done |
 | 7 | Authentication & Authorization | 6/6 | 376 | Done |
-| 8 | Replication Protocol | 0/5 | — | Backlog |
-| 9 | Observability & Audit Trail | 0/3 | — | Backlog |
+| 8 | Replication Protocol | 6/6 | 455 | Done |
+| 9 | Observability & Audit Trail | 4/4 | 497 | Done |
 | 10 | Admin UI — Core Experience | 0/7 | — | Backlog |
 | 11 | Admin UI — Design Docs & Security | 0/4 | — | Backlog |
 | 12 | Pluggable JavaScript Runtime | 0/5 | — | Backlog |
 | 13 | Documentation & Working Examples | 0/3 | — | Backlog |
 
-**Progress:** 7/13 epics complete — 376 tests passing, 0 failures, 0 regressions across 7 consecutive epics.
+**Progress:** 9/13 epics complete — 497+ tests passing, 0 failures, 0 regressions across 9 consecutive epics.
 
 ### Milestone Beta — Customer Zero Complete
 
-Adds on top of Alpha: design document and security editing in the Admin UI (Epic 11 stories), HMAC cookie auth byte-compat, and validation against the author's three production CouchDB databases.
+Adds on top of Alpha: Admin UI for design document and security editing (Epic 11), pluggable JavaScript runtime for views and validators (Epic 12), documentation and working examples (Epic 13). Validation against the author's three production CouchDB databases.
 
 ### Milestone Gamma — MVP Feature-Complete (1.0)
 
