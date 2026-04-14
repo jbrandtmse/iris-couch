@@ -184,6 +184,15 @@
 - **Testing**: Use MCP tools (iris-execute-mcp) for execution
 - **Direct IRIS access**: Available through MCP servers for real-time testing and debugging
 
+## IRIS Library Source
+- Always read `irislib/` source code for any IRIS system class before using it. Three bugs in Epic 7 (`$System.Security.Login()`, `$System.Encryption.PBKDF2()`, `$System.Encryption.HMACSHA()`) were caused by not reading the actual source. Use `irislib/%SYSTEM/Security.cls`, `irislib/%SYSTEM/Encryption.cls`, etc.
+- `$System.Security.Login()` switches process context -- never use for credential validation; use `Security.Users.CheckPassword()` instead
+- `$System.Encryption.PBKDF2()` exists natively -- do not reimplement crypto primitives
+- IRIS `$System.Encryption.HMACSHA()` uses bit sizes (160, 256, 384, 512), not algorithm version numbers
+
+## Subagent Briefing Requirements
+- All subagent prompts MUST include references to: (1) CouchDB source at `sources/couchdb/` for protocol/algorithm details, (2) IRIS library source at `irislib/` for API behavior verification
+
 ## Research and Knowledge Resources
 - Use Perplexity MCP as a reference source when uncertain about ObjectScript syntax, problem-solving approaches, or specification details
 - Always research with Perplexity MCP before attempting solutions when knowledge is incomplete

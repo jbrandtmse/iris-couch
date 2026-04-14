@@ -502,6 +502,37 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
                 }
             }
         }
+        ; 7. _users database sync (Story 7.3 / Story 8.0)
+        ; If this is a _users write, process password hashing and IRIS user sync
+        If ##class(IRISCouch.Auth.Users).IsUsersDB(pDB) {
+            If 'pDeleted {
+                ; Non-deleted user doc: hash password and sync IRIS user
+                Set tUserBody = ##class(%DynamicObject).%FromJSON(pBody)
+                Set tModified = ##class(IRISCouch.Auth.Users).OnUserDocSave(pDB, pDocId, tUserBody)
+                ; If body was modified (password stripped), re-save the modified body
+                Set tModifiedJSON = tModified.%ToJSON()
+                If tModifiedJSON '= pBody {
+                    Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, pRev, tModifiedJSON)
+                    If $$$ISERR(tSC) {
+                        TROLLBACK  Set tInTrans = 0
+                        Quit
+                    }
+                    ; Update Winners projection with the modified body if this rev is winner
+                    If tCurrentWinner = pRev {
+                        Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, pRev, tModifiedJSON, 0)
+                        ; Re-index MangoIndex with modified body (password stripped)
+                        Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+                        Set tIndexDefs2 = ##class(IRISCouch.Projection.MangoIndexDef).GetActiveIndexes(pDB)
+                        If tIndexDefs2.%Size() > 0 {
+                            Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tModified, tIndexDefs2)
+                        }
+                    }
+                }
+            } Else {
+                ; Deleted user doc: remove the corresponding IRIS user
+                Do ##class(IRISCouch.Auth.Users).OnUserDocDelete(pDB, pDocId)
+            }
+        }
         ; Commit transaction
         TCOMMIT
         Set tInTrans = 0

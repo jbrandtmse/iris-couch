@@ -141,6 +141,109 @@ Method TestSaveWithHistoryIdempotent()
     Do $$$AssertEquals(tCountAfterSecond, tCountAfterFirst, "doc_count unchanged after idempotent call")
 }
 
+/// <p>AC #3 (Story 8.0): SaveWithHistory on _users database triggers password hashing via OnUserDocSave.
+/// Verifies that password field is stripped and PBKDF2 metadata is added to the stored document.</p>
+Method TestSaveWithHistoryUsersHook()
+{
+    ; Create _users database
+    Kill ^IRISCouch.DB("_users")
+    Kill ^IRISCouch.Docs("_users")
+    Kill ^IRISCouch.Tree("_users")
+    Kill ^IRISCouch.Changes("_users")
+    Kill ^IRISCouch.Seq("_users")
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("_users")
+    Do $$$AssertStatusOK(tSC, "Created _users database")
+    ; Build a user doc body with password
+    Set tBody = "{""name"":""testuser8"",""password"":""secret"",""roles"":[],""type"":""user""}"
+    ; Build revisions object
+    Set tRevisions = {}
+    Do tRevisions.%Set("start", 1, "number")
+    Set tIds = []
+    Do tIds.%Push("abc123")
+    Do tRevisions.%Set("ids", tIds)
+    ; Call SaveWithHistory on _users database
+    Set tSC = ##class(IRISCouch.Core.DocumentEngine).SaveWithHistory("_users", "org.couchdb.user:testuser8", tBody, "1-abc123", tRevisions, 0)
+    Do $$$AssertStatusOK(tSC, "SaveWithHistory on _users returns OK")
+    ; Read stored doc back
+    Set tStoredBody = ##class(IRISCouch.Storage.Document).Read("_users", "org.couchdb.user:testuser8", "1-abc123")
+    Do $$$AssertTrue(tStoredBody '= "", "Stored body is not empty")
+    ; Parse and verify password hashing occurred
+    Set tParsed = ##class(%DynamicObject).%FromJSON(tStoredBody)
+    ; Password field should be stripped
+    Do $$$AssertEquals(tParsed.%Get("password"), "", "Password field is stripped from stored doc")
+    ; PBKDF2 metadata should be present
+    Do $$$AssertEquals(tParsed.%Get("password_scheme"), "pbkdf2", "password_scheme is pbkdf2")
+    Do $$$AssertTrue(tParsed.%Get("derived_key") '= "", "derived_key is present")
+    Do $$$AssertTrue(tParsed.%Get("salt") '= "", "salt is present")
+    Do $$$AssertTrue(tParsed.%Get("iterations") > 0, "iterations is positive")
+    ; Clean up _users database and IRIS user
+    Set tOrigNS = $Namespace
+    Set $Namespace = "%SYS"
+    Set tExists = ""
+    Do ##class(Security.Users).Exists("testuser8", .tExists)
+    If tExists '= "" {
+        Do ##class(Security.Users).Delete("testuser8")
+    }
+    Set $Namespace = tOrigNS
+    Kill ^IRISCouch.DB("_users")
+    Kill ^IRISCouch.Docs("_users")
+    Kill ^IRISCouch.Tree("_users")
+    Kill ^IRISCouch.Changes("_users")
+    Kill ^IRISCouch.Seq("_users")
+}
+
+/// <p>AC #4 (Story 8.0): SaveWithHistory on _users database with pDeleted=1 triggers OnUserDocDelete.
+/// Verifies that the IRIS user is removed when a deleted user doc is replicated in.</p>
+Method TestSaveWithHistoryUsersDeleteHook()
+{
+    ; Create _users database
+    Kill ^IRISCouch.DB("_users")
+    Kill ^IRISCouch.Docs("_users")
+    Kill ^IRISCouch.Tree("_users")
+    Kill ^IRISCouch.Changes("_users")
+    Kill ^IRISCouch.Seq("_users")
+    Set tSC = ##class(IRISCouch.Storage.Database).Create("_users")
+    Do $$$AssertStatusOK(tSC, "Created _users database")
+    ; First, save a user doc (non-deleted) to create the IRIS user
+    Set tBody = "{""name"":""testuser8del"",""password"":""secret"",""roles"":[],""type"":""user""}"
+    Set tRevisions = {}
+    Do tRevisions.%Set("start", 1, "number")
+    Set tIds = []
+    Do tIds.%Push("rev1hash")
+    Do tRevisions.%Set("ids", tIds)
+    Set tSC = ##class(IRISCouch.Core.DocumentEngine).SaveWithHistory("_users", "org.couchdb.user:testuser8del", tBody, "1-rev1hash", tRevisions, 0)
+    Do $$$AssertStatusOK(tSC, "Initial user doc saved via SaveWithHistory")
+    ; Verify IRIS user was created
+    Set tOrigNS = $Namespace
+    Set $Namespace = "%SYS"
+    Set tExists = ""
+    Do ##class(Security.Users).Exists("testuser8del", .tExists)
+    Set $Namespace = tOrigNS
+    Do $$$AssertTrue(tExists '= "", "IRIS user testuser8del was created")
+    ; Now call SaveWithHistory with pDeleted=1 for the same doc, new rev
+    Set tDeleteBody = "{""_deleted"":true}"
+    Set tRevisions2 = {}
+    Do tRevisions2.%Set("start", 2, "number")
+    Set tIds2 = []
+    Do tIds2.%Push("rev2hash")
+    Do tIds2.%Push("rev1hash")
+    Do tRevisions2.%Set("ids", tIds2)
+    Set tSC = ##class(IRISCouch.Core.DocumentEngine).SaveWithHistory("_users", "org.couchdb.user:testuser8del", tDeleteBody, "2-rev2hash", tRevisions2, 1)
+    Do $$$AssertStatusOK(tSC, "Deleted user doc saved via SaveWithHistory")
+    ; Verify IRIS user was deleted
+    Set $Namespace = "%SYS"
+    Set tExists2 = ""
+    Do ##class(Security.Users).Exists("testuser8del", .tExists2)
+    Set $Namespace = tOrigNS
+    Do $$$AssertEquals(tExists2, "", "IRIS user testuser8del was removed after delete")
+    ; Clean up _users database
+    Kill ^IRISCouch.DB("_users")
+    Kill ^IRISCouch.Docs("_users")
+    Kill ^IRISCouch.Tree("_users")
+    Kill ^IRISCouch.Changes("_users")
+    Kill ^IRISCouch.Seq("_users")
+}
+
 /// <p>AC #1, #3: Save with _deleted=true, verify D marker set, winner computation correct.</p>
 Method TestSaveWithHistoryDeleted()
 {

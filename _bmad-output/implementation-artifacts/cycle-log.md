@@ -1,5 +1,28 @@
 # Epic Development Cycle Log
 
+## Epic 8: Replication Protocol
+
+### 2026-04-13T00:00:00Z — Cycle started
+- **Scope:** Epic 8, Stories 8.0 (deferred cleanup) through 8.5
+- **Sprint status:** All Epic 8 stories at `backlog`
+
+### 2026-04-13T00:00:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml confirmed current (14 epics, 55+ stories tracked)
+- Epic 8 stories confirmed: 8.1-8.5 (plus 8.0 cleanup from retro)
+- No issues surfaced
+
+### 2026-04-13T00:05:00Z — Phase 0.5: Retrospective Review & Story 8.0
+- Epic 7 retrospective found: `epic-7-retro-2026-04-14.md`
+- Triaged all action items:
+  - **Included in 8.0:** Add irislib/ source rule (#1), add subagent source refs rule (#2), verify SaveWithHistory _users hooks (#3)
+  - **Deferred:** JWT clock skew (#4), username colons (#5), GetSecret race (#6), proxy auth test gap (#7), CleanupTestUser swallows exceptions (#8), hardcoded infra roles (#9)
+  - **Dropped:** None
+- Also reviewed deferred-work.md — all existing items low/medium, none blocking Epic 8
+- Story 8.0 created: `8-0-epic-7-deferred-cleanup.md`
+- Epic 8 status updated to `in-progress`
+
+---
+
 ## Epic 1: Project Foundation & Server Identity
 
 ### 2026-04-12T11:48:40Z — Cycle started
