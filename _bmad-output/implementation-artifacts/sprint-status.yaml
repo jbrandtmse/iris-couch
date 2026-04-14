@@ -101,14 +101,14 @@ development_status:
   epic-6-retrospective: done
 
   # Epic 7: Authentication & Authorization
-  epic-7: in-progress
+  epic-7: done
   7-0-epic-6-deferred-cleanup: done
   7-1-session-authentication-and-basic-auth: done
   7-2-jwt-and-proxy-authentication: done
   7-3-user-management-via-users-database: done
   7-4-per-database-security-configuration: done
   7-5-auth-hotfix-credential-validation-and-role-assignment: done
-  epic-7-retrospective: optional
+  epic-7-retrospective: done
 
   # Epic 8: Replication Protocol
   epic-8: backlog

@@ -49,8 +49,8 @@ See the [PRD § Project Scoping & Phased Development Strategy](_bmad-output/plan
 | 3 | Document Storage & Revision Control | 7/7 | 122 | Done |
 | 4 | Real-Time Change Tracking | 4/4 | 162 | Done |
 | 5 | Binary Attachment Management | 4/4 | 208 | Done |
-| 6 | Mango Query Engine | 0/2 | — | Backlog |
-| 7 | Authentication & Authorization | 0/4 | — | Backlog |
+| 6 | Mango Query Engine | 3/3 | 309 | Done |
+| 7 | Authentication & Authorization | 6/6 | 376 | Done |
 | 8 | Replication Protocol | 0/5 | — | Backlog |
 | 9 | Observability & Audit Trail | 0/3 | — | Backlog |
 | 10 | Admin UI — Core Experience | 0/7 | — | Backlog |
@@ -58,7 +58,7 @@ See the [PRD § Project Scoping & Phased Development Strategy](_bmad-output/plan
 | 12 | Pluggable JavaScript Runtime | 0/5 | — | Backlog |
 | 13 | Documentation & Working Examples | 0/3 | — | Backlog |
 
-**Progress:** 5/13 epics complete — 208 tests passing, 0 failures, 0 regressions across 5 consecutive epics.
+**Progress:** 7/13 epics complete — 376 tests passing, 0 failures, 0 regressions across 7 consecutive epics.
 
 ### Milestone Beta — Customer Zero Complete
 

@@ -473,3 +473,24 @@
 - **Total tests:** 375 passing, 0 failures across 48+ test classes
 - **Test growth:** 309 → 312 → 328 → 345 → 360 → 375 (zero-regression streak continues, 7th consecutive epic)
 - **Auth subsystem:** 4 auth mechanisms (cookie, JWT, proxy, basic), _users database sync, per-DB _security enforcement
+
+### 2026-04-14T06:00:00Z — Story 7.5: Auth Hotfix — Credential Validation & Role Assignment
+- **Trigger:** Manual testing revealed $System.Security.Login() switches process context, breaking all non-admin users
+- **Correct-course:** Sprint change proposal approved. 5 targeted changes across 4 files.
+- **Development:** All 8 tasks completed. 4 files modified (Auth/Basic.cls, API/AuthHandler.cls, Auth/Users.cls, Test/AuthHttpTest.cls). Replaced Login() with CheckPassword(), added infrastructure roles, native PBKDF2.
+- **Manual verification:** testuser Basic auth → 200, session login → 200 with cookie, cookie auth → 200
+- **Code Review:** PASSED. 1 patch auto-resolved (infrastructure roles in UpdateIRISUserRoles). All 5 security items confirmed.
+- **Commit:** `d1152f1` pushed to origin/main
+- **Status:** done
+
+### 2026-04-14T07:00:00Z — Manual HTTP Verification
+- Full regression: 37/37 curl tests across Epics 1-7, all passing
+- Key tests: non-admin user auth (Basic + session + cookie), _security enforcement (member/non-member/admin/anonymous), _users CRUD with password stripping, password update/delete sync
+
+### 2026-04-14T07:30:00Z — Retrospective Complete
+- Retro document: `epic-7-retro-2026-04-14.md`
+- Epic 6 retro action items: 5/5 completed (all in Story 7.0)
+- 4 action items for Epic 8, 5 deferred items, 7 lessons codified
+- Key learnings: read irislib/ source, $System.Security.Login() is destructive, native PBKDF2 exists, include source refs in agent prompts
+- Two new memories saved (CouchDB source first, IRIS library source)
+- Epic 7 retrospective status: done
