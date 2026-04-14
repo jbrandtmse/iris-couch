@@ -11,6 +11,13 @@
 - Epic 10 stories confirmed: 10.1-10.7 (plus 10.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T10:30:00Z — Story 10.0: Epic 9 Deferred Cleanup
+- **Create Story:** Story file created at `10-0-epic-9-deferred-cleanup.md`
+- **Development:** All 3 tasks completed. Security.Events rule added, $Horolog→$ZTimeStamp fixed in 3 locations, 43 deferred items triaged. 20/20 tests pass.
+- **Code Review:** CLEAN — 0 issues. 1 LOW deferred (pre-existing JWT $Horolog).
+- **Commit:** `e6949b3` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T10:05:00Z — Phase 0.5: Retrospective Review & Story 10.0
 - Epic 9 retrospective reviewed: 2 "Must Do" action items triaged
 - Item 1 (Security.Events rule): Include in 10.0

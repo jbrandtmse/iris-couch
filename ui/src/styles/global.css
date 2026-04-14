@@ -1,0 +1,83 @@
+/* Global Styles — iris-couch Admin UI
+   Reset, base typography, focus-visible, and accessibility defaults. */
+
+/* ── @font-face ── */
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/iris-couch/_utils/assets/fonts/jetbrains-mono-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+/* ── CSS Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* ── Base Styles ── */
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-md);
+  color: var(--color-neutral-600);
+  background-color: var(--color-neutral-0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/* ── Monospace Utility ── */
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Focus-Visible ── */
+:focus-visible {
+  outline: 2px solid var(--color-info);
+  outline-offset: 3px;
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -212,3 +212,9 @@
 **Reviewed by:** Story 10.0 (Epic 9 Deferred Cleanup)
 
 All 43 remaining open deferred work items were reviewed for Epic 10 (Admin UI - Angular frontend) relevance. Every item is an ObjectScript backend concern (storage encapsulation, string limits, stream OID leaks, race conditions, attachment edge cases, replication stats, cookie parsing, JWT clock skew, etc.). **None reference Angular, TypeScript, or frontend code. None block Epic 10 work.** The Angular frontend consumes the IRISCouch REST API and does not depend on any of these backend internals being resolved first.
+
+## Deferred from: code review of 10-1-angular-scaffold-design-tokens-and-icon-system (2026-04-14)
+
+- **No ChangeDetectionStrategy.OnPush on icon components** [ui/src/app/couch-ui/icons/*.ts] -- All 20 icon components and AppComponent use the default change detection strategy. For components with no dynamic content beyond a single `size` input, OnPush would be a minor performance optimization. LOW -- address project-wide when more components exist.
+- **@Input() decorator vs modern input() signal** [ui/src/app/couch-ui/icons/*.ts] -- Angular 18 introduced the `input()` signal function. The current code uses the traditional `@Input()` decorator which is fully supported and not deprecated. LOW -- stylistic preference, can be adopted project-wide when the team decides on signal adoption.
+- **No JetBrains Mono weight 500 bundled** [ui/src/assets/fonts/] -- UX spec mentions weights 400 and 500, but only 400 is bundled per story decision. Browser will synthesize faux-bold for 500. LOW -- bundle 500 weight WOFF2 (~20KB more) in a later story if synthetic bold looks poor on Windows ClearType.
