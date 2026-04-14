@@ -190,6 +190,43 @@
 - `$System.Encryption.PBKDF2()` exists natively -- do not reimplement crypto primitives
 - IRIS `$System.Encryption.HMACSHA()` uses bit sizes (160, 256, 384, 512), not algorithm version numbers
 
+## Pattern Replication Completeness
+   - When replicating a multi-step pattern from an existing method (e.g., adding _users or _replicator hooks to a new method), enumerate ALL steps from the reference method and verify each one is present in the new code
+   - Do not copy-paste and assume correctness — treat it as a checklist: list every step (MangoIndex update, Winners projection, _users sync, _replicator sync, changes feed, etc.) and confirm each is either included or explicitly not applicable
+   - Common miss: forgetting MangoIndex re-indexing after body modification, or omitting NFR-R1 corruption detection in new write paths
+
+## Transaction Side Effects
+   - **CRITICAL**: Never spawn background jobs (JOB command), signal events ($System.Event.Signal), or perform I/O with external systems inside a TSTART/TCOMMIT block
+   - Side effects must happen AFTER TCOMMIT — the background job could start reading data before it is committed
+   - Pattern: save data needed for the side effect in a local variable during the transaction, then execute the side effect after TCOMMIT
+
+## %DynamicObject Iterator Safety
+   - **CRITICAL**: Never call %Set() or %Remove() on a %DynamicObject while iterating it with %GetIterator()
+   - Collect keys into a $ListBuild list first, then iterate the list separately to modify the object
+   - This applies to attachment processing, Mango selector evaluation, and any code that transforms JSON objects in-place
+
+## Response Utility Consistency
+   - Always use `Response.JSON()` or `Response.JSONStatus(statusCode, obj)` for success responses — never write to %response.Write() directly or set ContentType/Status manually
+   - This ensures consistent Content-Type headers, character encoding, and status codes across all endpoints
+
+## Write Status Checking
+   - Every `Storage.*` write method returns %Status — always check the return with `$$$ISERR(tSC)` and handle the error
+   - Do not silently discard write failures, especially for checkpoint writes, document writes, and attachment stores
+   - Pattern: `Set tSC = ##class(Storage.X).Write(...) If $$$ISERR(tSC) { ... handle ... }`
+
+## Timestamp and Encoding Standards
+   - ISO-8601 timestamps: Use `$Translate($ZDateTime($Horolog, 3, 1), " ", "T") _ "Z"` to produce `2026-04-13T10:30:45Z` format — never use raw `$ZDateTime` which produces space-separated format
+   - Base64 encoding: Use a single `$System.Encryption.Base64Encode(stream.Read(3600000))` call — never concatenate multiple Base64-encoded chunks, as interior padding characters produce invalid output
+   - When round-trip correctness matters (attachments, checksums), add a unit test that encodes and decodes to verify
+
+## SaveDeleted Hook Ordering
+   - In `DocumentEngine.SaveDeleted()`, system database hooks (_users, _replicator) that need document body must execute BEFORE projection updates (Winners.Upsert, MangoIndex.Delete) that clear or overwrite body data
+   - The Winners projection sets body to "" for deleted docs — any hook running after that cannot read the original document content
+
+## HTTP Integration Test Requirements
+   - Every new handler method needs an HTTP integration test that verifies: (1) correct HTTP status code, (2) Content-Type header is application/json, (3) response body structure matches CouchDB spec
+   - Format/encoding tests should include round-trip verification (encode then decode and compare)
+
 ## Subagent Briefing Requirements
 - All subagent prompts MUST include references to: (1) CouchDB source at `sources/couchdb/` for protocol/algorithm details, (2) IRIS library source at `irislib/` for API behavior verification
 

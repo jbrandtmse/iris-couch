@@ -116,14 +116,14 @@ development_status:
   epic-7-retrospective: done
 
   # Epic 8: Replication Protocol
-  epic-8: in-progress
+  epic-8: done
   8-0-epic-7-deferred-cleanup: done
   8-1-local-documents-and-replication-checkpoints: done
   8-2-revision-difference-calculation: done
   8-3-replication-ready-bulk-get: done
   8-4-bidirectional-replication-protocol: done
   8-5-replicator-database-and-continuous-replication-jobs: done
-  epic-8-retrospective: optional
+  epic-8-retrospective: done
 
   # Epic 9: Observability & Audit Trail
   epic-9: backlog

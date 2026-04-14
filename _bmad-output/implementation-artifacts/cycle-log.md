@@ -11,6 +11,22 @@
 - Epic 8 stories confirmed: 8.1-8.5 (plus 8.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-13T04:00:00Z — Epic 8 Complete & Retrospective
+- Manual HTTP verification: 25/25 curl tests pass (local docs, _revs_diff, _bulk_get, replication, _replicator)
+- Interactive retrospective conducted with full party mode
+- Codebase audit: 4 pre-existing violations found, documented for Story 9.0
+- 9 new project rules codified from code review patterns
+- IRIS audit system researched: $System.Security.Audit() + %SYS.Audit:List pattern documented
+- Retro document: `epic-8-retro-2026-04-13.md`
+- Epic 8 status: done, retrospective: done
+
+### 2026-04-13T03:30:00Z — Story 8.5: _replicator Database & Continuous Replication Jobs
+- **Create Story:** Story file created at `8-5-replicator-database-and-continuous-replication-jobs.md`
+- **Development:** All 7 tasks completed. 1 new Replication class (Manager), 2 test classes, 2 modified production classes (DocumentEngine hooks, Replicator stats). 20 new tests pass, 0 regressions.
+- **Code Review:** 1 HIGH + 2 MEDIUM auto-resolved (delete hook ordering, ISO timestamp format, JOB post-commit). 3 LOW deferred.
+- **Commit:** `a824308` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-13T02:30:00Z — Story 8.4: Bidirectional Replication Protocol
 - **Create Story:** Story file created at `8-4-bidirectional-replication-protocol.md`
 - **Development:** All 7 tasks completed. 4 new Replication classes (ReplicationId, Checkpoint, HttpClient, Replicator), 4 test classes. 28 new tests pass, 0 regressions.
