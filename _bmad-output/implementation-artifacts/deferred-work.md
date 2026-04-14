@@ -186,7 +186,7 @@
 
 ## Deferred from: code review of 9-0-epic-8-deferred-cleanup (2026-04-13)
 
-- **$Horolog returns local time but timestamps append "Z" (UTC) suffix** [Storage/Database.cls:27, Replication/Manager.cls:70,170] -- All ISO-8601 timestamps use `$Translate($ZDateTime($Horolog, 3, 1), " ", "T") _ "Z"` which appends a UTC indicator to local server time. If the IRIS server is not in the UTC timezone, the stored timestamps will be semantically incorrect. The correct approach would be to use `$ZTimeStamp` (which returns UTC) instead of `$Horolog`. Pre-existing pattern introduced in Story 8.5, applied consistently in Story 9.0. Address when timezone-aware timestamp handling is implemented system-wide.
+- ~~**$Horolog returns local time but timestamps append "Z" (UTC) suffix** [Storage/Database.cls:27, Replication/Manager.cls:70,170]~~ -- **RESOLVED in Story 10.0**: All three locations changed from `$Horolog` to `$ZTimeStamp` (UTC). Updated "Timestamp and Encoding Standards" rule to document `$ZTimeStamp` as the correct choice. All tests pass.
 
 ## Deferred from: code review of 9-1-prometheus-opentelemetry-metrics-endpoint (2026-04-13)
 
@@ -200,3 +200,15 @@
 ## Deferred from: code review of 9-3-operational-resilience-and-data-durability (2026-04-13)
 
 - **Log.Debug() has no gating for debug-level logging** [Util/Log.cls:54-57] -- The doc comment says "Only emitted when IRIS debug logging is enabled" but the implementation always calls Emit unconditionally. IRIS does not have a built-in debug flag that can be checked via ObjectScript. Consider adding a Config parameter (e.g., LOGLEVEL) to control minimum log level, or checking a global flag before emitting debug messages. Low impact since Debug() is not currently called from any production code path.
+
+## Deferred from: code review of 10-0-epic-9-deferred-cleanup (2026-04-14)
+
+- **JWT.UnixTimestamp() uses $Horolog (local time) but doc claims UTC** [Auth/JWT.cls:158] -- `UnixTimestamp()` computes Unix epoch from `$Horolog` which returns local server time, but the doc comment says "seconds since 1970-01-01 00:00:00 UTC". On non-UTC servers, JWT `iat`/`exp` claims will be offset by the server's timezone delta. Pre-existing issue not introduced by Story 10.0 (which fixed the ISO-8601 `$Horolog`+Z pattern in different files). Should use `$ZTimeStamp` for the day and seconds components, or document the local-time assumption. Low impact when server runs in UTC.
+
+---
+
+## Epic 10 Triage (2026-04-14)
+
+**Reviewed by:** Story 10.0 (Epic 9 Deferred Cleanup)
+
+All 43 remaining open deferred work items were reviewed for Epic 10 (Admin UI - Angular frontend) relevance. Every item is an ObjectScript backend concern (storage encapsulation, string limits, stream OID leaks, race conditions, attachment edge cases, replication stats, cookie parsing, JWT clock skew, etc.). **None reference Angular, TypeScript, or frontend code. None block Epic 10 work.** The Angular frontend consumes the IRISCouch REST API and does not depend on any of these backend internals being resolved first.

@@ -24,7 +24,7 @@ ClassMethod Create(pName As %String) As %Status
             Quit
         }
         ; Initialize metadata subscripts
-        Set ^IRISCouch.DB(pName, "created") = $Translate($ZDateTime($Horolog, 3, 1), " ", "T") _ "Z"
+        Set ^IRISCouch.DB(pName, "created") = $Translate($ZDateTime($ZTimeStamp, 3, 1), " ", "T") _ "Z"
         Set ^IRISCouch.DB(pName, "doc_count") = 0
         Set ^IRISCouch.DB(pName, "doc_del_count") = 0
         Set ^IRISCouch.DB(pName, "update_seq") = 0

@@ -217,9 +217,19 @@
    - Pattern: `Set tSC = ##class(Storage.X).Write(...) If $$$ISERR(tSC) { ... handle ... }`
 
 ## Timestamp and Encoding Standards
-   - ISO-8601 timestamps: Use `$Translate($ZDateTime($Horolog, 3, 1), " ", "T") _ "Z"` to produce `2026-04-13T10:30:45Z` format — never use raw `$ZDateTime` which produces space-separated format
+   - ISO-8601 UTC timestamps: Use `$Translate($ZDateTime($ZTimeStamp, 3, 1), " ", "T") _ "Z"` to produce `2026-04-13T10:30:45Z` format
+   - **CRITICAL**: Use `$ZTimeStamp` (UTC) not `$Horolog` (local server time) when appending the "Z" suffix -- "Z" means UTC, and `$Horolog` returns local time which makes the timestamp semantically incorrect on non-UTC servers
+   - Never use raw `$ZDateTime` which produces space-separated format
    - Base64 encoding: Use a single `$System.Encryption.Base64Encode(stream.Read(3600000))` call — never concatenate multiple Base64-encoded chunks, as interior padding characters produce invalid output
    - When round-trip correctness matters (attachments, checksums), add a unit test that encodes and decodes to verify
+
+## Security.Events Pre-Registration for Audit
+   - **CRITICAL**: `$System.Security.Audit("Source", "Type", "Name", ...)` silently returns 0 (failure) if the Source/Type/Name triple has not been pre-registered via `Security.Events.Create()` in the `%SYS` namespace
+   - There is no error, no exception, and no log entry -- the audit event is simply lost
+   - Always call an `EnsureEvents()` setup method during installation or upgrade to register all audit event types before any code attempts to emit them
+   - Pattern reference: `IRISCouch.Audit.Emit.EnsureEvents()` -- switches to `%SYS`, iterates all event types, calls `Security.Events.Create()` for any that do not yet exist, then restores the original namespace
+   - `Security.Events.Exists("Source", "Type", "Name")` can be used to check registration before creating
+   - The `Installer.Install()` method must call `EnsureEvents()` so that audit events work immediately after deployment
 
 ## SaveDeleted Hook Ordering
    - In `DocumentEngine.SaveDeleted()`, system database hooks (_users, _replicator) that need document body must execute BEFORE projection updates (Winners.Upsert, MangoIndex.Delete) that clear or overwrite body data

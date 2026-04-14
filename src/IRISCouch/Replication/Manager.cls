@@ -67,7 +67,7 @@ ClassMethod OnReplicatorDocSave(pDB As %String, pDocId As %String, pBody As %Dyn
         Do pBody.%Set("owner", $Get(%IRISCouchUser, "_admin"))
         Do pBody.%Set("_replication_state", "triggered")
         ; ISO-8601 timestamp
-        Set tNow = $Translate($ZDateTime($Horolog, 3, 1), " ", "T") _ "Z"
+        Set tNow = $Translate($ZDateTime($ZTimeStamp, 3, 1), " ", "T") _ "Z"
         Do pBody.%Set("_replication_state_time", tNow)
         ; Initialize stats to zeros
         Set tStats = {}
@@ -167,7 +167,7 @@ ClassMethod UpdateReplicatorDoc(pDB As %String, pDocId As %String, pState As %St
         ; Parse and update fields
         Set tDoc = ##class(%DynamicObject).%FromJSON(tBody)
         Do tDoc.%Set("_replication_state", pState)
-        Set tNow = $Translate($ZDateTime($Horolog, 3, 1), " ", "T") _ "Z"
+        Set tNow = $Translate($ZDateTime($ZTimeStamp, 3, 1), " ", "T") _ "Z"
         Do tDoc.%Set("_replication_state_time", tNow)
         If $IsObject(pStats) {
             Do tDoc.%Set("_replication_stats", pStats)

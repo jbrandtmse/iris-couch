@@ -1,5 +1,24 @@
 # Epic Development Cycle Log
 
+## Epic 10: Admin UI - Core Experience
+
+### 2026-04-14T10:00:00Z — Cycle started
+- **Scope:** Epic 10, Stories 10.0 (deferred cleanup) through 10.7
+- **Sprint status:** All Epic 10 stories at `backlog`, epic at `backlog`
+
+### 2026-04-14T10:00:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml confirmed current (14 epics, 55+ stories tracked)
+- Epic 10 stories confirmed: 10.1-10.7 (plus 10.0 cleanup from retro)
+- No issues surfaced
+
+### 2026-04-14T10:05:00Z — Phase 0.5: Retrospective Review & Story 10.0
+- Epic 9 retrospective reviewed: 2 "Must Do" action items triaged
+- Item 1 (Security.Events rule): Include in 10.0
+- Item 2 ($Horolog vs UTC): Include in 10.0 (investigate + document/fix)
+- 44 deferred work items: All ObjectScript backend, none blocking Epic 10
+- Story 10.0 created: `10-0-epic-9-deferred-cleanup.md`
+- Epic 10 status: `in-progress`
+
 ## Epic 8: Replication Protocol
 
 ### 2026-04-13T00:00:00Z — Cycle started
