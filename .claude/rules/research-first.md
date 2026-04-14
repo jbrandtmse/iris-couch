@@ -1,6 +1,9 @@
+**Technology Scope: All technologies.** This research-first principle applies to both ObjectScript backend and Angular/TypeScript frontend work.
+
 ## Brief overview
 - Adopt a "Research First" workflow: when not 100% certain about a technical point, research with Perplexity MCP before deciding or coding.
-- Emphasis on InterSystems IRIS and ObjectScript topics (syntax, best practices, IRIS features, Ensemble/Interoperability, SQL, globals, vector search, embedded Python).
+- For ObjectScript: emphasis on InterSystems IRIS topics (syntax, best practices, IRIS features, Ensemble/Interoperability, SQL, globals, vector search, embedded Python).
+- For Angular/TypeScript: emphasis on Angular 19 patterns, CDK, RxJS, modern CSS, accessibility (WCAG).
 - Keep research focused, cite authoritative sources, and convert findings into precise implementation steps.
 
 ## When to research

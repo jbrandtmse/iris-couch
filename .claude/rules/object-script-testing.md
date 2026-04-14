@@ -1,4 +1,5 @@
 # ObjectScript Testing Framework Knowledge
+**Technology Scope: ObjectScript / InterSystems IRIS only.** These rules apply when working on `src/IRISCouch/Test/` ObjectScript test classes. They do NOT apply to Angular/TypeScript frontend testing (Jasmine, Jest, Cypress, Playwright).
 
 ## IRIS %UnitTest Framework Core Concepts
 

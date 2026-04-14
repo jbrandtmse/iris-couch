@@ -1,4 +1,6 @@
 # ObjectScript Basics
+**Technology Scope: ObjectScript / InterSystems IRIS only.** These rules apply when working on `src/IRISCouch/` ObjectScript classes. They do NOT apply to Angular/TypeScript frontend work (Epic 10+, `src/ui/`).
+
 ## Basics  
    - "namespace" = IRIS namespace  
    - "package" prefix = class prefix  
@@ -227,8 +229,9 @@
    - Every new handler method needs an HTTP integration test that verifies: (1) correct HTTP status code, (2) Content-Type header is application/json, (3) response body structure matches CouchDB spec
    - Format/encoding tests should include round-trip verification (encode then decode and compare)
 
-## Subagent Briefing Requirements
-- All subagent prompts MUST include references to: (1) CouchDB source at `sources/couchdb/` for protocol/algorithm details, (2) IRIS library source at `irislib/` for API behavior verification
+## Subagent Briefing Requirements (ObjectScript stories only)
+- All **ObjectScript** subagent prompts MUST include references to: (1) CouchDB source at `sources/couchdb/` for protocol/algorithm details, (2) IRIS library source at `irislib/` for API behavior verification
+- For **Angular/TypeScript** stories (Epic 10+), include references to: (1) Chrome DevTools MCP for browser-based UI verification, (2) the IRISCouch REST API endpoints the UI consumes
 
 ## Research and Knowledge Resources
 - Use Perplexity MCP as a reference source when uncertain about ObjectScript syntax, problem-solving approaches, or specification details
