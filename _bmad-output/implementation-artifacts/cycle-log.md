@@ -11,6 +11,13 @@
 - Epic 8 stories confirmed: 8.1-8.5 (plus 8.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-13T01:30:00Z — Story 8.3: Replication-Ready Bulk Get
+- **Create Story:** Story file created at `8-3-replication-ready-bulk-get.md`
+- **Development:** All 5 tasks completed. 1 file modified (BulkHandler.cls +attachments=true), 2 created (BulkGetReplicationTest.cls 8 tests, BulkGetReplicationHttpTest.cls 5 tests). 0 regressions.
+- **Code Review:** 1 HIGH + 2 MEDIUM auto-resolved (chunked Base64 encoding fix, iterator mutation fix, string limit fix). 2 LOW deferred.
+- **Commit:** `1459eff` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-13T01:00:00Z — Story 8.2: Revision Difference Calculation
 - **Create Story:** Story file created at `8-2-revision-difference-calculation.md`
 - **Development:** All 5 tasks completed. 2 files modified (ReplicationHandler.cls +HandleRevsDiff, Router.cls +route+wrapper), 2 created (RevsDiffTest.cls 6 tests, RevsDiffHttpTest.cls 5 tests). 0 regressions.
