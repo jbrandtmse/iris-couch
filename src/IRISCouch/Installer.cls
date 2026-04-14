@@ -66,7 +66,9 @@ ClassMethod Install(pNamespace As %String = "", pWebAppPath As %String = "/iris-
 
         ; Check if webapp already exists
         If ##class(Security.Applications).Exists(pWebAppPath) {
+            ; Webapp exists but ensure audit events are registered (upgrade path)
             Set $NAMESPACE = tOrigNS
+            Do ##class(IRISCouch.Audit.Emit).EnsureEvents()
             Quit
         }
 
@@ -79,7 +81,11 @@ ClassMethod Install(pNamespace As %String = "", pWebAppPath As %String = "/iris-
         Set tProps("Description") = "IRISCouch - CouchDB-compatible REST API"
 
         Set tSC = ##class(Security.Applications).Create(pWebAppPath, .tProps)
+
+        ; Register audit event types in Security.Events (Story 9.2)
+        ; Must happen in %SYS with %Admin_Secure privilege (Installer runs as _SYSTEM)
         Set $NAMESPACE = tOrigNS
+        Do ##class(IRISCouch.Audit.Emit).EnsureEvents()
     }
     Catch ex {
         Set $NAMESPACE = $Get(tOrigNS, $Namespace)
