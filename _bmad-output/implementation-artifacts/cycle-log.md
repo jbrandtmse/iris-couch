@@ -11,6 +11,13 @@
 - Epic 10 stories confirmed: 10.1-10.7 (plus 10.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T14:00:00Z — Story 10.4: Database List View with Create & Delete
+- **Create Story:** Story file created at `10-4-database-list-view-with-create-and-delete.md`
+- **Development:** All 7 tasks completed. DatabaseService, DataTable (cdk-table), EmptyState, ConfirmDialog (CDK FocusTrap, 3 variants), PageHeader (fetched-at, loading bar), database list feature. 95 new tests (283 total). 116.10KB gzip.
+- **Code Review:** 1 MED auto-resolved (PageHeader OnChanges interface). 1 MED deferred (missing delete UI trigger in template). 
+- **Commit:** `d593ad3` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T13:00:00Z — Story 10.3: AppShell, Navigation & Login
 - **Create Story:** Story file created at `10-3-appshell-navigation-and-login.md`
 - **Development:** All 9 tasks completed. Auth service, API client, 401 interceptor, auth guard, AppShell, SideNav (CDK FocusKeyManager), Breadcrumb, ErrorDisplay, LoginForm, ShortcutOverlay, routing. 85 new tests (188 total). 100.75KB gzip.

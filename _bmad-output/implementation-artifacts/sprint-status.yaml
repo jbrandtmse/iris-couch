@@ -40,8 +40,8 @@ last_story_completed: 8-3-replication-ready-bulk-get
 
 generated: 2026-04-12
 last_updated: 2026-04-14
-last_story_completed: 10-4-database-list-view-with-create-and-delete
-last_story_reviewed: 10-4-database-list-view-with-create-and-delete
+last_story_completed: 10-5-document-list-view-with-filtering-and-pagination
+last_story_reviewed: 10-5-document-list-view-with-filtering-and-pagination
 last_story_in_progress: 10-0-epic-9-deferred-cleanup
 last_review: 2026-04-13
 last_story_in_progress: 10-1-angular-scaffold-design-tokens-and-icon-system
@@ -143,7 +143,7 @@ development_status:
   10-2-core-ui-components: done
   10-3-appshell-navigation-and-login: done
   10-4-database-list-view-with-create-and-delete: done
-  10-5-document-list-view-with-filtering-and-pagination: backlog
+  10-5-document-list-view-with-filtering-and-pagination: done
   10-6-document-detail-view: backlog
   10-7-error-handling-accessibility-and-cross-browser-verification: backlog
   epic-10-retrospective: optional

@@ -18,6 +18,7 @@ export { DataTableComponent, type ColumnDef, type SortChangeEvent } from './data
 export { EmptyStateComponent } from './empty-state/empty-state.component';
 export { ConfirmDialogComponent, type ConfirmDialogVariant } from './confirm-dialog/confirm-dialog.component';
 export { PageHeaderComponent } from './page-header/page-header.component';
+export { PaginationComponent } from './pagination/pagination.component';
 
 // NOTE: test-utils.ts is intentionally NOT exported here.
 // Import directly from './couch-ui/test-utils' in spec files

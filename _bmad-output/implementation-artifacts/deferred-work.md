@@ -234,3 +234,8 @@ All 43 remaining open deferred work items were reviewed for Epic 10 (Admin UI - 
 ## Deferred from: code review of 10-4-database-list-view-with-create-and-delete (2026-04-14)
 
 - **No UI trigger for database delete action (AC #5)** [ui/src/app/features/databases/database-list.component.ts] -- `openDeleteDialog(db: DatabaseEntry)` method exists and works correctly, but no template element invokes it. The DataTable component is domain-free and does not support action columns with buttons. AC #5 requires "the operator clicks delete on a database" which needs either: (a) extending DataTable to support template-projected cell content for an actions column, (b) adding a separate row-action overlay/menu, or (c) adding inline delete buttons outside the DataTable. MEDIUM -- functional code exists and is tested; only the UI trigger is missing.
+
+## Deferred from: code review of 10-5-document-list-view-with-filtering-and-pagination (2026-04-14)
+
+- **paginationStart assumes linear page history** [ui/src/app/features/database/database-detail.component.ts] -- Range indicator math uses `pageHistory.length * PAGE_SIZE`, which is inaccurate if any page had fewer than PAGE_SIZE rows (e.g., the last page of filtered results). Cosmetic only -- affects the approximate range indicator display. LOW.
+- **totalRows reflects total DB doc count, not filtered count** [ui/src/app/features/database/database-detail.component.ts] -- CouchDB `_all_docs` `total_rows` returns the total number of documents in the database regardless of filter. Range indicator shows "rows 1-3 of ~42,187" even when only 3 docs match the filter prefix. By design per CouchDB API -- no way to get filtered count without a separate query. LOW.
