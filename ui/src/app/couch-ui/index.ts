@@ -19,6 +19,7 @@ export { EmptyStateComponent } from './empty-state/empty-state.component';
 export { ConfirmDialogComponent, type ConfirmDialogVariant } from './confirm-dialog/confirm-dialog.component';
 export { PageHeaderComponent } from './page-header/page-header.component';
 export { PaginationComponent } from './pagination/pagination.component';
+export { JsonDisplayComponent } from './json-display/json-display.component';
 
 // NOTE: test-utils.ts is intentionally NOT exported here.
 // Import directly from './couch-ui/test-utils' in spec files

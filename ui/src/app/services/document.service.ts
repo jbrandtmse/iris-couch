@@ -29,6 +29,11 @@ export interface ListDocumentsOptions {
   descending?: boolean;
 }
 
+/** Options for the getDocument call. */
+export interface GetDocumentOptions {
+  rev?: string;
+}
+
 /**
  * DocumentService -- CRUD operations for CouchDB documents.
  *
@@ -37,6 +42,25 @@ export interface ListDocumentsOptions {
 @Injectable({ providedIn: 'root' })
 export class DocumentService {
   constructor(private readonly api: CouchApiService) {}
+
+  /**
+   * GET /{db}/{docid} with ?conflicts=true.
+   *
+   * Returns the full document body including _id, _rev, _conflicts,
+   * and _attachments metadata (stubs). Always requests conflicts=true
+   * to detect conflict state.
+   */
+  getDocument(db: string, docid: string, options: GetDocumentOptions = {}): Observable<any> {
+    const params = new URLSearchParams();
+    params.set('conflicts', 'true');
+
+    if (options.rev) {
+      params.set('rev', options.rev);
+    }
+
+    const path = `${encodeURIComponent(db)}/${encodeURIComponent(docid)}?${params.toString()}`;
+    return this.api.get<any>(path);
+  }
 
   /**
    * GET /{db}/_all_docs with query parameters.

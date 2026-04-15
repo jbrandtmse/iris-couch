@@ -11,6 +11,13 @@
 - Epic 10 stories confirmed: 10.1-10.7 (plus 10.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T15:00:00Z — Story 10.5: Document List View with Filtering & Pagination
+- **Create Story:** Story file created at `10-5-document-list-view-with-filtering-and-pagination.md`
+- **Development:** All 5 tasks completed. DocumentService, Pagination component, document list with filter (150ms debounce, prefix matching), startkey-based pagination, [design]/[deleted] badges, URL deep-linking. 62 new tests (345 total). 122.37KB gzip.
+- **Code Review:** 4 patches auto-resolved (dead import, stale request cancel, error display, Esc key handler). 2 LOW deferred. 349 tests after fixes.
+- **Commit:** `e4375c3` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T14:00:00Z — Story 10.4: Database List View with Create & Delete
 - **Create Story:** Story file created at `10-4-database-list-view-with-create-and-delete.md`
 - **Development:** All 7 tasks completed. DatabaseService, DataTable (cdk-table), EmptyState, ConfirmDialog (CDK FocusTrap, 3 variants), PageHeader (fetched-at, loading bar), database list feature. 95 new tests (283 total). 116.10KB gzip.

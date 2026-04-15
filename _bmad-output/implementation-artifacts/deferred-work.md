@@ -239,3 +239,7 @@ All 43 remaining open deferred work items were reviewed for Epic 10 (Admin UI - 
 
 - **paginationStart assumes linear page history** [ui/src/app/features/database/database-detail.component.ts] -- Range indicator math uses `pageHistory.length * PAGE_SIZE`, which is inaccurate if any page had fewer than PAGE_SIZE rows (e.g., the last page of filtered results). Cosmetic only -- affects the approximate range indicator display. LOW.
 - **totalRows reflects total DB doc count, not filtered count** [ui/src/app/features/database/database-detail.component.ts] -- CouchDB `_all_docs` `total_rows` returns the total number of documents in the database regardless of filter. Range indicator shows "rows 1-3 of ~42,187" even when only 3 docs match the filter prefix. By design per CouchDB API -- no way to get filtered count without a separate query. LOW.
+
+## Deferred from: code review of 10-6-document-detail-view (2026-04-14)
+
+- **Design doc ID double-encoding in getDocument and getAttachmentUrl** [ui/src/app/services/document.service.ts, ui/src/app/features/document/document-detail.component.ts] -- `encodeURIComponent('_design/myview')` produces `_design%2Fmyview`, but CouchDB expects `/{db}/_design/myview` with the slash unencoded. This will cause 404s when navigating to design doc detail views. Address in Epic 11 Story 11-1 (Design Document List and Detail View) which introduces design doc-specific routing and API methods.
