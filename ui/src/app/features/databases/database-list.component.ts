@@ -2,12 +2,14 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { DatabaseService, DatabaseEntry } from '../../services/database.service';
 import { DataTableComponent, ColumnDef, SortChangeEvent } from '../../couch-ui/data-table/data-table.component';
 import { EmptyStateComponent } from '../../couch-ui/empty-state/empty-state.component';
 import { ConfirmDialogComponent } from '../../couch-ui/confirm-dialog/confirm-dialog.component';
 import { PageHeaderComponent } from '../../couch-ui/page-header/page-header.component';
 import { ButtonComponent } from '../../couch-ui/button/button.component';
+import { ErrorDisplayComponent } from '../../couch-ui/error-display/error-display.component';
 import { IconPlusComponent } from '../../couch-ui/icons';
 
 /**
@@ -26,6 +28,7 @@ import { IconPlusComponent } from '../../couch-ui/icons';
     ConfirmDialogComponent,
     PageHeaderComponent,
     ButtonComponent,
+    ErrorDisplayComponent,
     IconPlusComponent,
   ],
   template: `
@@ -42,9 +45,19 @@ import { IconPlusComponent } from '../../couch-ui/icons';
       </ng-container>
     </app-page-header>
 
+    <!-- Error state -->
+    <app-error-display
+      *ngIf="!loading && loadError"
+      [error]="loadError"
+      [statusCode]="loadErrorCode"
+      variant="full"
+      [retryable]="true"
+      (retry)="loadDatabases()">
+    </app-error-display>
+
     <!-- Data table -->
     <app-data-table
-      *ngIf="!loading && databases.length > 0"
+      *ngIf="!loading && !loadError && databases.length > 0"
       [columns]="columns"
       [data]="sortedData"
       [sortColumn]="sortColumn"
@@ -56,7 +69,7 @@ import { IconPlusComponent } from '../../couch-ui/icons';
 
     <!-- Empty state -->
     <app-empty-state
-      *ngIf="!loading && databases.length === 0"
+      *ngIf="!loading && !loadError && databases.length === 0"
       primary="No databases yet."
       secondary="Create one to get started."
       ctaLabel="Create database"
@@ -104,6 +117,10 @@ export class DatabaseListComponent implements OnInit {
   databases: DatabaseEntry[] = [];
   loading = false;
   fetchedAt: Date | null = null;
+
+  // Load error state
+  loadError: { error: string; reason: string } | null = null;
+  loadErrorCode: number | undefined;
 
   // Sort state
   sortColumn = 'name';
@@ -173,6 +190,7 @@ export class DatabaseListComponent implements OnInit {
   constructor(
     private readonly dbService: DatabaseService,
     private readonly router: Router,
+    private readonly liveAnnouncer: LiveAnnouncer,
   ) {}
 
   ngOnInit(): void {
@@ -181,14 +199,29 @@ export class DatabaseListComponent implements OnInit {
 
   loadDatabases(): void {
     this.loading = true;
+    this.loadError = null;
+    this.loadErrorCode = undefined;
     this.dbService.listAllWithInfo().subscribe({
       next: (entries) => {
         this.databases = entries;
         this.fetchedAt = new Date();
         this.loading = false;
+        this.liveAnnouncer.announce('Loaded database list');
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.loading = false;
+        if (err.status === 0) {
+          this.loadError = {
+            error: 'network_error',
+            reason: 'Cannot reach `/iris-couch/`. Check that the server is running.',
+          };
+          this.loadErrorCode = undefined;
+        } else {
+          this.loadErrorCode = err.status;
+          this.loadError = err.error && typeof err.error === 'object'
+            ? err.error
+            : { error: 'unknown', reason: 'An unexpected error occurred' };
+        }
       },
     });
   }

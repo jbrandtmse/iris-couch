@@ -2,6 +2,7 @@ import { TestBed, ComponentFixture, fakeAsync, tick, discardPeriodicTasks } from
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap, ParamMap } from '@angular/router';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { BehaviorSubject } from 'rxjs';
 import { DatabaseDetailComponent } from './database-detail.component';
 import { AllDocsResponse } from '../../services/document.service';
@@ -12,6 +13,7 @@ describe('DatabaseDetailComponent', () => {
   let component: DatabaseDetailComponent;
   let httpMock: HttpTestingController;
   let router: Router;
+  let announcerSpy: jasmine.SpyObj<LiveAnnouncer>;
 
   const paramMapSubject = new BehaviorSubject<ParamMap>(
     convertToParamMap({ dbname: 'testdb' })
@@ -37,6 +39,9 @@ describe('DatabaseDetailComponent', () => {
   };
 
   beforeEach(async () => {
+    announcerSpy = jasmine.createSpyObj('LiveAnnouncer', ['announce']);
+    announcerSpy.announce.and.returnValue(Promise.resolve());
+
     await TestBed.configureTestingModule({
       imports: [DatabaseDetailComponent],
       providers: [
@@ -50,6 +55,7 @@ describe('DatabaseDetailComponent', () => {
             snapshot: { queryParams: {} },
           },
         },
+        { provide: LiveAnnouncer, useValue: announcerSpy },
       ],
     }).compileComponents();
 
@@ -332,6 +338,24 @@ describe('DatabaseDetailComponent', () => {
       component.onRowClick(component.tableData[0]);
       expect(router.navigate).toHaveBeenCalledWith(['/db', 'testdb', 'doc', 'doc1']);
     });
+
+    it('should navigate on Enter key on a table row', () => {
+      fixture.detectChanges();
+      flushAllDocs();
+      const row = fixture.nativeElement.querySelector('.data-table__row');
+      expect(row).toBeTruthy();
+      row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(router.navigate).toHaveBeenCalled();
+    });
+
+    it('should have tabindex=0 on clickable rows', () => {
+      fixture.detectChanges();
+      flushAllDocs();
+      const rows = fixture.nativeElement.querySelectorAll('.data-table__row');
+      for (const row of Array.from(rows) as HTMLElement[]) {
+        expect(row.getAttribute('tabindex')).toBe('0');
+      }
+    });
   });
 
   describe('Breadcrumb', () => {
@@ -353,37 +377,52 @@ describe('DatabaseDetailComponent', () => {
   });
 
   describe('Error state', () => {
-    it('should display error message when request fails', () => {
+    it('should display ErrorDisplay when request fails with 404', () => {
       fixture.detectChanges();
       const req = httpMock.expectOne((r) => r.url.includes('testdb/_all_docs'));
       req.flush({ error: 'not_found', reason: 'Database not found' }, { status: 404, statusText: 'Not Found' });
       fixture.detectChanges();
-      expect(component.errorMessage).toBeTruthy();
+      expect(component.loadError).toBeTruthy();
+      expect(component.loadErrorCode).toBe(404);
       expect(component.loading).toBeFalse();
       expect(component.tableData.length).toBe(0);
+      const errorDisplay = fixture.nativeElement.querySelector('app-error-display');
+      expect(errorDisplay).toBeTruthy();
     });
 
-    it('should show error empty state on failure', () => {
+    it('should show ErrorDisplay on 500 error', () => {
       fixture.detectChanges();
       const req = httpMock.expectOne((r) => r.url.includes('testdb/_all_docs'));
       req.flush({ error: 'internal', reason: 'Server error' }, { status: 500, statusText: 'Internal Server Error' });
       fixture.detectChanges();
-      const emptyState = fixture.nativeElement.querySelector('app-empty-state');
-      expect(emptyState).toBeTruthy();
+      expect(component.loadError).toBeTruthy();
+      expect(component.loadErrorCode).toBe(500);
+      const errorDisplay = fixture.nativeElement.querySelector('app-error-display');
+      expect(errorDisplay).toBeTruthy();
+    });
+
+    it('should show network error on status 0', () => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne((r) => r.url.includes('testdb/_all_docs'));
+      req.error(new ProgressEvent('error'), { status: 0, statusText: '' });
+      fixture.detectChanges();
+      expect(component.loadError).toBeTruthy();
+      expect(component.loadError!.reason).toContain('Cannot reach');
+      expect(component.loadErrorCode).toBeUndefined();
     });
 
     it('should clear error on successful reload', () => {
       fixture.detectChanges();
       const req1 = httpMock.expectOne((r) => r.url.includes('testdb/_all_docs'));
-      req1.flush({}, { status: 500, statusText: 'Error' });
+      req1.flush({ error: 'internal', reason: 'fail' }, { status: 500, statusText: 'Error' });
       fixture.detectChanges();
-      expect(component.errorMessage).toBeTruthy();
+      expect(component.loadError).toBeTruthy();
 
       component.loadDocuments();
       const req2 = httpMock.expectOne((r) => r.url.includes('testdb/_all_docs'));
       req2.flush(mockResponse);
       fixture.detectChanges();
-      expect(component.errorMessage).toBe('');
+      expect(component.loadError).toBeNull();
     });
   });
 
@@ -454,6 +493,22 @@ describe('DatabaseDetailComponent', () => {
     });
   });
 
+  describe('LiveAnnouncer', () => {
+    it('should announce on successful document load', () => {
+      fixture.detectChanges();
+      flushAllDocs();
+      expect(announcerSpy.announce).toHaveBeenCalledWith('Loaded documents for testdb');
+    });
+
+    it('should not announce on error', () => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne((r) => r.url.includes('testdb/_all_docs'));
+      req.flush({ error: 'fail', reason: 'fail' }, { status: 500, statusText: 'Error' });
+      fixture.detectChanges();
+      expect(announcerSpy.announce).not.toHaveBeenCalled();
+    });
+  });
+
   it('should pass axe-core checks with data', async () => {
     fixture.detectChanges();
     flushAllDocs();
@@ -463,6 +518,17 @@ describe('DatabaseDetailComponent', () => {
   it('should pass axe-core checks with empty state', async () => {
     fixture.detectChanges();
     flushAllDocs({ total_rows: 0, offset: 0, rows: [] });
+    await expectNoAxeViolations(fixture.nativeElement);
+  });
+
+  it('should pass axe-core checks with error state', async () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne((r) => r.url.includes('testdb/_all_docs'));
+    req.flush(
+      { error: 'internal', reason: 'Server error' },
+      { status: 500, statusText: 'Internal Server Error' }
+    );
+    fixture.detectChanges();
     await expectNoAxeViolations(fixture.nativeElement);
   });
 });

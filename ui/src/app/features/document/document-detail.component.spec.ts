@@ -290,12 +290,31 @@ describe('DocumentDetailComponent', () => {
     expect(jsonDisplays.length).toBe(2); // main doc + conflict doc
   });
 
-  // --- AC #7: 404 Error handling ---
+  // --- AC #7: Error handling ---
 
   it('should show ErrorDisplay for 404 errors', () => {
     initAndFail(404, { error: 'not_found', reason: 'missing' });
     const errorDisplay = fixture.nativeElement.querySelector('app-error-display');
     expect(errorDisplay).toBeTruthy();
+  });
+
+  it('should show ErrorDisplay for 500 errors', () => {
+    initAndFail(500, { error: 'internal_server_error', reason: 'Unknown error' });
+    const errorDisplay = fixture.nativeElement.querySelector('app-error-display');
+    expect(errorDisplay).toBeTruthy();
+    expect(component.errorStatus).toBe(500);
+  });
+
+  it('should show network error message when status is 0', () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne((r) =>
+      r.url.includes('testdb/test-doc-001') && r.url.includes('conflicts=true')
+    );
+    req.error(new ProgressEvent('error'), { status: 0, statusText: '' });
+    fixture.detectChanges();
+    expect(component.error).toBeTruthy();
+    expect(component.error!.reason).toContain('Cannot reach');
+    expect(component.errorStatus).toBeUndefined();
   });
 
   // --- AC #8: Deep-linkable ---
@@ -332,6 +351,20 @@ describe('DocumentDetailComponent', () => {
   it('should truncate digest to 12 characters', () => {
     expect(component.truncateDigest('md5-abc123def456789')).toBe('md5-abc123de');
     expect(component.truncateDigest('short')).toBe('short');
+  });
+
+  // --- LiveAnnouncer ---
+
+  it('should announce "Loaded document {docid}" on successful load', () => {
+    const announcerSpy = TestBed.inject(LiveAnnouncer) as jasmine.SpyObj<LiveAnnouncer>;
+    initAndFlush();
+    expect(announcerSpy.announce).toHaveBeenCalledWith('Loaded document test-doc-001');
+  });
+
+  it('should not announce on error', () => {
+    const announcerSpy = TestBed.inject(LiveAnnouncer) as jasmine.SpyObj<LiveAnnouncer>;
+    initAndFail(404, { error: 'not_found', reason: 'missing' });
+    expect(announcerSpy.announce).not.toHaveBeenCalled();
   });
 
   // --- Accessibility ---

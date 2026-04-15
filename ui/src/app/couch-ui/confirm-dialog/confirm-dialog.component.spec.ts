@@ -200,6 +200,14 @@ describe('ConfirmDialogComponent', () => {
       expect(host.cancelled).toBeTrue();
     });
 
+    it('should close on Escape key via keyboard event', () => {
+      host.cancelled = false;
+      const dialog = fixture.nativeElement.querySelector('[role="dialog"]');
+      dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      // Escape is handled at document level
+      expect(host.cancelled).toBeTrue();
+    });
+
     it('should close on backdrop click', () => {
       const backdrop = fixture.nativeElement.querySelector('.dialog-backdrop');
       backdrop.click();

@@ -11,6 +11,13 @@
 - Epic 10 stories confirmed: 10.1-10.7 (plus 10.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T16:00:00Z — Story 10.6: Document Detail View
+- **Create Story:** Story file created at `10-6-document-detail-view.md`
+- **Development:** All 4 tasks completed. JsonDisplay (custom tokenizer, syntax coloring), document detail with header/badges/attachments/conflicts/404. 46 new tests (395 total). 124.91KB gzip.
+- **Code Review:** 4 patches auto-resolved (copy raw JSON fidelity, conflict subscription leak, attachment URL, conflict fetch test). 1 deferred (design doc double-encoding). 396 tests after fixes.
+- **Commit:** `43a9be8` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T15:00:00Z — Story 10.5: Document List View with Filtering & Pagination
 - **Create Story:** Story file created at `10-5-document-list-view-with-filtering-and-pagination.md`
 - **Development:** All 5 tasks completed. DocumentService, Pagination component, document list with filter (150ms debounce, prefix matching), startkey-based pagination, [design]/[deleted] badges, URL deep-linking. 62 new tests (345 total). 122.37KB gzip.

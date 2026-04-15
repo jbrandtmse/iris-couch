@@ -95,6 +95,25 @@ describe('AppShellComponent', () => {
       expect(main.querySelector('router-outlet')).toBeTruthy();
     });
 
+    it('should have skip-link as first focusable element in DOM order', () => {
+      const shell = fixture.nativeElement.querySelector('.shell');
+      const firstFocusable = shell.querySelector('a, button, [tabindex]');
+      expect(firstFocusable).toBeTruthy();
+      expect(firstFocusable.classList).toContain('skip-link');
+    });
+
+    it('should have header before sidenav before main in DOM order', () => {
+      const shell = fixture.nativeElement.querySelector('.shell');
+      const children = Array.from(shell.children) as HTMLElement[];
+      const skipIdx = children.findIndex(el => el.classList.contains('skip-link'));
+      const headerIdx = children.findIndex(el => el.tagName === 'HEADER');
+      const sidenavIdx = children.findIndex(el => el.tagName === 'APP-SIDE-NAV');
+      const mainIdx = children.findIndex(el => el.tagName === 'MAIN');
+      expect(skipIdx).toBeLessThan(headerIdx);
+      expect(headerIdx).toBeLessThan(sidenavIdx);
+      expect(sidenavIdx).toBeLessThan(mainIdx);
+    });
+
     it('should pass axe-core accessibility checks', async () => {
       await expectNoAxeViolations(fixture.nativeElement);
     });

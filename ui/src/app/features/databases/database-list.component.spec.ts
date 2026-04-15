@@ -2,6 +2,7 @@ import { TestBed, ComponentFixture, fakeAsync, tick } from '@angular/core/testin
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { DatabaseListComponent } from './database-list.component';
 import { expectNoAxeViolations } from '../../couch-ui/test-utils';
 
@@ -10,14 +11,19 @@ describe('DatabaseListComponent', () => {
   let component: DatabaseListComponent;
   let httpMock: HttpTestingController;
   let router: Router;
+  let announcerSpy: jasmine.SpyObj<LiveAnnouncer>;
 
   beforeEach(async () => {
+    announcerSpy = jasmine.createSpyObj('LiveAnnouncer', ['announce']);
+    announcerSpy.announce.and.returnValue(Promise.resolve());
+
     await TestBed.configureTestingModule({
       imports: [DatabaseListComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
+        { provide: LiveAnnouncer, useValue: announcerSpy },
       ],
     }).compileComponents();
 
@@ -314,6 +320,82 @@ describe('DatabaseListComponent', () => {
     });
   });
 
+  describe('Error handling', () => {
+    it('should show ErrorDisplay on 500 error', () => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('_all_dbs');
+      req.flush(
+        { error: 'internal_server_error', reason: 'Unknown error' },
+        { status: 500, statusText: 'Internal Server Error' }
+      );
+      fixture.detectChanges();
+      expect(component.loadError).toBeTruthy();
+      expect(component.loadErrorCode).toBe(500);
+      const errorDisplay = fixture.nativeElement.querySelector('app-error-display');
+      expect(errorDisplay).toBeTruthy();
+    });
+
+    it('should show network error message when status is 0', () => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('_all_dbs');
+      req.error(new ProgressEvent('error'), { status: 0, statusText: '' });
+      fixture.detectChanges();
+      expect(component.loadError).toBeTruthy();
+      expect(component.loadError!.reason).toContain('Cannot reach');
+      expect(component.loadErrorCode).toBeUndefined();
+      const errorDisplay = fixture.nativeElement.querySelector('app-error-display');
+      expect(errorDisplay).toBeTruthy();
+    });
+
+    it('should clear error on successful retry', () => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('_all_dbs');
+      req.flush(
+        { error: 'internal_server_error', reason: 'fail' },
+        { status: 500, statusText: 'Error' }
+      );
+      fixture.detectChanges();
+      expect(component.loadError).toBeTruthy();
+
+      component.loadDatabases();
+      const retryReq = httpMock.expectOne('_all_dbs');
+      retryReq.flush([]);
+      fixture.detectChanges();
+      expect(component.loadError).toBeNull();
+    });
+
+    it('should not show data table when in error state', () => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('_all_dbs');
+      req.flush(
+        { error: 'internal_server_error', reason: 'Unknown error' },
+        { status: 500, statusText: 'Internal Server Error' }
+      );
+      fixture.detectChanges();
+      const table = fixture.nativeElement.querySelector('app-data-table');
+      expect(table).toBeNull();
+    });
+  });
+
+  describe('LiveAnnouncer', () => {
+    it('should announce "Loaded database list" on successful load', () => {
+      fixture.detectChanges();
+      flushEmptyDatabases();
+      expect(announcerSpy.announce).toHaveBeenCalledWith('Loaded database list');
+    });
+
+    it('should not announce on error', () => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('_all_dbs');
+      req.flush(
+        { error: 'internal_server_error', reason: 'fail' },
+        { status: 500, statusText: 'Error' }
+      );
+      fixture.detectChanges();
+      expect(announcerSpy.announce).not.toHaveBeenCalled();
+    });
+  });
+
   it('should pass axe-core checks with data', async () => {
     fixture.detectChanges();
     flushDatabases([
@@ -325,6 +407,17 @@ describe('DatabaseListComponent', () => {
   it('should pass axe-core checks with empty state', async () => {
     fixture.detectChanges();
     flushEmptyDatabases();
+    await expectNoAxeViolations(fixture.nativeElement);
+  });
+
+  it('should pass axe-core checks with error state', async () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne('_all_dbs');
+    req.flush(
+      { error: 'internal_server_error', reason: 'Unknown error' },
+      { status: 500, statusText: 'Internal Server Error' }
+    );
+    fixture.detectChanges();
     await expectNoAxeViolations(fixture.nativeElement);
   });
 });

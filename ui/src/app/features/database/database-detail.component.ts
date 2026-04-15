@@ -2,9 +2,12 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener } fro
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import { DocumentService, AllDocsResponse, AllDocsRow } from '../../services/document.service';
 import { EmptyStateComponent } from '../../couch-ui/empty-state/empty-state.component';
+import { ErrorDisplayComponent } from '../../couch-ui/error-display/error-display.component';
 import { PageHeaderComponent } from '../../couch-ui/page-header/page-header.component';
 import { PaginationComponent } from '../../couch-ui/pagination/pagination.component';
 import { BadgeComponent } from '../../couch-ui/badge/badge.component';
@@ -32,6 +35,7 @@ const PAGE_SIZE = 25;
     CommonModule,
     FormsModule,
     EmptyStateComponent,
+    ErrorDisplayComponent,
     PageHeaderComponent,
     PaginationComponent,
     BadgeComponent,
@@ -111,21 +115,24 @@ const PAGE_SIZE = 25;
     </div>
 
     <!-- Error state -->
-    <app-empty-state
-      *ngIf="!loading && errorMessage"
-      primary="Failed to load documents."
-      [secondary]="errorMessage">
-    </app-empty-state>
+    <app-error-display
+      *ngIf="!loading && loadError"
+      [error]="loadError"
+      [statusCode]="loadErrorCode"
+      variant="full"
+      [retryable]="true"
+      (retry)="loadDocuments()">
+    </app-error-display>
 
     <!-- Empty state -->
     <app-empty-state
-      *ngIf="!loading && !errorMessage && tableData.length === 0 && !filterText"
+      *ngIf="!loading && !loadError && tableData.length === 0 && !filterText"
       primary="No documents yet."
       secondary="This database is empty.">
     </app-empty-state>
 
     <app-empty-state
-      *ngIf="!loading && !errorMessage && tableData.length === 0 && filterText"
+      *ngIf="!loading && !loadError && tableData.length === 0 && filterText"
       primary="No matching documents."
       [secondary]="'No documents match the prefix &quot;' + filterText + '&quot;.'">
     </app-empty-state>
@@ -177,7 +184,10 @@ export class DatabaseDetailComponent implements OnInit, OnDestroy {
   // Table data
   tableData: DocRow[] = [];
   totalRows = 0;
-  errorMessage = '';
+
+  // Error state
+  loadError: { error: string; reason: string } | null = null;
+  loadErrorCode: number | undefined;
 
   // Filter
   filterText = '';
@@ -202,6 +212,7 @@ export class DatabaseDetailComponent implements OnInit, OnDestroy {
     private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly docService: DocumentService,
+    private readonly liveAnnouncer: LiveAnnouncer,
   ) {}
 
   ngOnInit(): void {
@@ -280,7 +291,8 @@ export class DatabaseDetailComponent implements OnInit, OnDestroy {
     this.activeRequest?.unsubscribe();
 
     this.loading = true;
-    this.errorMessage = '';
+    this.loadError = null;
+    this.loadErrorCode = undefined;
 
     const options: Record<string, unknown> = {
       limit: PAGE_SIZE + 1, // fetch one extra to detect next page
@@ -314,11 +326,23 @@ export class DatabaseDetailComponent implements OnInit, OnDestroy {
         this.hasPreviousPage = this.pageHistory.length > 0;
         this.fetchedAt = new Date();
         this.loading = false;
+        this.liveAnnouncer.announce(`Loaded documents for ${this.dbName}`);
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         this.loading = false;
-        this.errorMessage = err?.error?.reason || err?.message || 'Could not load documents. Please try again.';
         this.tableData = [];
+        if (err.status === 0) {
+          this.loadError = {
+            error: 'network_error',
+            reason: 'Cannot reach `/iris-couch/`. Check that the server is running.',
+          };
+          this.loadErrorCode = undefined;
+        } else {
+          this.loadErrorCode = err.status;
+          this.loadError = err.error && typeof err.error === 'object'
+            ? err.error
+            : { error: 'unknown', reason: 'An unexpected error occurred' };
+        }
       },
     });
   }

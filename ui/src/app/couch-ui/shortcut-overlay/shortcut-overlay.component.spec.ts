@@ -1,6 +1,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ShortcutOverlayComponent, ShortcutOverlayContentComponent } from './shortcut-overlay.component';
 import { OverlayModule } from '@angular/cdk/overlay';
+import { expectNoAxeViolations } from '../test-utils';
 
 describe('ShortcutOverlayComponent', () => {
   let fixture: ComponentFixture<ShortcutOverlayComponent>;
@@ -99,5 +100,9 @@ describe('ShortcutOverlayContentComponent', () => {
     const keys = Array.from(kbds).map((k: any) => k.textContent.trim());
     expect(keys).toContain('?');
     expect(keys).toContain('/');
+  });
+
+  it('should pass axe-core accessibility checks', async () => {
+    await expectNoAxeViolations(fixture.nativeElement);
   });
 });

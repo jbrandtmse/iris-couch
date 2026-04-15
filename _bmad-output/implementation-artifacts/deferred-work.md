@@ -243,3 +243,8 @@ All 43 remaining open deferred work items were reviewed for Epic 10 (Admin UI - 
 ## Deferred from: code review of 10-6-document-detail-view (2026-04-14)
 
 - **Design doc ID double-encoding in getDocument and getAttachmentUrl** [ui/src/app/services/document.service.ts, ui/src/app/features/document/document-detail.component.ts] -- `encodeURIComponent('_design/myview')` produces `_design%2Fmyview`, but CouchDB expects `/{db}/_design/myview` with the slash unencoded. This will cause 404s when navigating to design doc detail views. Address in Epic 11 Story 11-1 (Design Document List and Detail View) which introduces design doc-specific routing and API methods.
+
+## Deferred from: code review of 10-7-error-handling-accessibility-and-cross-browser-verification (2026-04-14)
+
+- **Network error message hardcoded in 3 components** [database-list.component.ts, database-detail.component.ts, document-detail.component.ts] -- The string "Cannot reach `/iris-couch/`. Check that the server is running." is duplicated across all three feature components. Extract to a shared constant or utility function for DRY compliance. LOW.
+- **Error handler pattern (status=0 branch) duplicated 3x** [database-list.component.ts, database-detail.component.ts, document-detail.component.ts] -- The `if (err.status === 0) { ... } else { ... }` error classification logic is copy-pasted identically across all three components. Extract to a shared error handler utility function (e.g., `classifyHttpError(err): { error, reason, statusCode }`) for maintainability. LOW.

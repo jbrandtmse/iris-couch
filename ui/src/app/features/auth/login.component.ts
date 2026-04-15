@@ -159,6 +159,12 @@ import { ErrorDisplayComponent } from '../../couch-ui/error-display/error-displa
       opacity: 0.5;
       cursor: not-allowed;
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      .login-field {
+        transition: none;
+      }
+    }
   `]
 })
 export class LoginComponent implements AfterViewInit {

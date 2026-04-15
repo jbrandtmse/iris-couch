@@ -1,6 +1,6 @@
 # generated: 2026-04-12
 # last_updated: 2026-04-14 (Epic 10 sprint planning)
-# last_story_in_progress: 8-3-replication-ready-bulk-get
+# last_story_in_progress: 10-7-error-handling-accessibility-and-cross-browser-verification
 last_story_reviewed: 8-3-replication-ready-bulk-get
 last_story_completed: 8-3-replication-ready-bulk-get
 # last_story_reviewed: 8-0-epic-7-deferred-cleanup
@@ -145,7 +145,7 @@ development_status:
   10-4-database-list-view-with-create-and-delete: done
   10-5-document-list-view-with-filtering-and-pagination: done
   10-6-document-detail-view: done
-  10-7-error-handling-accessibility-and-cross-browser-verification: backlog
+  10-7-error-handling-accessibility-and-cross-browser-verification: done
   epic-10-retrospective: optional
 
   # Epic 11: Admin UI - Design Documents & Security Views

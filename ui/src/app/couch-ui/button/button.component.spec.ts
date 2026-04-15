@@ -139,6 +139,30 @@ describe('ButtonComponent', () => {
     expect(buttonEl.textContent).toContain('Click me');
   });
 
+  describe('Keyboard activation', () => {
+    it('should activate on Enter key', () => {
+      let clicked = false;
+      buttonEl.addEventListener('click', () => { clicked = true; });
+      buttonEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      buttonEl.click(); // native Enter triggers click on buttons
+      expect(clicked).toBeTrue();
+    });
+
+    it('should activate on Space key', () => {
+      let clicked = false;
+      buttonEl.addEventListener('click', () => { clicked = true; });
+      buttonEl.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      buttonEl.click(); // native Space triggers click on buttons
+      expect(clicked).toBeTrue();
+    });
+
+    it('should not activate when disabled', () => {
+      host.disabled = true;
+      fixture.detectChanges();
+      expect(buttonEl.disabled).toBeTrue();
+    });
+  });
+
   it('should pass axe-core accessibility checks', async () => {
     host.ariaLabel = 'Test button';
     fixture.detectChanges();

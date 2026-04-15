@@ -46,7 +46,7 @@ import { Component, Input } from '@angular/core';
     .badge--warn {
       color: var(--color-warn);
       border-color: var(--color-warn);
-      background-color: rgba(181, 123, 33, 0.1);
+      background-color: rgba(139, 105, 20, 0.1);
     }
 
     .badge--error {

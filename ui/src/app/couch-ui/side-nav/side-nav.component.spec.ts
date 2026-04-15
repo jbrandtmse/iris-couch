@@ -49,6 +49,26 @@ describe('SideNavComponent', () => {
     expect(firstLink.getAttribute('tabindex')).toBe('0');
   });
 
+  describe('Keyboard navigation', () => {
+    it('should handle arrow key navigation via FocusKeyManager', () => {
+      const ul = fixture.nativeElement.querySelector('ul.nav-list');
+      expect(ul).toBeTruthy();
+      spyOn(component, 'onKeydown').and.callThrough();
+      const event = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true });
+      ul.dispatchEvent(event);
+      expect(component.onKeydown).toHaveBeenCalled();
+    });
+
+    it('should set non-focused items to tabindex=-1', () => {
+      const links = fixture.nativeElement.querySelectorAll('a.nav-link');
+      // First link should be tabindex=0, others -1
+      expect(links[0].getAttribute('tabindex')).toBe('0');
+      for (let i = 1; i < links.length; i++) {
+        expect(links[i].getAttribute('tabindex')).toBe('-1');
+      }
+    });
+  });
+
   it('should pass axe-core accessibility checks', async () => {
     await expectNoAxeViolations(fixture.nativeElement);
   });

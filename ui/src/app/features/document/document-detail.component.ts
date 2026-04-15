@@ -1,6 +1,8 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Subscription } from 'rxjs';
 import { DocumentService } from '../../services/document.service';
 import { PageHeaderComponent } from '../../couch-ui/page-header/page-header.component';
@@ -344,6 +346,7 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly docService: DocumentService,
+    private readonly liveAnnouncer: LiveAnnouncer,
   ) {}
 
   get hasAnyBadge(): boolean {
@@ -446,12 +449,23 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
           }));
         }
         this.attachmentCount = this.attachments.length;
+        this.liveAnnouncer.announce(`Loaded document ${this.docId}`);
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         this.loading = false;
         this.doc = null;
-        this.errorStatus = err.status;
-        this.error = err.error || { error: 'unknown', reason: 'An unexpected error occurred' };
+        if (err.status === 0) {
+          this.errorStatus = undefined;
+          this.error = {
+            error: 'network_error',
+            reason: 'Cannot reach `/iris-couch/`. Check that the server is running.',
+          };
+        } else {
+          this.errorStatus = err.status;
+          this.error = err.error && typeof err.error === 'object'
+            ? err.error
+            : { error: 'unknown', reason: 'An unexpected error occurred' };
+        }
       },
     });
   }

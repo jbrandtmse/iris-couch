@@ -112,6 +112,13 @@ describe('DataTableComponent', () => {
     expect(host.lastRowClick).toEqual({ name: 'mydb', docs: 42, size: '1.2 MB' });
   });
 
+  it('should emit rowClick when pressing Enter on a clickable row', () => {
+    const rows = fixture.nativeElement.querySelectorAll('tr.data-table__row');
+    rows[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+    expect(host.lastRowClick).toEqual({ name: 'mydb', docs: 42, size: '1.2 MB' });
+  });
+
   it('should add clickable class when clickable=true', () => {
     const rows = fixture.nativeElement.querySelectorAll('tr.data-table__row');
     expect(rows[0].classList).toContain('data-table__row--clickable');
