@@ -134,6 +134,70 @@ describe('DocumentService', () => {
     });
   });
 
+  // Story 11.1 AC #1 / Task 1 -- enumerate design docs via _all_docs prefix trick.
+  describe('listDesignDocs', () => {
+    const mockResponse: AllDocsResponse = {
+      total_rows: 2,
+      offset: 0,
+      rows: [
+        { id: '_design/myapp', key: '_design/myapp', value: { rev: '1-aaa' } },
+        { id: '_design/otherapp', key: '_design/otherapp', value: { rev: '1-bbb' } },
+      ],
+    };
+
+    it('emits startkey="_design/" and endkey="_design0" as JSON-encoded strings', () => {
+      service.listDesignDocs('mydb').subscribe((res) => {
+        expect(res.rows.length).toBe(2);
+        expect(res.rows[0].id).toBe('_design/myapp');
+      });
+      // startkey JSON-encoded is "_design/" (with literal slash)
+      // The URLSearchParams layer percent-encodes the inner `/` and the `"`
+      // characters; we assert the presence of both encoded tokens rather
+      // than matching the full query string character for character.
+      const req = httpMock.expectOne((r) => {
+        const url = r.url;
+        return (
+          url.startsWith('mydb/_all_docs?') &&
+          // startkey="_design/"
+          url.includes('startkey=%22_design%2F%22') &&
+          // endkey="_design0"
+          url.includes('endkey=%22_design0%22')
+        );
+      });
+      expect(req.request.method).toBe('GET');
+      req.flush(mockResponse);
+    });
+
+    it('forwards include_docs and limit options', () => {
+      service.listDesignDocs('mydb', { include_docs: true, limit: 10 }).subscribe();
+      const req = httpMock.expectOne((r) =>
+        r.url.includes('mydb/_all_docs') &&
+        r.url.includes('limit=10') &&
+        r.url.includes('include_docs=true') &&
+        r.url.includes('startkey=%22_design%2F%22') &&
+        r.url.includes('endkey=%22_design0%22'),
+      );
+      expect(req.request.method).toBe('GET');
+      req.flush(mockResponse);
+    });
+
+    it('returns an empty rows array when the database has no design docs', () => {
+      const emptyResponse: AllDocsResponse = { total_rows: 0, offset: 0, rows: [] };
+      service.listDesignDocs('mydb').subscribe((res) => {
+        expect(res.rows.length).toBe(0);
+      });
+      const req = httpMock.expectOne((r) => r.url.startsWith('mydb/_all_docs?'));
+      req.flush(emptyResponse);
+    });
+
+    it('encodes database name with special characters', () => {
+      service.listDesignDocs('my/db').subscribe();
+      const req = httpMock.expectOne((r) => r.url.startsWith('my%2Fdb/_all_docs?'));
+      expect(req.request.method).toBe('GET');
+      req.flush(mockResponse);
+    });
+  });
+
   describe('getDocument', () => {
     const mockDoc = {
       _id: 'doc1',
@@ -255,6 +319,17 @@ describe('DocumentService', () => {
   });
 
   describe('getDocument with design doc IDs', () => {
+    // Story 11.1 AC #2 / Task 2 -- confirm existing getDocument + encodeDocId
+    // correctly handles a `_design/<name>` composite without a new method.
+    it('getDocument("testdb", "_design/myapp") hits /testdb/_design/myapp', () => {
+      service.getDocument('testdb', '_design/myapp').subscribe();
+      const req = httpMock.expectOne(
+        (r) => r.url.startsWith('testdb/_design/myapp?') && !r.url.includes('%2F'),
+      );
+      expect(req.request.method).toBe('GET');
+      req.flush({ _id: '_design/myapp', _rev: '1-abc' });
+    });
+
     it('sends a request to `/{db}/_design/{name}` with literal `/` (not %2F)', () => {
       service.getDocument('testdb', '_design/ddoc-a').subscribe();
       // HttpTestingController matches URLs against the path portion passed to

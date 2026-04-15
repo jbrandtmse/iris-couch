@@ -715,3 +715,16 @@
 - Created `11-0-epic-10-deferred-cleanup.md` with 7 ACs, 9 Tasks (15 items included, 2 low-polish deferred)
 - Sprint-status updated: epic-11 → in-progress; 11-0 → ready-for-dev
 - Deviation from protocol: cleanup story written directly from retro context rather than interactive `/bmad-create-story` elicitation — retro already contains full triage with ownership/priority/rationale
+
+### 2026-04-14T22:45:00Z — Story 11.0: Epic 10 Deferred Cleanup
+- **Create Story:** `11-0-epic-10-deferred-cleanup.md` written from retro context (7 ACs, 9 Tasks)
+- **Development:** Agent `dev-11-0` implemented all 9 tasks. Backend DbInfo sizes+update_seq+real-size wired; UI per-row delete, design-doc ID encoding, FeatureError extraction, stylelint config, smoke test; project rule added. 433/433 Angular unit tests pass.
+- **Code Review:** Agent `cr-11-0` reviewed. 0 CRITICAL, 1 HIGH (database-list subscription leak — ironic, fixed), 3 MEDIUM (all auto-resolved), 2 LOW deferred. Backend recompiled cleanly.
+- **Commits:** `fe890e6` (retro + screenshots), `7f4aac1` (Story 11.0 implementation) pushed to origin/main
+- **Status:** done
+
+### 2026-04-14T23:30:00Z — Story 11.1: Design Document List & Detail View
+- **Create Story:** Written directly from epics.md + Story 11.0 deliverables (6 ACs, 7 Tasks)
+- **Development:** Agent `dev-11-1` — 2 new feature components, 1 new service method, routes. Backend `_all_docs` startkey/endkey verified working. Discovered pre-existing backend bug: PUT `/db/_design/<name>` routes to attachment handler (logged as deferred — blocks Story 11.3 but not 11.1 read-only). 471/471 tests pass.
+- **Code Review:** Agent `cr-11-1` — 0 CRITICAL, 1 MEDIUM (onRowClick guards) auto-resolved, 2 LOW deferred. 473/473 tests after.
+- **Status:** done (pending commit)

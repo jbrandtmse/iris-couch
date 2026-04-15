@@ -133,6 +133,48 @@ in the console message list.
 
 ---
 
+## Story 11.1 -- Design Document List & Detail View (Read-Only Alpha)
+
+Setup:
+- Create a test database via curl:
+  ```
+  curl -u _system:SYS -X PUT http://localhost:52773/iris-couch/testdb11
+  ```
+- Insert a design doc via `_bulk_docs` (PUT `/db/_design/<name>` is currently
+  routed as an attachment write -- see deferred-work.md for context):
+  ```
+  curl -u _system:SYS -X POST http://localhost:52773/iris-couch/testdb11/_bulk_docs \
+    -H 'Content-Type: application/json' \
+    -d '{"docs":[{"_id":"_design/myapp","views":{"by_name":{"map":"function(doc){emit(doc.name,null);}"}}}]}'
+  ```
+
+Smoke steps:
+- [ ] **Navigate to list**: from /db/testdb11, click "Design Documents" in the
+      per-database SideNav. URL should become `/db/testdb11/design`. DataTable
+      shows `_design/myapp` in monospace.
+- [ ] **Empty state**: on a fresh database with no design docs, the empty-state
+      panel shows `"No design documents yet."` and `"Use curl or another client
+      to create one at alpha."`
+- [ ] **Row navigation**: click the `_design/myapp` row. URL becomes
+      `/db/testdb11/design/myapp`. Detail view renders the full JSON.
+- [ ] **Deep link**: paste `/iris-couch/_utils/db/testdb11/design/myapp` into
+      the browser address bar (no list view visited). Detail view renders.
+- [ ] **CopyButton -- _id**: click the CopyButton next to `_design/myapp`.
+      Clipboard contains the literal string `_design/myapp` (with `/`, not `%2F`).
+- [ ] **CopyButton -- raw JSON**: click the JsonDisplay Copy button. Clipboard
+      JSON matches the output of
+      `curl -u _system:SYS http://localhost:52773/iris-couch/testdb11/_design/myapp`
+      byte-for-byte.
+- [ ] **404 path**: navigate to `/db/testdb11/design/does-not-exist`. A
+      FeatureError panel renders the verbatim backend envelope
+      (`{"error":"not_found","reason":"..."}`), with a Retry button.
+- [ ] **Read-only**: no Edit, Delete, or Save affordance is visible anywhere
+      in the list or detail view at alpha.
+
+**Result**: [ ] PASS / [ ] FAIL
+
+---
+
 ## Sign-Off
 
 | Tester | Date | Overall Result |

@@ -103,6 +103,30 @@ export class DocumentService {
   }
 
   /**
+   * GET /{db}/_all_docs filtered to design documents only.
+   *
+   * Emits the CouchDB-spec-standard prefix trick: startkey=`"_design/"` and
+   * endkey=`"_design0"` (the ASCII character one byte greater than `/`) so
+   * all `_design/<name>` rows are returned without over-fetching.
+   *
+   * See `sources/couchdb/src/chttpd/src/chttpd_db.erl` for reference and
+   * Story 11.1 AC #1 / Task 1.
+   *
+   * @param db the database name
+   * @param opts optional extra options (include_docs, descending, limit, skip)
+   */
+  listDesignDocs(
+    db: string,
+    opts: Pick<ListDocumentsOptions, 'include_docs' | 'descending' | 'limit' | 'skip'> = {},
+  ): Observable<AllDocsResponse> {
+    return this.listDocuments(db, {
+      ...opts,
+      startkey: '_design/',
+      endkey: '_design0',
+    });
+  }
+
+  /**
    * GET /{db}/_all_docs with query parameters.
    *
    * Returns a paginated list of document IDs and revisions.

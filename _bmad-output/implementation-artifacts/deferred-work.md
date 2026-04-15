@@ -307,3 +307,42 @@ the initial entries.
   `statusCode` to the mapped value — binding-order dependent. Pre-existing
   in the new code but no current consumer binds both. If a future caller
   needs to override status, split into `setFromRaw(err, overrideStatus?)`.
+
+## Deferred from: Story 11.1 development (2026-04-14)
+
+- **Backend: `PUT /{db}/_design/{name}` routes to attachment handler, not
+  DocumentPut (HIGH -- blocks design-doc write UX).** The `Router.cls`
+  UrlMap has `/:db/:docid/:attname` registered before `/:db/:docid`, so a
+  request to `PUT /testdb/_design/myapp` matches the attachment route with
+  `docid = "_design"` and `attname = "myapp"`. Verified via curl during
+  Story 11.1 backend spike:
+  - `PUT /testdb/_design/myapp` with a JSON body stores a document with
+    `_id = "_design"` (dropping `/myapp`) instead of `_design/myapp`.
+  - `GET /testdb/_design/myapp` returns the body of a missing attachment
+    rather than the design doc.
+  - Workaround: `POST /{db}/_bulk_docs` with `{"_id":"_design/myapp",...}`
+    stores the design doc correctly and `GET /testdb/_design/myapp` then
+    returns the stored body (but still via the attachment codepath --
+    the response is the bare body, not a wrapped `{_id, _rev, ...}`
+    document envelope).
+  This affects Story 11.3 (design-doc editing). Story 11.1 is read-only,
+  so the IRISCouch router needs to be extended to recognize `_design/`
+  and `_local/` composite IDs and dispatch to `HandleDocumentPut` /
+  `HandleDocumentGet` / `HandleDocumentDelete` when the second segment
+  is a composite-ID prefix. Suggested fix location:
+  `src/IRISCouch/API/Router.cls` -- add explicit routes
+  `PUT/GET/DELETE /:db/_design/:name` and `/:db/_local/:name` before the
+  attachment routes, or add a dispatcher that detects the composite
+  prefix. Estimated lift: ~40 LOC of ObjectScript + test coverage.
+  Story 11.1 UI code assumes the correct wire format and does NOT need
+  changes once this is fixed.
+- **Backend design-doc GET returns bare body, not a full document envelope
+  (MED -- cosmetic for read-only, blocking for editing).** Even when a
+  design doc is stored correctly via `_bulk_docs`, `GET /db/_design/name`
+  returns only the stored JSON (e.g., `{"views":{...}}`) without `_id`,
+  `_rev`, or the usual `conflicts=true` additions. This is a consequence
+  of the attachment-route mis-dispatch above; fixing the router fixes
+  this too. Story 11.1 detail view still renders meaningful output
+  because `JsonDisplay` shows whatever JSON the server returns, and the
+  identity rows (`_id`, `_rev`) simply stay blank when the fields are
+  missing. Revisit with the routing fix.

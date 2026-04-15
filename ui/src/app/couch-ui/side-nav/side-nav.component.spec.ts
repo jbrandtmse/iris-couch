@@ -72,4 +72,32 @@ describe('SideNavComponent', () => {
   it('should pass axe-core accessibility checks', async () => {
     await expectNoAxeViolations(fixture.nativeElement);
   });
+
+  // Story 11.1 AC #1 / Task 6 -- confirm the per-database Design Documents
+  // link wires to the new /db/:dbname/design route.
+  describe('per-database scope (Story 11.1)', () => {
+    beforeEach(() => {
+      // Simulate the per-database scope by setting items directly (the real
+      // scope-switching logic is driven by router.url; verifying the link
+      // shape is sufficient here).
+      component.items = [
+        { label: 'Documents', route: '/db/testdb' },
+        { label: 'Design Documents', route: '/db/testdb/design' },
+        { label: 'Security', route: '/db/testdb/security' },
+      ];
+      fixture.detectChanges();
+    });
+
+    it('renders a Design Documents link that resolves to /db/{name}/design', () => {
+      const links = fixture.nativeElement.querySelectorAll('a.nav-link');
+      const labels = Array.from(links).map((a: any) => a.textContent.trim());
+      expect(labels).toContain('Design Documents');
+      const designLink = Array.from(links).find(
+        (a: any) => a.textContent.trim() === 'Design Documents',
+      ) as HTMLAnchorElement | undefined;
+      expect(designLink).toBeTruthy();
+      // routerLink attribute is bound; Angular reflects it on the href too.
+      expect(designLink!.getAttribute('href')).toBe('/db/testdb/design');
+    });
+  });
 });
