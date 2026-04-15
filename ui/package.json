@@ -6,7 +6,9 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "smoke": "node smoke/smoke.mjs",
+    "stylelint": "stylelint \"src/**/*.{css,ts}\""
   },
   "private": true,
   "dependencies": {

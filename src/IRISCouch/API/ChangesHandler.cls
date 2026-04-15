@@ -200,7 +200,9 @@ ClassMethod HandleChanges(pDB As %String) As %Status
                     ; Timeout with no new changes — return empty results
                     Set tResp = {}
                     Set tResp.results = []
-                    Do tResp.%Set("last_seq", tSince, "number")
+                    ; CouchDB spec: last_seq is a string sequence id. Coerce to
+                    ; numeric first so a missing/blank tSince emits "0", not "".
+                    Do tResp.%Set("last_seq", (+tSince)_"")
                     Do tResp.%Set("pending", 0, "number")
                     Do ##class(IRISCouch.Util.Response).JSON(tResp)
                     Quit
@@ -244,7 +246,7 @@ ClassMethod HandleChanges(pDB As %String) As %Status
             }
             ; Build the result entry
             Set tResultEntry = {}
-            Do tResultEntry.%Set("seq", tSeq, "number")
+            Do tResultEntry.%Set("seq", (+tSeq)_"")
             Do tResultEntry.%Set("id", tDocId)
             ; Check if this is a deleted document
             If tFilter '= "_selector" {
@@ -313,7 +315,7 @@ ClassMethod HandleChanges(pDB As %String) As %Status
         ; Build response
         Set tResp = {}
         Do tResp.%Set("results", tFinalResults)
-        Do tResp.%Set("last_seq", tRaw.%Get("lastSeq"), "number")
+        Do tResp.%Set("last_seq", (+tRaw.%Get("lastSeq"))_"")
         Do tResp.%Set("pending", tRaw.%Get("pending"), "number")
         Do ##class(IRISCouch.Util.Response).JSON(tResp)
         Quit

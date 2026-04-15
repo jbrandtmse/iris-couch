@@ -40,25 +40,25 @@ import { Component, Input } from '@angular/core';
     .badge--info {
       color: var(--color-info);
       border-color: var(--color-info);
-      background-color: rgba(60, 90, 158, 0.1);
+      background-color: var(--color-info-bg);
     }
 
     .badge--warn {
       color: var(--color-warn);
       border-color: var(--color-warn);
-      background-color: rgba(139, 105, 20, 0.1);
+      background-color: var(--color-warn-bg);
     }
 
     .badge--error {
-      color: #9A2E2E;
+      color: var(--color-error-fg);
       border-color: var(--color-error);
-      background-color: rgba(195, 63, 63, 0.1);
+      background-color: var(--color-danger-bg);
     }
 
     .badge--success {
       color: var(--color-success);
       border-color: var(--color-success);
-      background-color: rgba(60, 122, 90, 0.1);
+      background-color: var(--color-success-bg);
     }
   `]
 })

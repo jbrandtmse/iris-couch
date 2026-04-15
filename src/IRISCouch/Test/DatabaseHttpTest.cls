@@ -173,13 +173,24 @@ Method TestDatabaseInfoHttp()
     Do $$$AssertEquals(tBody."doc_count", 0, "doc_count is present")
     Do $$$AssertEquals(tBody."doc_del_count", 0, "doc_del_count is present")
     Do $$$AssertTrue(tBody.%IsDefined("update_seq"), "update_seq field exists")
+    ; Story 11.0 AC #1: update_seq is a string per CouchDB spec.
+    Do $$$AssertEquals(tBody."update_seq", "0", "update_seq is string ""0""")
     Do $$$AssertTrue(tBody.%IsDefined("purge_seq"), "purge_seq field exists")
     Do $$$AssertTrue(tBody.%IsDefined("compact_running"), "compact_running field exists")
-    Do $$$AssertTrue(tBody.%IsDefined("disk_size"), "disk_size field exists")
+    ; Story 11.0 AC #1: CouchDB-spec sizes object is present.
+    Do $$$AssertTrue(tBody.%IsDefined("sizes"), "sizes field exists")
+    Do $$$AssertTrue($IsObject(tBody."sizes"), "sizes is a JSON object")
+    Do $$$AssertTrue(tBody."sizes".%IsDefined("file"), "sizes.file is present")
+    Do $$$AssertTrue(tBody."sizes".%IsDefined("external"), "sizes.external is present")
+    Do $$$AssertTrue(tBody."sizes".%IsDefined("active"), "sizes.active is present")
+    ; Story 11.0 AC #1: legacy disk_size retained for backward compatibility.
+    Do $$$AssertTrue(tBody.%IsDefined("disk_size"), "disk_size field exists (back-compat)")
+    Do $$$AssertEquals(tBody."disk_size", tBody."sizes"."file", "disk_size equals sizes.file")
     Do $$$AssertTrue(tBody.%IsDefined("data_size"), "data_size field exists")
     Do $$$AssertEquals(tBody."instance_start_time", "0", "instance_start_time is 0")
     Do $$$AssertEquals(tBody."disk_format_version", 1, "disk_format_version is 1")
     Do $$$AssertTrue(tBody.%IsDefined("committed_update_seq"), "committed_update_seq field exists")
+    Do $$$AssertEquals(tBody."committed_update_seq", "0", "committed_update_seq is string ""0""")
 }
 
 /// <p>AC #4: GET /{db} returns 404 for non-existent database.</p>

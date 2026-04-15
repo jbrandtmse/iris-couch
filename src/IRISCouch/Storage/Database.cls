@@ -134,21 +134,39 @@ ClassMethod GetInfo(pName As %String) As %DynamicObject
         }
         Set tDocCount = +$Get(^IRISCouch.DB(pName, "doc_count"))
         Set tUpdateSeq = +$Get(^IRISCouch.DB(pName, "update_seq"))
-        Set tDiskSize = +$Get(^IRISCouch.DB(pName, "disk_size"))
         Set tPurgeSeq = +$Get(^IRISCouch.DB(pName, "purge_seq"))
+        ; Compute real disk size from ^IRISCouch.* globals for this database.
+        ; CouchDB spec: sizes.file = bytes allocated on disk (includes overhead),
+        ; sizes.external = uncompressed JSON size, sizes.active = live (non-deleted) size.
+        ; IRIS does not expose compressed vs. uncompressed distinctions the same way,
+        ; so we report sizes.file (allocated bytes) and approximate active/external
+        ; as Used bytes. Keep legacy disk_size in sync with sizes.file for back-compat.
+        Set tFileBytes = ..ComputeDiskSize(pName, .tUsedBytes)
+        Set tActiveBytes = tUsedBytes
+        Set tExternalBytes = tUsedBytes
         Set result = {}
         Do result.%Set("db_name", pName)
         Do result.%Set("doc_count", tDocCount, "number")
         Set tDocDelCount = +$Get(^IRISCouch.DB(pName, "doc_del_count"))
         Do result.%Set("doc_del_count", tDocDelCount, "number")
-        Do result.%Set("update_seq", tUpdateSeq, "number")
+        ; CouchDB spec: update_seq is an opaque string sequence identifier.
+        ; We stringify the numeric seq (e.g., 42 -> "42") for spec compliance.
+        ; The changes feed is updated in lockstep to emit string seqs too.
+        Do result.%Set("update_seq", tUpdateSeq_"")
         Do result.%Set("purge_seq", tPurgeSeq, "number")
         Do result.%Set("compact_running", 0, "boolean")
-        Do result.%Set("disk_size", tDiskSize, "number")
-        Do result.%Set("data_size", 0, "number")
+        ; CouchDB-spec sizes object.
+        Set tSizes = {}
+        Do tSizes.%Set("file", tFileBytes, "number")
+        Do tSizes.%Set("external", tExternalBytes, "number")
+        Do tSizes.%Set("active", tActiveBytes, "number")
+        Do result.%Set("sizes", tSizes)
+        ; Legacy disk_size kept for backward compatibility (older clients).
+        Do result.%Set("disk_size", tFileBytes, "number")
+        Do result.%Set("data_size", tActiveBytes, "number")
         Do result.%Set("instance_start_time", "0")
         Do result.%Set("disk_format_version", 1, "number")
-        Do result.%Set("committed_update_seq", tUpdateSeq, "number")
+        Do result.%Set("committed_update_seq", tUpdateSeq_"")
         Quit
     }
     Catch ex {
@@ -156,6 +174,71 @@ ClassMethod GetInfo(pName As %String) As %DynamicObject
         Quit
     }
     Quit result
+}
+
+/// <p>Compute the approximate on-disk size, in bytes, of the IRIS globals that back a database.</p>
+/// <p>Aggregates <code>%Library.GlobalEdit.GetGlobalSizeBySubscript()</code> across
+/// the five IRISCouch globals (<code>^IRISCouch.DB</code>, <code>^IRISCouch.Docs</code>,
+/// <code>^IRISCouch.Tree</code>, <code>^IRISCouch.Changes</code>, <code>^IRISCouch.Seq</code>)
+/// for a specific database subscript. Currently calls with Fast=0 (precise) — if the
+/// DbInfo response becomes slow on large databases, switch the 5th argument to 1
+/// (stochastic estimate) to trade accuracy for latency.</p>
+/// <p>Returns "Allocated" bytes as the function result and passes "Used" bytes
+/// via the <var>pUsedBytes</var> output variable. Returns 0 on any error to
+/// avoid masking DbInfo responses for minor plumbing issues.</p>
+/// @param pName The database name (used as the first global subscript)
+/// @param pUsedBytes Output: used bytes across all IRISCouch.* globals for this DB
+/// @return %Integer The allocated bytes (sizes.file value)
+ClassMethod ComputeDiskSize(pName As %String, Output pUsedBytes As %Integer) As %Integer
+{
+    Set pUsedBytes = 0
+    Set tTotalAlloc = 0
+    Try {
+        ; Get the directory where ^IRISCouch.DB is mapped in the current namespace.
+        Set tDest = ##class(%SYS.Namespace).GetGlobalDest($Namespace, "^IRISCouch.DB")
+        ; Dest format is "system^directory" where system is empty on local node,
+        ; producing a leading "^" followed by the directory. Take the piece
+        ; after the first "^" delimiter.
+        Set tDir = $Piece(tDest, "^", 2)
+        If tDir = "" {
+            Quit
+        }
+        ; Query each of the 5 IRISCouch globals, scoped to this database subscript,
+        ; via %Library.GlobalEdit.GetGlobalSizeBySubscript(), which reports MB with
+        ; fractional precision for small globals. We convert MB -> bytes and sum.
+        Set tGlobals = $ListBuild(
+            "IRISCouch.DB(""" _ pName _ """)",
+            "IRISCouch.Docs(""" _ pName _ """)",
+            "IRISCouch.Tree(""" _ pName _ """)",
+            "IRISCouch.Changes(""" _ pName _ """)",
+            "IRISCouch.Seq(""" _ pName _ """)"
+        )
+        Set tPtr = 0
+        While $ListNext(tGlobals, tPtr, tGlob) {
+            Kill tSize
+            Set tSize = 0
+            Set tSC = ##class(%Library.GlobalEdit).GetGlobalSizeBySubscript(tDir, tGlob, "", .tSize, 0, 0)
+            If $$$ISOK(tSC) {
+                ; tSize (top-level) = total allocated MB for this subtree.
+                ; tSize("MB","Total") = same. Convert MB -> bytes.
+                Set tBytes = +tSize * 1048576
+                Set tTotalAlloc = tTotalAlloc + tBytes
+                ; IRIS does not report a separate "used" breakdown per subscript;
+                ; treat allocated as a conservative proxy for both file and active.
+                Set pUsedBytes = pUsedBytes + tBytes
+            }
+        }
+        ; Return integer byte counts (CouchDB spec: sizes.* are integers).
+        Set tTotalAlloc = tTotalAlloc \ 1
+        Set pUsedBytes = pUsedBytes \ 1
+        Quit
+    }
+    Catch ex {
+        Set tTotalAlloc = 0
+        Set pUsedBytes = 0
+        Quit
+    }
+    Quit tTotalAlloc
 }
 
 /// <p>Set the revision retention limit for a database.</p>

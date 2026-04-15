@@ -1,0 +1,25 @@
+{
+  "//": "Story 11.0 AC #6 / Task 7 — bans hardcoded colors in component CSS. Only tokens.css may contain hex/rgba literals.",
+  "rules": {
+    "color-no-hex": [
+      true,
+      {
+        "message": "Use a CSS custom property from tokens.css instead of a hex literal (Story 11.0 AC #6)."
+      }
+    ],
+    "declaration-property-value-disallowed-list": [
+      {
+        "/^(color|background|background-color|border|border-color|box-shadow|outline|outline-color|fill|stroke)$/": ["/rgba?\\s*\\(/"]
+      },
+      {
+        "message": "Do not use rgb()/rgba() literals in component CSS — add a token to tokens.css and reference it via var(--...) (Story 11.0 AC #6)."
+      }
+    ]
+  },
+  "ignoreFiles": [
+    "src/styles/tokens.css",
+    "dist/**",
+    "node_modules/**",
+    ".angular/**"
+  ]
+}

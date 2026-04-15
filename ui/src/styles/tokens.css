@@ -22,11 +22,37 @@
   --color-success: #3C7A5A;
   --color-info: #3C5A9E;
 
+  /* ── Destructive / danger palette (aliases for error, plus tinted backgrounds).
+     Story 11.0 AC #7 / Task 8 — added so component styles don't inline rgba()
+     colors when signalling destructive intent. */
+  --color-danger: var(--color-error);
+  --color-destructive: var(--color-error);
+  --color-danger-bg: #FDECEC;      /* light tint of --color-error for hover/fill */
+  --color-danger-bg-strong: #F9D5D5; /* slightly stronger tint for active state */
+  --color-error-fg: #9A2E2E;       /* darker red text on red backgrounds */
+
+  /* ── Tinted background tokens (Story 11.0 AC #6/#7).
+     Replaces rgba literals that previously appeared in Badge/ErrorDisplay/TextInput. */
+  --color-info-bg: #EBEEF8;        /* ~rgba(60,90,158,0.1) */
+  --color-warn-bg: #F6EEDC;        /* ~rgba(139,105,20,0.1) */
+  --color-success-bg: #E0EBE6;     /* ~rgba(60,122,90,0.1) */
+
+  /* Focus-ring glow used on inputs. Token avoids rgba literals per AC #6/#7. */
+  --focus-ring-info: 0 0 0 2px var(--color-info-bg);
+  --focus-ring-danger: 0 0 0 2px var(--color-danger-bg);
+
+  /* Modal scrim and drop-shadow tokens. */
+  --color-scrim: #12161F66;        /* 40% opacity of --color-neutral-900 */
+  --shadow-overlay: 0 4px 24px #0000001F; /* ~rgba(0,0,0,0.12) */
+
   /* ── Spacing Scale ── */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  /* Alias: `--space-md` = mid-size spacing, maps to --space-4 (16px).
+     Story 11.0 AC #7 / Task 8. */
+  --space-md: var(--space-4);
   --space-6: 24px;
   --space-8: 32px;
   --space-12: 48px;

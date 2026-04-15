@@ -40,8 +40,8 @@ last_story_completed: 8-3-replication-ready-bulk-get
 
 generated: 2026-04-12
 last_updated: 2026-04-14
-last_story_completed: 10-6-document-detail-view
-last_story_reviewed: 10-6-document-detail-view
+last_story_completed: 10-7-error-handling-accessibility-and-cross-browser-verification
+last_story_reviewed: 10-7-error-handling-accessibility-and-cross-browser-verification
 last_story_in_progress: 10-0-epic-9-deferred-cleanup
 last_review: 2026-04-13
 last_story_in_progress: 10-1-angular-scaffold-design-tokens-and-icon-system
@@ -146,10 +146,11 @@ development_status:
   10-5-document-list-view-with-filtering-and-pagination: done
   10-6-document-detail-view: done
   10-7-error-handling-accessibility-and-cross-browser-verification: done
-  epic-10-retrospective: optional
+  epic-10-retrospective: done
 
   # Epic 11: Admin UI - Design Documents & Security Views
-  epic-11: backlog
+  epic-11: in-progress
+  11-0-epic-10-deferred-cleanup: review
   11-1-design-document-list-and-detail-view: backlog
   11-2-security-configuration-view: backlog
   11-3-design-document-and-security-editing: backlog

@@ -1,16 +1,18 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { HttpErrorResponse } from '@angular/common/http';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
+import { Subscription } from 'rxjs';
 import { DatabaseService, DatabaseEntry } from '../../services/database.service';
+import { mapError } from '../../services/error-mapping';
 import { DataTableComponent, ColumnDef, SortChangeEvent } from '../../couch-ui/data-table/data-table.component';
 import { EmptyStateComponent } from '../../couch-ui/empty-state/empty-state.component';
 import { ConfirmDialogComponent } from '../../couch-ui/confirm-dialog/confirm-dialog.component';
 import { PageHeaderComponent } from '../../couch-ui/page-header/page-header.component';
 import { ButtonComponent } from '../../couch-ui/button/button.component';
-import { ErrorDisplayComponent } from '../../couch-ui/error-display/error-display.component';
-import { IconPlusComponent } from '../../couch-ui/icons';
+import { FeatureErrorComponent } from '../../couch-ui/feature-error/feature-error.component';
+import { IconButtonComponent } from '../../couch-ui/icon-button/icon-button.component';
+import { IconPlusComponent, IconTrashComponent } from '../../couch-ui/icons';
 
 /**
  * Database List — feature component for the /databases route.
@@ -28,8 +30,10 @@ import { IconPlusComponent } from '../../couch-ui/icons';
     ConfirmDialogComponent,
     PageHeaderComponent,
     ButtonComponent,
-    ErrorDisplayComponent,
+    FeatureErrorComponent,
+    IconButtonComponent,
     IconPlusComponent,
+    IconTrashComponent,
   ],
   template: `
     <app-page-header
@@ -45,17 +49,16 @@ import { IconPlusComponent } from '../../couch-ui/icons';
       </ng-container>
     </app-page-header>
 
-    <!-- Error state -->
-    <app-error-display
+    <!-- Error state (Story 11.0 AC #5: shared FeatureError wrapper) -->
+    <app-feature-error
       *ngIf="!loading && loadError"
       [error]="loadError"
       [statusCode]="loadErrorCode"
-      variant="full"
       [retryable]="true"
       (retry)="loadDatabases()">
-    </app-error-display>
+    </app-feature-error>
 
-    <!-- Data table -->
+    <!-- Data table with per-row delete action (Story 11.0 AC #2) -->
     <app-data-table
       *ngIf="!loading && !loadError && databases.length > 0"
       [columns]="columns"
@@ -63,9 +66,19 @@ import { IconPlusComponent } from '../../couch-ui/icons';
       [sortColumn]="sortColumn"
       [sortDirection]="sortDirection"
       [clickable]="true"
+      [actionTemplate]="deleteActionTemplate"
       (sortChange)="onSortChange($event)"
       (rowClick)="onRowClick($event)">
     </app-data-table>
+
+    <ng-template #deleteActionTemplate let-row>
+      <app-icon-button
+        class="row-action--destructive"
+        [ariaLabel]="'Delete database ' + row.name"
+        (click)="onRowDeleteClick(row)">
+        <app-icon-trash [size]="14" />
+      </app-icon-button>
+    </ng-template>
 
     <!-- Empty state -->
     <app-empty-state
@@ -111,12 +124,29 @@ import { IconPlusComponent } from '../../couch-ui/icons';
       display: block;
       padding: 0 var(--space-6);
     }
+
+    /* Story 11.0 AC #2: Destructive-intent icon on the row-action column.
+       Uses the shared --color-danger token (no hardcoded colors per AC #6). */
+    .row-action--destructive {
+      color: var(--color-danger);
+    }
+
+    .row-action--destructive:hover {
+      color: var(--color-danger);
+      background-color: var(--color-danger-bg, var(--color-neutral-100));
+    }
   `]
 })
-export class DatabaseListComponent implements OnInit {
+export class DatabaseListComponent implements OnInit, OnDestroy {
   databases: DatabaseEntry[] = [];
   loading = false;
   fetchedAt: Date | null = null;
+
+  // Active in-flight HTTP subscriptions tracked for cleanup per the
+  // subscription-leak prevention rule (.claude/rules/angular-patterns.md).
+  private loadRequest?: Subscription;
+  private createRequest?: Subscription;
+  private deleteRequest?: Subscription;
 
   // Load error state
   loadError: { error: string; reason: string } | null = null;
@@ -197,31 +227,32 @@ export class DatabaseListComponent implements OnInit {
     this.loadDatabases();
   }
 
+  ngOnDestroy(): void {
+    // Subscription-leak prevention (.claude/rules/angular-patterns.md).
+    this.loadRequest?.unsubscribe();
+    this.createRequest?.unsubscribe();
+    this.deleteRequest?.unsubscribe();
+  }
+
   loadDatabases(): void {
+    // Cancel any in-flight load before issuing a new one — prevents stale
+    // callbacks from overwriting fresh state on rapid retries.
+    this.loadRequest?.unsubscribe();
     this.loading = true;
     this.loadError = null;
     this.loadErrorCode = undefined;
-    this.dbService.listAllWithInfo().subscribe({
+    this.loadRequest = this.dbService.listAllWithInfo().subscribe({
       next: (entries) => {
         this.databases = entries;
         this.fetchedAt = new Date();
         this.loading = false;
         this.liveAnnouncer.announce('Loaded database list');
       },
-      error: (err: HttpErrorResponse) => {
+      error: (err: unknown) => {
         this.loading = false;
-        if (err.status === 0) {
-          this.loadError = {
-            error: 'network_error',
-            reason: 'Cannot reach `/iris-couch/`. Check that the server is running.',
-          };
-          this.loadErrorCode = undefined;
-        } else {
-          this.loadErrorCode = err.status;
-          this.loadError = err.error && typeof err.error === 'object'
-            ? err.error
-            : { error: 'unknown', reason: 'An unexpected error occurred' };
-        }
+        const mapped = mapError(err);
+        this.loadError = mapped.display;
+        this.loadErrorCode = mapped.statusCode;
       },
     });
   }
@@ -233,6 +264,21 @@ export class DatabaseListComponent implements OnInit {
 
   onRowClick(row: Record<string, unknown>): void {
     this.router.navigate(['/db', row['name']]);
+  }
+
+  /**
+   * Per-row delete handler wired into the DataTable action column.
+   * Opens the shared ConfirmDialog (type-to-confirm) for the targeted DB.
+   */
+  onRowDeleteClick(row: Record<string, unknown>): void {
+    const name = String(row['name'] ?? '');
+    const db = this.databases.find((d) => d.name === name) || {
+      name,
+      docCount: Number(row['docCount']) || 0,
+      updateSeq: String(row['updateSeq'] ?? ''),
+      diskSize: Number(row['diskSize']) || 0,
+    };
+    this.openDeleteDialog(db);
   }
 
   // ── Create Database ──
@@ -251,19 +297,19 @@ export class DatabaseListComponent implements OnInit {
   }
 
   onCreateConfirm(name: string): void {
+    this.createRequest?.unsubscribe();
     this.createLoading = true;
     this.createError = undefined;
-    this.dbService.createDatabase(name).subscribe({
+    this.createRequest = this.dbService.createDatabase(name).subscribe({
       next: () => {
         this.closeCreateDialog();
         this.loadDatabases();
       },
-      error: (err: HttpErrorResponse) => {
+      error: (err: unknown) => {
         this.createLoading = false;
-        this.createErrorCode = err.status;
-        this.createError = err.error && typeof err.error === 'object'
-          ? err.error
-          : { error: 'unknown', reason: 'An unexpected error occurred' };
+        const mapped = mapError(err);
+        this.createError = mapped.display;
+        this.createErrorCode = mapped.statusCode;
       },
     });
   }
@@ -287,19 +333,19 @@ export class DatabaseListComponent implements OnInit {
 
   onDeleteConfirm(): void {
     if (!this.deleteTarget) return;
+    this.deleteRequest?.unsubscribe();
     this.deleteLoading = true;
     this.deleteError = undefined;
-    this.dbService.deleteDatabase(this.deleteTarget.name).subscribe({
+    this.deleteRequest = this.dbService.deleteDatabase(this.deleteTarget.name).subscribe({
       next: () => {
         this.closeDeleteDialog();
         this.loadDatabases();
       },
-      error: (err: HttpErrorResponse) => {
+      error: (err: unknown) => {
         this.deleteLoading = false;
-        this.deleteErrorCode = err.status;
-        this.deleteError = err.error && typeof err.error === 'object'
-          ? err.error
-          : { error: 'unknown', reason: 'An unexpected error occurred' };
+        const mapped = mapError(err);
+        this.deleteError = mapped.display;
+        this.deleteErrorCode = mapped.statusCode;
       },
     });
   }

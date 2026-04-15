@@ -95,6 +95,44 @@ Complete the login -> database list -> document detail flow in each browser.
 
 ---
 
+## 6. Chrome DevTools MCP Smoke Script (Story 11.0 AC #7 / Task 8)
+
+This section documents the same steps that the CI dev-server smoke test
+(`ui/smoke/smoke.mjs`, Story 11.0 Task 4) automates. Developers can run the
+flow locally via the Chrome DevTools MCP to verify end-to-end wiring before
+pushing a PR.
+
+Prerequisites:
+- IRIS running locally on `localhost:52773`, `iris-couch` web application
+  exposing `/iris-couch/_utils/`
+- Dev server running: `npm run start` in `ui/` (ng serve on port 4200 with
+  the `proxy.conf.js` rewriting `/iris-couch/*` to IRIS)
+- Test credentials: `_system / SYS` (or any role-mapped user)
+
+Steps (use the `mcp__chrome-devtools-mcp__*` tool family):
+1. `new_page` → navigate to `http://localhost:4200/iris-couch/_utils/`
+2. `take_snapshot` → confirm the login form is rendered, fields `Name` and
+   `Password` are present
+3. `fill_form` with `{Name: "_system", Password: "SYS"}`
+4. `click` the "Sign In" button
+5. `wait_for` the `/databases` route (URL contains `#/databases` or
+   `/databases`)
+6. `list_network_requests` → confirm a `GET /iris-couch/_all_dbs` request
+   returned 200 and a `GET /iris-couch/{db}` request for each row returned
+   200 with a `sizes` object in the response body (Story 11.0 AC #1)
+7. `click` on "Create database", type a test name, submit — confirm the
+   row appears
+8. `click` the per-row delete icon on the test database, type to confirm,
+   click Delete — confirm the row disappears (Story 11.0 AC #2)
+9. `list_console_messages` → should be empty (no unhandled exceptions)
+
+Pass criteria: all steps complete without errors and without red entries
+in the console message list.
+
+**Result**: [ ] PASS / [ ] FAIL
+
+---
+
 ## Sign-Off
 
 | Tester | Date | Overall Result |

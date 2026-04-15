@@ -248,3 +248,62 @@ All 43 remaining open deferred work items were reviewed for Epic 10 (Admin UI - 
 
 - **Network error message hardcoded in 3 components** [database-list.component.ts, database-detail.component.ts, document-detail.component.ts] -- The string "Cannot reach `/iris-couch/`. Check that the server is running." is duplicated across all three feature components. Extract to a shared constant or utility function for DRY compliance. LOW.
 - **Error handler pattern (status=0 branch) duplicated 3x** [database-list.component.ts, database-detail.component.ts, document-detail.component.ts] -- The `if (err.status === 0) { ... } else { ... }` error classification logic is copy-pasted identically across all three components. Extract to a shared error handler utility function (e.g., `classifyHttpError(err): { error, reason, statusCode }`) for maintainability. LOW.
+
+## Angular UI — ongoing deferrals (initialized by Story 11.0)
+
+Story 11.0 establishes a running Angular-UI-scoped section for deferrals
+that do not fit any single epic's code review (forward-looking, polish,
+tooling-adjacent). Two items from the Epic 10 retrospective triage are
+the initial entries.
+
+- **Real favicon** [ui/public/favicon.ico] -- Current `data:,` stub ships
+  a 1x1 transparent placeholder. Cosmetic only; no functional impact.
+  Revisit near launch when brand assets are finalised. Source: Epic 10
+  retrospective triage #16.
+- **Angular 19+ idiom polish** [ui/src/app/couch-ui/icons/*, input()
+  signal mode, weight-500 font inclusion] -- Several components still use
+  classic `@Input()` decorators instead of the Angular 19 `input()` signal
+  form; the icon components use default font weight where the design spec
+  suggests `weight-500`. Non-functional; revisit when upgrading to
+  Angular 19+. Source: Epic 10 retrospective triage #17.
+
+## Deferred from: Story 11.0 implementation (2026-04-14)
+
+- **stylelint is configured but not installed** [ui/.stylelintrc.json,
+  ui/package.json] -- The `color-no-hex` and rgba-disallowed rules are
+  defined in `.stylelintrc.json` and wired to `npm run stylelint`, but
+  the `stylelint` and `stylelint-config-standard` packages are not yet
+  added to `devDependencies` (this requires an `npm install` in a
+  sandboxed environment). Next developer should install them and run
+  the initial pass; all existing violations have already been refactored
+  during Story 11.0. LOW.
+- **UI smoke workflow requires self-hosted runner** [.github/workflows/ui-smoke.yml]
+  -- The CI job is configured to run on a `[self-hosted, iris-smoke]`
+  runner because the smoke script needs a live IRIS backend. Provisioning
+  the runner is an infra task outside this story's scope. MEDIUM -- without
+  a runner the workflow queues indefinitely. Either provision the runner,
+  change to GitHub-hosted + service container, or gate the workflow behind
+  a `workflow_dispatch` trigger.
+- **sizes.external and sizes.active use allocated bytes (not uncompressed
+  JSON)** [src/IRISCouch/Storage/Database.cls ComputeDiskSize] -- CouchDB
+  spec defines `sizes.external` as the pre-compression JSON size and
+  `sizes.active` as the live (non-deleted) size. IRIS does not expose a
+  clean equivalent via `%Library.GlobalEdit.GetGlobalSizeBySubscript()`
+  -- all three values report allocated bytes for the IRISCouch.* global
+  subtrees. Sufficient for the UI's informational display and for
+  spec-compliance at the JSON-shape level, but consumers that compute
+  compression ratios from these fields will see a ratio of 1.0. LOW --
+  revisit if a replicator or monitoring consumer surfaces the gap.
+
+## Deferred from: Story 11.0 code review (2026-04-14)
+
+- **Smoke.mjs path resolution on Windows (LOW).** `new URL('..', import.meta.url).pathname.replace(/^\//, '')` does not URL-decode,
+  so paths with spaces become `%20` literals in the `cwd` passed to
+  `spawn()`. Prefer `fileURLToPath(new URL('..', import.meta.url))` from
+  `node:url`. Does not affect the CI runner path. Revisit next time the
+  smoke script is touched.
+- **FeatureError rawError setter clears statusCode (LOW).** When a consumer
+  binds both `[statusCode]` and `[rawError]`, the `rawError` setter resets
+  `statusCode` to the mapped value — binding-order dependent. Pre-existing
+  in the new code but no current consumer binds both. If a future caller
+  needs to override status, split into `setFromRaw(err, overrideStatus?)`.

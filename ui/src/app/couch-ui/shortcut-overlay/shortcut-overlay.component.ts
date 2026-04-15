@@ -37,7 +37,7 @@ import { ComponentPortal } from '@angular/cdk/portal';
       padding: var(--space-6);
       min-width: 320px;
       max-width: 480px;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+      box-shadow: var(--shadow-overlay);
     }
 
     .shortcut-panel__header {

@@ -86,7 +86,7 @@ let nextId = 0;
     .text-input__field:focus {
       outline: none;
       border-color: var(--color-info);
-      box-shadow: 0 0 0 2px rgba(60, 90, 158, 0.1);
+      box-shadow: var(--focus-ring-info);
     }
 
     .text-input__field:focus-visible {
@@ -105,7 +105,7 @@ let nextId = 0;
 
     .text-input__field--error:focus {
       border-color: var(--color-error);
-      box-shadow: 0 0 0 2px rgba(195, 63, 63, 0.1);
+      box-shadow: var(--focus-ring-danger);
     }
 
     .text-input__hint {

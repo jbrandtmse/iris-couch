@@ -114,11 +114,12 @@ import { CommonModule } from '@angular/common';
     }
 
     .btn--destructive:hover:not(:disabled) {
-      background-color: rgba(195, 63, 63, 0.06);
+      /* Story 11.0 AC #6/#7: use --color-danger-bg token, not rgba literal. */
+      background-color: var(--color-danger-bg);
     }
 
     .btn--destructive:active:not(:disabled) {
-      background-color: rgba(195, 63, 63, 0.1);
+      background-color: var(--color-danger-bg-strong);
     }
 
     /* ── Focus ── */

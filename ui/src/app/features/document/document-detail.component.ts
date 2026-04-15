@@ -1,15 +1,15 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { HttpErrorResponse } from '@angular/common/http';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Subscription } from 'rxjs';
-import { DocumentService } from '../../services/document.service';
+import { DocumentService, encodeDocId } from '../../services/document.service';
+import { mapError } from '../../services/error-mapping';
 import { PageHeaderComponent } from '../../couch-ui/page-header/page-header.component';
 import { BreadcrumbComponent, BreadcrumbSegment } from '../../couch-ui/breadcrumb/breadcrumb.component';
 import { BadgeComponent } from '../../couch-ui/badge/badge.component';
 import { CopyButtonComponent } from '../../couch-ui/copy-button/copy-button.component';
-import { ErrorDisplayComponent } from '../../couch-ui/error-display/error-display.component';
+import { FeatureErrorComponent } from '../../couch-ui/feature-error/feature-error.component';
 import { JsonDisplayComponent } from '../../couch-ui/json-display/json-display.component';
 import { IconButtonComponent } from '../../couch-ui/icon-button/icon-button.component';
 import { IconDownloadComponent } from '../../couch-ui/icons';
@@ -40,7 +40,7 @@ interface AttachmentStub {
     BreadcrumbComponent,
     BadgeComponent,
     CopyButtonComponent,
-    ErrorDisplayComponent,
+    FeatureErrorComponent,
     JsonDisplayComponent,
     IconButtonComponent,
     IconDownloadComponent,
@@ -148,15 +148,14 @@ interface AttachmentStub {
       </div>
     </div>
 
-    <!-- Error state -->
+    <!-- Error state (Story 11.0 AC #5: shared FeatureError wrapper) -->
     <div *ngIf="error" class="doc-detail__error">
-      <app-error-display
+      <app-feature-error
         [error]="error"
         [statusCode]="errorStatus"
-        variant="full"
         [retryable]="true"
         (retry)="onRefresh()">
-      </app-error-display>
+      </app-feature-error>
     </div>
   `,
   styles: [`
@@ -417,7 +416,9 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
   }
 
   getAttachmentUrl(name: string): string {
-    return `/${encodeURIComponent(this.dbName)}/${encodeURIComponent(this.docId)}/${encodeURIComponent(name)}`;
+    // Use encodeDocId so `_design/<name>` composite IDs keep the literal `/`
+    // that CouchDB expects on the wire. See Story 11.0 AC #3.
+    return `/${encodeURIComponent(this.dbName)}/${encodeDocId(this.docId)}/${encodeURIComponent(name)}`;
   }
 
   private loadDocument(): void {
@@ -451,21 +452,12 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
         this.attachmentCount = this.attachments.length;
         this.liveAnnouncer.announce(`Loaded document ${this.docId}`);
       },
-      error: (err: HttpErrorResponse) => {
+      error: (err: unknown) => {
         this.loading = false;
         this.doc = null;
-        if (err.status === 0) {
-          this.errorStatus = undefined;
-          this.error = {
-            error: 'network_error',
-            reason: 'Cannot reach `/iris-couch/`. Check that the server is running.',
-          };
-        } else {
-          this.errorStatus = err.status;
-          this.error = err.error && typeof err.error === 'object'
-            ? err.error
-            : { error: 'unknown', reason: 'An unexpected error occurred' };
-        }
+        const mapped = mapError(err);
+        this.error = mapped.display;
+        this.errorStatus = mapped.statusCode;
       },
     });
   }

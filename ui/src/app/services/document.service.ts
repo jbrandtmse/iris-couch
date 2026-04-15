@@ -35,6 +35,45 @@ export interface GetDocumentOptions {
 }
 
 /**
+ * Encode a CouchDB document ID for use in a URL path.
+ *
+ * Most doc IDs are encoded via `encodeURIComponent`. The `_design/<name>`
+ * and `_local/<name>` composite IDs are special: CouchDB's HTTP API
+ * (and the IRISCouch router) expects a literal `/` between the prefix
+ * and the name, NOT `%2F`. We therefore encode the prefix and name
+ * separately and rejoin with a literal `/`.
+ *
+ * Examples:
+ *   encodeDocId("doc1")           -> "doc1"
+ *   encodeDocId("my doc")         -> "my%20doc"
+ *   encodeDocId("_design/myapp")  -> "_design/myapp"
+ *   encodeDocId("_design/my app") -> "_design/my%20app"
+ *   encodeDocId("_local/ckpt")    -> "_local/ckpt"
+ *
+ * See Story 11.0 AC #3 / Task 3 and sources/couchdb/src/chttpd/src/chttpd_db.erl.
+ */
+export function encodeDocId(docid: string): string {
+  for (const prefix of ['_design/', '_local/']) {
+    if (docid.startsWith(prefix)) {
+      const name = docid.slice(prefix.length);
+      return prefix + encodeURIComponent(name);
+    }
+  }
+  return encodeURIComponent(docid);
+}
+
+/**
+ * Construct the URL path fragment for a design document by name.
+ *
+ * Given "myapp", returns "_design/myapp" (ready to pass to route navigation
+ * or to encodeDocId()). Callers that need the API wire format should pipe
+ * through encodeDocId().
+ */
+export function designDocId(name: string): string {
+  return '_design/' + name;
+}
+
+/**
  * DocumentService -- CRUD operations for CouchDB documents.
  *
  * Wraps CouchApiService with typed methods for the _all_docs endpoint.
@@ -48,7 +87,8 @@ export class DocumentService {
    *
    * Returns the full document body including _id, _rev, _conflicts,
    * and _attachments metadata (stubs). Always requests conflicts=true
-   * to detect conflict state.
+   * to detect conflict state. Uses `encodeDocId()` to preserve the
+   * literal `/` in `_design/<name>` and `_local/<name>` composite IDs.
    */
   getDocument(db: string, docid: string, options: GetDocumentOptions = {}): Observable<any> {
     const params = new URLSearchParams();
@@ -58,7 +98,7 @@ export class DocumentService {
       params.set('rev', options.rev);
     }
 
-    const path = `${encodeURIComponent(db)}/${encodeURIComponent(docid)}?${params.toString()}`;
+    const path = `${encodeURIComponent(db)}/${encodeDocId(docid)}?${params.toString()}`;
     return this.api.get<any>(path);
   }
 

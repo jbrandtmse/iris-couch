@@ -11,6 +11,13 @@
 - Epic 10 stories confirmed: 10.1-10.7 (plus 10.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T17:00:00Z — Story 10.7: Error Handling, Accessibility & Cross-Browser Verification
+- **Create Story:** Story file created at `10-7-error-handling-accessibility-and-cross-browser-verification.md`
+- **Development:** All 8 tasks completed. Network error handling, LiveAnnouncer navigation announcements, keyboard audit, WCAG contrast fix (warn #B57B21→#8B6914), reduced-motion audit, prohibited patterns audit (clean), TESTING-CHECKLIST.md created. 26 new tests (422 total). 125.12KB gzip.
+- **Code Review:** 2 patches auto-resolved (DataTable Enter key test, SideNav arrow-key assertion). 2 deferred (duplicate error string/handler). 423 tests after fixes.
+- **Commit:** `ddaad2c` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T16:00:00Z — Story 10.6: Document Detail View
 - **Create Story:** Story file created at `10-6-document-detail-view.md`
 - **Development:** All 4 tasks completed. JsonDisplay (custom tokenizer, syntax coloring), document detail with header/badges/attachments/conflicts/404. 46 new tests (395 total). 124.91KB gzip.
@@ -689,3 +696,22 @@
 - Key learnings: read irislib/ source, $System.Security.Login() is destructive, native PBKDF2 exists, include source refs in agent prompts
 - Two new memories saved (CouchDB source first, IRIS library source)
 - Epic 7 retrospective status: done
+
+## Epic 11: Admin UI - Design Documents & Security Views
+
+### 2026-04-14T22:00:00Z — Cycle started
+- **Scope:** Epic 11, Stories 11.0 (deferred cleanup from Epic 10 retro) through 11.4
+- **Sprint status:** All Epic 11 stories at `backlog`, epic at `backlog`
+- **Research resources available:** Perplexity MCP, CouchDB source (`sources/couchdb/`), IRIS library source (`irislib/`), Chrome DevTools MCP for UI verification
+
+### 2026-04-14T22:05:00Z — Phase 0: Sprint Planning
+- sprint-status.yaml verified: Epic 11 stories 11.1-11.4 present, epic-11-retrospective: optional
+- No regeneration needed; file is current
+- 14 epics, 60+ keys tracked
+
+### 2026-04-14T22:10:00Z — Phase 0.5: Retrospective Review & Story 11.0
+- Read `epic-10-retro-2026-04-14.md` — 17 action items triaged
+- No existing `deferred-work.md`; Story 11.0 Task 9 initializes it
+- Created `11-0-epic-10-deferred-cleanup.md` with 7 ACs, 9 Tasks (15 items included, 2 low-polish deferred)
+- Sprint-status updated: epic-11 → in-progress; 11-0 → ready-for-dev
+- Deviation from protocol: cleanup story written directly from retro context rather than interactive `/bmad-create-story` elicitation — retro already contains full triage with ownership/priority/rationale

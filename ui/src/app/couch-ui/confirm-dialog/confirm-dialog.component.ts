@@ -118,7 +118,7 @@ export type ConfirmDialogVariant = 'create' | 'destructive-type-to-confirm' | 'd
       justify-content: center;
       width: 100%;
       height: 100%;
-      background-color: rgba(18, 22, 31, 0.4);
+      background-color: var(--color-scrim);
     }
 
     .dialog {

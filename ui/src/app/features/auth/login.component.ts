@@ -147,7 +147,7 @@ import { ErrorDisplayComponent } from '../../couch-ui/error-display/error-displa
     .login-field:focus {
       outline: none;
       border-color: var(--color-info);
-      box-shadow: 0 0 0 2px rgba(60, 90, 158, 0.1);
+      box-shadow: var(--focus-ring-info);
     }
 
     .login-field:focus-visible {
@@ -201,11 +201,28 @@ export class LoginComponent implements AfterViewInit {
       },
       error: (err) => {
         this.submitting = false;
-        this.errorStatusCode = err.status || 401;
-        this.error = err.error && err.error.error
-          ? { error: err.error.error, reason: err.error.reason || '' }
-          : { error: 'unauthorized', reason: 'Name or password is incorrect.' };
-        // Do NOT reset the username field
+        this.errorStatusCode = err.status;
+        if (err.status === 0) {
+          this.error = {
+            error: 'network_error',
+            reason: 'Cannot reach `/iris-couch/`. Check that the server is running.',
+          };
+        } else if (err.error && typeof err.error === 'object' && err.error.error) {
+          this.error = { error: err.error.error, reason: err.error.reason || '' };
+        } else if (err.status === 401) {
+          this.error = { error: 'unauthorized', reason: 'Name or password is incorrect.' };
+        } else {
+          this.error = {
+            error: err.statusText || 'error',
+            reason: typeof err.error === 'string' && err.error.length < 200
+              ? err.error
+              : `Unexpected response from server (HTTP ${err.status}).`,
+          };
+        }
+        // Do NOT reset the username field, but DO clear the password for
+        // security (Story 11.0 AC #7 / Task 8). The user should re-enter
+        // credentials intentionally after a failure.
+        this.password = '';
       },
     });
   }

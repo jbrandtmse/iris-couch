@@ -101,7 +101,8 @@ Method TestSetUpdateSeq()
 {
     Do ##class(IRISCouch.Storage.Database).SetUpdateSeq("teststoragecleanup", 42)
     Set tInfo = ##class(IRISCouch.Storage.Database).GetInfo("teststoragecleanup")
-    Do $$$AssertEquals(tInfo.%Get("update_seq"), 42, "update_seq set to 42")
+    ; Story 11.0 AC #1: update_seq is a string per CouchDB spec.
+    Do $$$AssertEquals(tInfo.%Get("update_seq"), "42", "update_seq set to ""42""")
 }
 
 /// <p>Test RevisionExists checks specific revision existence.</p>
@@ -215,7 +216,8 @@ Method TestSaveUsesStorageMethods()
     ; Verify doc_count was incremented
     Set tInfo = ##class(IRISCouch.Storage.Database).GetInfo("teststoragecleanup")
     Do $$$AssertEquals(tInfo.%Get("doc_count"), 1, "doc_count is 1 after first save")
-    Do $$$AssertEquals(tInfo.%Get("update_seq"), tLastSeq, "update_seq matches last seq")
+    ; Story 11.0 AC #1: update_seq is a string per CouchDB spec.
+    Do $$$AssertEquals(tInfo.%Get("update_seq"), tLastSeq_"", "update_seq matches last seq (stringified)")
 }
 
 }

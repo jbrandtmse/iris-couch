@@ -1,7 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { DocumentService, AllDocsResponse, GetDocumentOptions } from './document.service';
+import {
+  DocumentService,
+  AllDocsResponse,
+  GetDocumentOptions,
+  encodeDocId,
+  designDocId,
+} from './document.service';
 
 describe('DocumentService', () => {
   let service: DocumentService;
@@ -217,6 +223,51 @@ describe('DocumentService', () => {
         { status: 404, statusText: 'Object Not Found' }
       );
       expect(errorReceived).toBeTrue();
+    });
+  });
+
+  // Story 11.0 AC #3 / Task 3 -- _design/<name> composite ID encoding.
+  describe('encodeDocId', () => {
+    it('encodes ordinary doc IDs via encodeURIComponent', () => {
+      expect(encodeDocId('doc1')).toBe('doc1');
+      expect(encodeDocId('my doc')).toBe('my%20doc');
+      expect(encodeDocId('ID/with/slashes')).toBe('ID%2Fwith%2Fslashes');
+    });
+
+    it('preserves the literal `/` between `_design/` and the design name', () => {
+      expect(encodeDocId('_design/myapp')).toBe('_design/myapp');
+    });
+
+    it('encodes the design name portion but keeps the prefix separator literal', () => {
+      expect(encodeDocId('_design/my app')).toBe('_design/my%20app');
+      expect(encodeDocId('_design/foo&bar')).toBe('_design/foo%26bar');
+    });
+
+    it('preserves the literal `/` between `_local/` and the doc name', () => {
+      expect(encodeDocId('_local/ckpt-1')).toBe('_local/ckpt-1');
+    });
+  });
+
+  describe('designDocId', () => {
+    it('constructs the composite ID from a bare name', () => {
+      expect(designDocId('myapp')).toBe('_design/myapp');
+    });
+  });
+
+  describe('getDocument with design doc IDs', () => {
+    it('sends a request to `/{db}/_design/{name}` with literal `/` (not %2F)', () => {
+      service.getDocument('testdb', '_design/ddoc-a').subscribe();
+      // HttpTestingController matches URLs against the path portion passed to
+      // HttpClient.get() — here `testdb/_design/ddoc-a?conflicts=true`. We
+      // check that the url does NOT contain `%2F` (which would indicate the
+      // `/` inside `_design/` was percent-encoded) and that the path shape
+      // is the expected literal form.
+      const req = httpMock.expectOne(
+        (r) => r.url.includes('testdb/_design/ddoc-a') && !r.url.includes('%2F'),
+      );
+      expect(req.request.method).toBe('GET');
+      expect(req.request.urlWithParams).toContain('conflicts=true');
+      req.flush({ _id: '_design/ddoc-a', _rev: '1-abc' });
     });
   });
 });

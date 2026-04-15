@@ -2,16 +2,17 @@ import { Injectable } from '@angular/core';
 import { Observable, forkJoin, map, switchMap } from 'rxjs';
 import { CouchApiService } from './couch-api.service';
 
-/** Shape of the CouchDB GET /{db} response. */
+/** Shape of the CouchDB GET /{db} response. Tolerates legacy flat `disk_size`. */
 export interface DbInfo {
   db_name: string;
   doc_count: number;
-  update_seq: string;
-  sizes: {
+  update_seq: string | number;
+  sizes?: {
     file: number;
     external: number;
     active: number;
   };
+  disk_size?: number;
 }
 
 /** Combined database entry for the list view (name + info). */
@@ -70,7 +71,7 @@ export class DatabaseService {
               updateSeq: typeof info.update_seq === 'string'
                 ? info.update_seq
                 : String(info.update_seq),
-              diskSize: info.sizes.file,
+              diskSize: info.sizes?.file ?? info.disk_size ?? 0,
             }))
           )
         );

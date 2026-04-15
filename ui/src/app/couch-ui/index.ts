@@ -13,6 +13,7 @@ export { AppShellComponent } from './app-shell/app-shell.component';
 export { SideNavComponent } from './side-nav/side-nav.component';
 export { BreadcrumbComponent, type BreadcrumbSegment } from './breadcrumb/breadcrumb.component';
 export { ErrorDisplayComponent } from './error-display/error-display.component';
+export { FeatureErrorComponent } from './feature-error/feature-error.component';
 export { ShortcutOverlayComponent, ShortcutOverlayContentComponent } from './shortcut-overlay/shortcut-overlay.component';
 export { DataTableComponent, type ColumnDef, type SortChangeEvent } from './data-table/data-table.component';
 export { EmptyStateComponent } from './empty-state/empty-state.component';

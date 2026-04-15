@@ -199,14 +199,23 @@ Method TestGetInfo()
     Do $$$AssertEquals(tInfo."db_name", "testdb", "db_name is testdb")
     Do $$$AssertEquals(tInfo."doc_count", 0, "doc_count is 0")
     Do $$$AssertEquals(tInfo."doc_del_count", 0, "doc_del_count is 0")
-    Do $$$AssertEquals(tInfo."update_seq", 0, "update_seq is 0")
+    ; Story 11.0 AC #1: update_seq is a string sequence identifier per CouchDB spec.
+    Do $$$AssertEquals(tInfo."update_seq", "0", "update_seq is string ""0""")
     Do $$$AssertEquals(tInfo."purge_seq", 0, "purge_seq is 0")
     Do $$$AssertEquals(tInfo."compact_running", 0, "compact_running is false")
-    Do $$$AssertEquals(tInfo."disk_size", 0, "disk_size is 0")
-    Do $$$AssertEquals(tInfo."data_size", 0, "data_size is 0")
+    ; Story 11.0 AC #1: sizes object is present with file, external, active keys.
+    Do $$$AssertTrue($IsObject(tInfo."sizes"), "sizes object present")
+    Do $$$AssertTrue(tInfo."sizes"."file" '= "", "sizes.file defined")
+    Do $$$AssertTrue(tInfo."sizes"."external" '= "", "sizes.external defined")
+    Do $$$AssertTrue(tInfo."sizes"."active" '= "", "sizes.active defined")
+    ; Story 11.0 AC #1: sizes.file and disk_size are non-negative integers.
+    Do $$$AssertTrue(tInfo."sizes"."file" >= 0, "sizes.file is non-negative")
+    Do $$$AssertTrue(tInfo."disk_size" >= 0, "disk_size is non-negative")
+    ; Story 11.0 AC #1: sizes.file and legacy disk_size stay in sync.
+    Do $$$AssertEquals(tInfo."disk_size", tInfo."sizes"."file", "disk_size equals sizes.file")
     Do $$$AssertEquals(tInfo."instance_start_time", "0", "instance_start_time is 0")
     Do $$$AssertEquals(tInfo."disk_format_version", 1, "disk_format_version is 1")
-    Do $$$AssertEquals(tInfo."committed_update_seq", 0, "committed_update_seq matches update_seq")
+    Do $$$AssertEquals(tInfo."committed_update_seq", "0", "committed_update_seq is string ""0""")
 }
 
 /// <p>AC #1 (Story 2.3): SetRevsLimit stores value in global.</p>

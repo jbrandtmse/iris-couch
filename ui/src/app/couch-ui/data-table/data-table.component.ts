@@ -1,4 +1,13 @@
-import { Component, Input, Output, EventEmitter, TrackByFunction } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  TrackByFunction,
+  ContentChild,
+  TemplateRef,
+  AfterContentInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkTableModule } from '@angular/cdk/table';
 import { IconChevronDownComponent } from '../icons';
@@ -66,18 +75,45 @@ export interface SortChangeEvent {
             class="data-table__cell"
             [class.data-table__cell--right]="col.align === 'right'"
             [class.data-table__cell--mono]="col.mono"
-            [class.data-table__cell--numeric]="col.numeric">
+            [class.data-table__cell--numeric]="col.numeric"
+            (click)="onCellClick($event, row)">
             {{ col.format ? col.format(row[col.key], row) : row[col.key] }}
           </td>
         </ng-container>
 
+        <!-- Story 11.0 AC #2 Task 2: optional trailing action column. See
+             the actionTemplate Input docstring on the component class for
+             usage notes. Clicks inside the action cell stop propagation so
+             they do not trigger row navigation. The column uses the fixed
+             key __actions to avoid collision with data fields. -->
+        <ng-container *ngIf="effectiveActionTemplate" cdkColumnDef="__actions">
+          <th
+            cdk-header-cell
+            *cdkHeaderCellDef
+            class="data-table__header data-table__header--actions"
+            scope="col">
+            <span class="visually-hidden">{{ actionsLabel }}</span>
+          </th>
+          <td
+            cdk-cell
+            *cdkCellDef="let row"
+            class="data-table__cell data-table__cell--actions"
+            (click)="$event.stopPropagation()"
+            (keydown.enter)="$event.stopPropagation()">
+            <ng-container
+              [ngTemplateOutlet]="effectiveActionTemplate!"
+              [ngTemplateOutletContext]="{ $implicit: row, row: row }">
+            </ng-container>
+          </td>
+        </ng-container>
+
         <!-- Header row -->
-        <tr cdk-header-row *cdkHeaderRowDef="columnKeys"></tr>
+        <tr cdk-header-row *cdkHeaderRowDef="displayedColumnKeys"></tr>
 
         <!-- Data rows -->
         <tr
           cdk-row
-          *cdkRowDef="let row; columns: columnKeys"
+          *cdkRowDef="let row; columns: displayedColumnKeys"
           class="data-table__row"
           [class.data-table__row--clickable]="clickable"
           [attr.tabindex]="clickable ? 0 : null"
@@ -182,6 +218,30 @@ export interface SortChangeEvent {
       outline-offset: -2px;
     }
 
+    /* Action column: right-aligned, compact, doesn't inherit row hover cursor. */
+    .data-table__header--actions,
+    .data-table__cell--actions {
+      text-align: right;
+      width: 1%;
+      white-space: nowrap;
+      padding-right: var(--space-3);
+    }
+
+    .data-table__cell--actions {
+      cursor: default;
+    }
+
+    /* Visually-hidden utility for accessible label on the actions column. */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .data-table__sort-icon {
         transition: none;
@@ -189,18 +249,77 @@ export interface SortChangeEvent {
     }
   `]
 })
-export class DataTableComponent {
+export class DataTableComponent implements AfterContentInit {
   @Input() columns: ColumnDef[] = [];
   @Input() data: Record<string, unknown>[] = [];
   @Input() sortColumn = '';
   @Input() sortDirection: 'asc' | 'desc' = 'asc';
   @Input() clickable = false;
 
+  /**
+   * Optional per-row action template. When provided, the DataTable renders a
+   * trailing "__actions" column whose cells are the template's rendering for
+   * each row. The template receives the row as `$implicit` and as a named
+   * `row` context variable.
+   *
+   * Usage:
+   *   <app-data-table [columns]="cols" [data]="rows" [actionTemplate]="actions">
+   *     <ng-template #actions let-row>
+   *       <app-icon-button (click)="delete(row)">...</app-icon-button>
+   *     </ng-template>
+   *   </app-data-table>
+   *
+   * The template can be passed via [actionTemplate] binding or projected as a
+   * `ContentChild` using the template reference `#actions`. Click events
+   * inside the action cell are stopPropagation'd so they don't fire rowClick.
+   *
+   * See Story 11.0 AC #2 / Task 2.
+   */
+  @Input() actionTemplate?: TemplateRef<{ $implicit: Record<string, unknown>; row: Record<string, unknown> }>;
+
+  /** aria-label for the trailing actions column header (empty by default). */
+  @Input() actionsLabel = 'Actions';
+
+  @ContentChild('actions', { read: TemplateRef, static: true })
+  projectedActionTemplate?: TemplateRef<any>;
+
   @Output() sortChange = new EventEmitter<SortChangeEvent>();
   @Output() rowClick = new EventEmitter<Record<string, unknown>>();
 
   get columnKeys(): string[] {
     return this.columns.map((col) => col.key);
+  }
+
+  /**
+   * Resolve the content-projected action template (if any) after content init.
+   * Kept as a separate private field so we don't mutate the `@Input` binding
+   * from inside a getter (which would run on every change-detection pass).
+   */
+  private resolvedActionTemplate?: TemplateRef<{ $implicit: Record<string, unknown>; row: Record<string, unknown> }>;
+
+  ngAfterContentInit(): void {
+    // Prefer the explicit @Input binding; fall back to content projection.
+    this.resolvedActionTemplate =
+      this.actionTemplate ?? (this.projectedActionTemplate as TemplateRef<any>);
+  }
+
+  /** Effective action template (Input takes precedence over ContentChild). */
+  get effectiveActionTemplate(): TemplateRef<any> | undefined {
+    return this.actionTemplate ?? this.resolvedActionTemplate;
+  }
+
+  /**
+   * Columns actually displayed in the CDK header/row definitions. Appends
+   * the synthetic `__actions` key when an action template is present.
+   */
+  get displayedColumnKeys(): string[] {
+    const keys = this.columnKeys;
+    return this.effectiveActionTemplate ? [...keys, '__actions'] : keys;
+  }
+
+  onCellClick(_event: Event, _row: Record<string, unknown>): void {
+    // Placeholder for future per-cell handling; kept so the (click) binding
+    // in the template compiles cleanly.
   }
 
   trackByIndex: TrackByFunction<Record<string, unknown>> = (index: number) => index;

@@ -1,0 +1,54 @@
+# UI dev-server smoke test — Story 11.0 AC #4 / Task 4.
+#
+# Runs the dev-server smoke script (ui/smoke/smoke.mjs) on pull requests that
+# touch the Angular UI. The script boots `ng serve`, validates the dev proxy,
+# and exits non-zero if the proxy is broken or the login/list-dbs flow fails.
+#
+# NOTE: This job requires a live IRIS backend that the dev proxy can reach.
+# GitHub-hosted runners do not have IRIS available, so this workflow is
+# configured to run on a self-hosted runner labeled `iris-smoke`. If your
+# fork or mirror does not have a matching runner available, either:
+#   (a) Provision one and tag it `iris-smoke`, OR
+#   (b) Change `runs-on` to `ubuntu-latest` and add a services block that
+#       stands up an IRIS container with the iris-couch web application
+#       pre-configured, OR
+#   (c) Remove this workflow if your environment doesn't have a way to
+#       provide a backend for smoke tests.
+#
+# The smoke script itself has no IRIS-specific dependency other than the
+# `/iris-couch/_session` and `/iris-couch/_all_dbs` endpoints.
+
+name: UI Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'ui/**'
+      - '.github/workflows/ui-smoke.yml'
+
+jobs:
+  smoke:
+    name: Dev-server smoke (ng serve + proxy)
+    runs-on: [self-hosted, iris-smoke]
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run smoke test
+        env:
+          # Override if your smoke runner uses different credentials.
+          SMOKE_USERNAME: ${{ secrets.SMOKE_USERNAME || '_system' }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD || 'SYS' }}
+        run: npm run smoke

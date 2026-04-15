@@ -2,12 +2,12 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener } fro
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { HttpErrorResponse } from '@angular/common/http';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import { DocumentService, AllDocsResponse, AllDocsRow } from '../../services/document.service';
+import { mapError } from '../../services/error-mapping';
 import { EmptyStateComponent } from '../../couch-ui/empty-state/empty-state.component';
-import { ErrorDisplayComponent } from '../../couch-ui/error-display/error-display.component';
+import { FeatureErrorComponent } from '../../couch-ui/feature-error/feature-error.component';
 import { PageHeaderComponent } from '../../couch-ui/page-header/page-header.component';
 import { PaginationComponent } from '../../couch-ui/pagination/pagination.component';
 import { BadgeComponent } from '../../couch-ui/badge/badge.component';
@@ -35,7 +35,7 @@ const PAGE_SIZE = 25;
     CommonModule,
     FormsModule,
     EmptyStateComponent,
-    ErrorDisplayComponent,
+    FeatureErrorComponent,
     PageHeaderComponent,
     PaginationComponent,
     BadgeComponent,
@@ -114,15 +114,14 @@ const PAGE_SIZE = 25;
       </table>
     </div>
 
-    <!-- Error state -->
-    <app-error-display
+    <!-- Error state (Story 11.0 AC #5: shared FeatureError wrapper) -->
+    <app-feature-error
       *ngIf="!loading && loadError"
       [error]="loadError"
       [statusCode]="loadErrorCode"
-      variant="full"
       [retryable]="true"
       (retry)="loadDocuments()">
-    </app-error-display>
+    </app-feature-error>
 
     <!-- Empty state -->
     <app-empty-state
@@ -157,7 +156,7 @@ const PAGE_SIZE = 25;
     .filter-bar__field-wrapper{position:relative;display:flex;align-items:center}
     .filter-bar__field{width:100%;height:32px;padding:0 32px 0 12px;font-size:var(--font-size-sm);font-family:var(--font-mono);color:var(--color-neutral-800);background:var(--color-neutral-0);border:1px solid var(--color-neutral-200);border-radius:var(--border-radius)}
     .filter-bar__field::placeholder{color:var(--color-neutral-400);font-family:var(--font-sans)}
-    .filter-bar__field:focus{outline:none;border-color:var(--color-info);box-shadow:0 0 0 2px rgba(60,90,158,.1)}
+    .filter-bar__field:focus{outline:none;border-color:var(--color-info);box-shadow:var(--focus-ring-info)}
     .filter-bar__clear{position:absolute;right:4px}
     .filter-bar__shortcut{font-size:var(--font-size-xs);line-height:32px;color:var(--color-neutral-600)}
     .sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
@@ -328,21 +327,12 @@ export class DatabaseDetailComponent implements OnInit, OnDestroy {
         this.loading = false;
         this.liveAnnouncer.announce(`Loaded documents for ${this.dbName}`);
       },
-      error: (err: HttpErrorResponse) => {
+      error: (err: unknown) => {
         this.loading = false;
         this.tableData = [];
-        if (err.status === 0) {
-          this.loadError = {
-            error: 'network_error',
-            reason: 'Cannot reach `/iris-couch/`. Check that the server is running.',
-          };
-          this.loadErrorCode = undefined;
-        } else {
-          this.loadErrorCode = err.status;
-          this.loadError = err.error && typeof err.error === 'object'
-            ? err.error
-            : { error: 'unknown', reason: 'An unexpected error occurred' };
-        }
+        const mapped = mapError(err);
+        this.loadError = mapped.display;
+        this.loadErrorCode = mapped.statusCode;
       },
     });
   }
@@ -367,7 +357,12 @@ export class DatabaseDetailComponent implements OnInit, OnDestroy {
   }
 
   onRowClick(row: DocRow): void {
-    this.router.navigate(['/db', this.dbName, 'doc', row.id]);
+    // Split composite `_design/<name>` and `_local/<name>` IDs into separate
+    // URL segments so the custom router matcher (see app.routes.ts) can
+    // reassemble them without the Angular router percent-encoding the inner
+    // `/`. Plain IDs become a single segment. See Story 11.0 AC #3.
+    const idSegments = row.id.split('/');
+    this.router.navigate(['/db', this.dbName, 'doc', ...idSegments]);
   }
 
   trackById(_index: number, row: DocRow): string {

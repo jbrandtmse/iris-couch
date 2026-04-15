@@ -55,7 +55,7 @@ import { ButtonComponent } from '../button/button.component';
       padding: var(--space-3);
       border: 1px solid var(--color-error);
       border-radius: var(--border-radius);
-      background-color: rgba(195, 63, 63, 0.1);
+      background-color: var(--color-danger-bg);
     }
 
     .error-display--inline {
@@ -72,7 +72,7 @@ import { ButtonComponent } from '../button/button.component';
       font-size: var(--font-size-sm);
       line-height: var(--line-height-sm);
       font-weight: 600;
-      color: #9A2E2E;
+      color: var(--color-error-fg);
     }
 
     .error-display__reason {
