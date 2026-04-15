@@ -11,6 +11,13 @@
 - Epic 10 stories confirmed: 10.1-10.7 (plus 10.0 cleanup from retro)
 - No issues surfaced
 
+### 2026-04-14T13:00:00Z — Story 10.3: AppShell, Navigation & Login
+- **Create Story:** Story file created at `10-3-appshell-navigation-and-login.md`
+- **Development:** All 9 tasks completed. Auth service, API client, 401 interceptor, auth guard, AppShell, SideNav (CDK FocusKeyManager), Breadcrumb, ErrorDisplay, LoginForm, ShortcutOverlay, routing. 85 new tests (188 total). 100.75KB gzip.
+- **Code Review:** 1 HIGH + 4 MED auto-resolved (nested subscribe, overlay leak, SideNav route matching, a11y attrs). 3 LOW deferred.
+- **Commit:** `622f1ec` pushed to origin/main
+- **Status:** done
+
 ### 2026-04-14T12:00:00Z — Story 10.2: Core UI Components
 - **Create Story:** Story file created at `10-2-core-ui-components.md`
 - **Development:** All 7 tasks completed. 5 components (Button, IconButton, Badge, TextInput, CopyButton) + axe-core test utils + barrel export. 58 new tests, 103 total. 60.52KB gzip build.

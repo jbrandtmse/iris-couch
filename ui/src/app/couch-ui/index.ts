@@ -14,6 +14,10 @@ export { SideNavComponent } from './side-nav/side-nav.component';
 export { BreadcrumbComponent, type BreadcrumbSegment } from './breadcrumb/breadcrumb.component';
 export { ErrorDisplayComponent } from './error-display/error-display.component';
 export { ShortcutOverlayComponent, ShortcutOverlayContentComponent } from './shortcut-overlay/shortcut-overlay.component';
+export { DataTableComponent, type ColumnDef, type SortChangeEvent } from './data-table/data-table.component';
+export { EmptyStateComponent } from './empty-state/empty-state.component';
+export { ConfirmDialogComponent, type ConfirmDialogVariant } from './confirm-dialog/confirm-dialog.component';
+export { PageHeaderComponent } from './page-header/page-header.component';
 
 // NOTE: test-utils.ts is intentionally NOT exported here.
 // Import directly from './couch-ui/test-utils' in spec files
