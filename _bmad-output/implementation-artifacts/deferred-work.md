@@ -310,42 +310,37 @@ the initial entries.
 
 ## Deferred from: Story 11.1 development (2026-04-14)
 
-- **Backend: `PUT /{db}/_design/{name}` routes to attachment handler, not
-  DocumentPut (HIGH -- blocks design-doc write UX).** The `Router.cls`
-  UrlMap has `/:db/:docid/:attname` registered before `/:db/:docid`, so a
-  request to `PUT /testdb/_design/myapp` matches the attachment route with
-  `docid = "_design"` and `attname = "myapp"`. Verified via curl during
-  Story 11.1 backend spike:
-  - `PUT /testdb/_design/myapp` with a JSON body stores a document with
-    `_id = "_design"` (dropping `/myapp`) instead of `_design/myapp`.
-  - `GET /testdb/_design/myapp` returns the body of a missing attachment
-    rather than the design doc.
-  - Workaround: `POST /{db}/_bulk_docs` with `{"_id":"_design/myapp",...}`
-    stores the design doc correctly and `GET /testdb/_design/myapp` then
-    returns the stored body (but still via the attachment codepath --
-    the response is the bare body, not a wrapped `{_id, _rev, ...}`
-    document envelope).
-  This affects Story 11.3 (design-doc editing). Story 11.1 is read-only,
-  so the IRISCouch router needs to be extended to recognize `_design/`
-  and `_local/` composite IDs and dispatch to `HandleDocumentPut` /
-  `HandleDocumentGet` / `HandleDocumentDelete` when the second segment
-  is a composite-ID prefix. Suggested fix location:
-  `src/IRISCouch/API/Router.cls` -- add explicit routes
-  `PUT/GET/DELETE /:db/_design/:name` and `/:db/_local/:name` before the
-  attachment routes, or add a dispatcher that detects the composite
-  prefix. Estimated lift: ~40 LOC of ObjectScript + test coverage.
-  Story 11.1 UI code assumes the correct wire format and does NOT need
-  changes once this is fixed.
-- **Backend design-doc GET returns bare body, not a full document envelope
-  (MED -- cosmetic for read-only, blocking for editing).** Even when a
-  design doc is stored correctly via `_bulk_docs`, `GET /db/_design/name`
-  returns only the stored JSON (e.g., `{"views":{...}}`) without `_id`,
-  `_rev`, or the usual `conflicts=true` additions. This is a consequence
-  of the attachment-route mis-dispatch above; fixing the router fixes
-  this too. Story 11.1 detail view still renders meaningful output
-  because `JsonDisplay` shows whatever JSON the server returns, and the
-  identity rows (`_id`, `_rev`) simply stay blank when the fields are
-  missing. Revisit with the routing fix.
+- **RESOLVED in Story 11.3 Task 0 (2026-04-15).** Backend:
+  `PUT /{db}/_design/{name}` routes to attachment handler, not DocumentPut
+  (HIGH -- blocks design-doc write UX). The `Router.cls` UrlMap had
+  `/:db/:docid/:attname` registered before `/:db/:docid`, so a request to
+  `PUT /testdb/_design/myapp` matched the attachment route with
+  `docid = "_design"` and `attname = "myapp"`.
+  Fix: Story 11.3 added explicit `_design/:ddocid` PUT/GET/DELETE routes
+  (Option B) ahead of the attachment route, dispatching to the existing
+  `DocumentHandler.HandlePut/HandleGet/HandleDelete` with the composite ID
+  reassembled. Also added `_design/:ddocid/:attname` routes so design-doc
+  attachments still work. Verified via curl: `PUT /testdb11x3/_design/myapp`
+  now returns `{"ok":true,"id":"_design/myapp","rev":"1-..."}` and
+  `GET /testdb11x3/_design/myapp` returns the full envelope with
+  `_id = "_design/myapp"`. New ObjectScript tests in
+  `src/IRISCouch/Test/DocumentHttpTest.cls` cover PUT/GET/DELETE on
+  composite IDs plus a `TestLocalDocStillRoutes` regression for `_local/`.
+  Existing `AttachmentHttpTest`, `AttachmentRetrievalHttpTest`, and
+  `InlineAttachmentHttpTest` all remain green. See `Story 11.3` for details.
+- **RESOLVED in Story 11.3 Task 0 (2026-04-15).** Backend design-doc GET
+  returns bare body, not a full document envelope (MED -- cosmetic for
+  read-only, blocking for editing). With the routing fix above, GET
+  `/db/_design/name` now returns the full `{_id, _rev, ...}` envelope
+  (verified via the `TestGetDesignDoc` integration test).
+
+## Deferred from: code review of 11-3-design-document-and-security-editing (2026-04-15)
+
+- **TextAreaJson uses `document.getElementById` for gutter scroll sync** [ui/src/app/couch-ui/text-area-json/text-area-json.component.ts:332] -- Gutter scroll sync looks up the textarea element via `document.getElementById(this.textareaId)` instead of the already-declared `@ViewChild('textareaEl')` / `@ViewChild('gutterEl')` refs. Works reliably today but relies on the id being unique across the page and on DOM availability at event-dispatch time. LOW -- refactor to use the ViewChild references when next editing the file.
+- **`TestPostDesignDocNotAllowed` accepts both 404 and 405** [src/IRISCouch/Test/DocumentHttpTest.cls:219] -- Story 11.3 Task 0 test asserts `(tStatus = 405) || (tStatus = 404)` for `POST /{db}/_design/{name}`. Backend currently returns 405 per %CSP.REST's `Http405` handler; the 404 tolerance was added defensively because the exact dispatcher behaviour for POST on a GET/PUT/DELETE-only route was not formally specced. LOW -- tighten to strict 405 once the behaviour is nailed down in a regression test for `Http405()`.
+- **`design-doc-create-dialog` `titleId` uses `Date.now()` without randomness** [ui/src/app/features/design-docs/design-doc-create-dialog.component.ts:183] -- If two instances of the dialog were ever mounted in the same millisecond the `aria-labelledby` IDs would collide. Only one create dialog can ever be open at a time, so this is functionally harmless; mentioned for consistency with other dialogs that use a monotonic counter. LOW.
+- **Delete-dialog body uses `[innerHTML]` with `ddocShortName` interpolated into raw HTML** [ui/src/app/features/design-docs/design-doc-detail.component.ts:141] -- The delete-confirm dialog body concatenates the user-visible ddoc short name (sourced from the route param) into an HTML string rendered via `[innerHTML]="body"` inside ConfirmDialog. Angular's DomSanitizer strips dangerous HTML so script injection is not practically reachable, and the same pattern is used in `database-list.component.ts`. LOW -- consider migrating both call sites to a template-projected body variant if ConfirmDialog grows a structured API.
+- **TextAreaJson `emitValidity` re-emits on every invalid event** [ui/src/app/couch-ui/text-area-json/text-area-json.component.ts:374] -- The guard `if (this.lastEmittedValid === valid && !errorMessage) return;` only suppresses re-emission for the valid case. When the JSON remains invalid across keystrokes, `validityChange` fires on every debounce tick. Current subscribers treat this idempotently, but it is unnecessary event-bus chatter. LOW -- tighten by tracking `lastEmittedErrorMessage` and suppressing duplicate-invalid emissions too.
 
 ## Deferred from: Story 11.2 -- Security Configuration View (2026-04-14)
 

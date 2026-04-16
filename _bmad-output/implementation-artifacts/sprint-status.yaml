@@ -39,7 +39,7 @@ last_story_completed: 8-3-replication-ready-bulk-get
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-14
+last_updated: 2026-04-15
 last_story_completed: 10-7-error-handling-accessibility-and-cross-browser-verification
 last_story_reviewed: 10-7-error-handling-accessibility-and-cross-browser-verification
 last_story_in_progress: 10-0-epic-9-deferred-cleanup
@@ -153,7 +153,7 @@ development_status:
   11-0-epic-10-deferred-cleanup: done
   11-1-design-document-list-and-detail-view: done
   11-2-security-configuration-view: done
-  11-3-design-document-and-security-editing: backlog
+  11-3-design-document-and-security-editing: done
   11-4-revision-history-view: backlog
   epic-11-retrospective: optional
 

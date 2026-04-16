@@ -318,6 +318,101 @@ describe('DocumentService', () => {
     });
   });
 
+  // Story 11.3 Task 5 -- write methods.
+  describe('putDocument', () => {
+    it('PUTs to /{db}/{docid} with no `?rev=` for a creation', () => {
+      service.putDocument('mydb', 'newdoc', { x: 1 }).subscribe((res) => {
+        expect(res.ok).toBeTrue();
+        expect(res.id).toBe('newdoc');
+      });
+      const req = httpMock.expectOne('mydb/newdoc');
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual({ x: 1 });
+      req.flush({ ok: true, id: 'newdoc', rev: '1-abc' });
+    });
+
+    it('appends `?rev=...` for an update', () => {
+      service.putDocument('mydb', 'doc1', { y: 2 }, '1-abc').subscribe();
+      const req = httpMock.expectOne('mydb/doc1?rev=1-abc');
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual({ y: 2 });
+      req.flush({ ok: true, id: 'doc1', rev: '2-def' });
+    });
+
+    it('preserves literal `/` in `_design/<name>` composite IDs', () => {
+      service.putDocument('mydb', '_design/myapp', { language: 'javascript' }).subscribe();
+      const req = httpMock.expectOne(
+        (r) => r.url === 'mydb/_design/myapp' && !r.url.includes('%2F'),
+      );
+      expect(req.request.method).toBe('PUT');
+      req.flush({ ok: true, id: '_design/myapp', rev: '1-abc' });
+    });
+
+    it('appends `?rev=` to a design-doc update URL', () => {
+      service.putDocument('mydb', '_design/myapp', { v: 2 }, '1-abc').subscribe();
+      const req = httpMock.expectOne('mydb/_design/myapp?rev=1-abc');
+      expect(req.request.method).toBe('PUT');
+      req.flush({ ok: true, id: '_design/myapp', rev: '2-def' });
+    });
+
+    it('encodes db name with special characters', () => {
+      service.putDocument('my/db', 'doc1', { x: 1 }).subscribe();
+      const req = httpMock.expectOne('my%2Fdb/doc1');
+      expect(req.request.method).toBe('PUT');
+      req.flush({ ok: true, id: 'doc1', rev: '1-a' });
+    });
+
+    it('propagates 409 conflict from the server', () => {
+      let received: any = null;
+      service.putDocument('mydb', 'doc1', { x: 1 }, '1-bad').subscribe({
+        error: (err) => (received = err),
+      });
+      const req = httpMock.expectOne('mydb/doc1?rev=1-bad');
+      req.flush(
+        { error: 'conflict', reason: 'Document update conflict.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+      expect(received?.status).toBe(409);
+    });
+  });
+
+  describe('deleteDocument', () => {
+    it('DELETEs /{db}/{docid}?rev=...', () => {
+      service.deleteDocument('mydb', 'doc1', '1-abc').subscribe((res) => {
+        expect(res.ok).toBeTrue();
+      });
+      const req = httpMock.expectOne('mydb/doc1?rev=1-abc');
+      expect(req.request.method).toBe('DELETE');
+      req.flush({ ok: true, id: 'doc1', rev: '2-def' });
+    });
+
+    it('preserves literal `/` in design-doc IDs', () => {
+      service.deleteDocument('mydb', '_design/myapp', '1-abc').subscribe();
+      const req = httpMock.expectOne(
+        (r) => r.url === 'mydb/_design/myapp?rev=1-abc' && !r.url.includes('%2F'),
+      );
+      expect(req.request.method).toBe('DELETE');
+      req.flush({ ok: true, id: '_design/myapp', rev: '2-def' });
+    });
+
+    it('throws synchronously when rev is missing', () => {
+      expect(() => service.deleteDocument('mydb', 'doc1', '')).toThrowError(/requires a rev/i);
+    });
+
+    it('propagates 401 unauthorized', () => {
+      let received: any = null;
+      service.deleteDocument('mydb', 'doc1', '1-abc').subscribe({
+        error: (err) => (received = err),
+      });
+      const req = httpMock.expectOne('mydb/doc1?rev=1-abc');
+      req.flush(
+        { error: 'unauthorized', reason: 'You are not a server admin.' },
+        { status: 401, statusText: 'Unauthorized' },
+      );
+      expect(received?.status).toBe(401);
+    });
+  });
+
   describe('getDocument with design doc IDs', () => {
     // Story 11.1 AC #2 / Task 2 -- confirm existing getDocument + encodeDocId
     // correctly handles a `_design/<name>` composite without a new method.

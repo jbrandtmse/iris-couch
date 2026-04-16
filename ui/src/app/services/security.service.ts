@@ -53,15 +53,18 @@ export function normalizeSecurity(raw: unknown): SecurityDoc {
   };
 }
 
+/** Successful CouchDB write response shape: PUT /_security. */
+export interface SecurityWriteResponse {
+  ok: boolean;
+}
+
 /**
- * SecurityService — read access to the per-database `_security` endpoint.
- *
- * Kept as a small dedicated service for cohesion (Story 11.2 Task 1). Edit
- * semantics arrive in Story 11.3 and will be added here alongside the
- * existing read call.
+ * SecurityService — read/write access to the per-database `_security` endpoint.
  *
  * `_security` is special: no `_id`/`_rev`, no revisions. See
  * `sources/couchdb/src/chttpd/src/chttpd_db.erl` → `handle_security_req/2`.
+ *
+ * Story 11.3 added the `setSecurity()` write method.
  */
 @Injectable({ providedIn: 'root' })
 export class SecurityService {
@@ -75,5 +78,22 @@ export class SecurityService {
     return this.api
       .get<unknown>(`${encodeURIComponent(db)}/_security`)
       .pipe(map((raw) => normalizeSecurity(raw)));
+  }
+
+  /**
+   * PUT /{db}/_security — replace the per-database security configuration.
+   *
+   * The body must be the entire desired `_security` object (no merge
+   * semantics). Backend returns `{ok: true}` on success. Authorization
+   * rules: only users in the existing `admins` list (or server admins via
+   * Basic Auth) may write `_security`. See `handle_security_req/2`.
+   *
+   * Story 11.3 Task 5 + AC #5.
+   */
+  setSecurity(db: string, doc: SecurityDoc): Observable<SecurityWriteResponse> {
+    return this.api.put<SecurityWriteResponse>(
+      `${encodeURIComponent(db)}/_security`,
+      doc,
+    );
   }
 }

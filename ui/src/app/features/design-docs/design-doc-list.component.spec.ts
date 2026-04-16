@@ -102,7 +102,9 @@ describe('DesignDocListComponent', () => {
       expect(empty).toBeTruthy();
       const text = (fixture.nativeElement as HTMLElement).textContent || '';
       expect(text).toContain('No design documents yet.');
-      expect(text).toContain('Use curl or another client to create one at alpha.');
+      // Story 11.3 replaced the alpha "use curl" copy with the in-app Create
+      // affordance; the secondary line now points users at the Create button.
+      expect(text).toContain('Use Create to add one.');
     });
 
     it('does not render the DataTable when empty', () => {
@@ -261,6 +263,94 @@ describe('DesignDocListComponent', () => {
       expectListRequest().flush({ total_rows: 0, offset: 0, rows: [] });
       fixture.detectChanges();
       await expectNoAxeViolations(fixture.nativeElement);
+    });
+  });
+
+  // ---------------- Story 11.3 Task 3 -- Create dialog ----------------
+
+  describe('Create dialog (AC #3)', () => {
+    function loadEmpty() {
+      fixture.detectChanges();
+      expectListRequest().flush({ total_rows: 0, offset: 0, rows: [] });
+      fixture.detectChanges();
+    }
+
+    function loadWith(rows: Array<{ id: string; rev: string }>) {
+      fixture.detectChanges();
+      expectListRequest().flush({
+        total_rows: rows.length,
+        offset: 0,
+        rows: rows.map((r) => ({ id: r.id, key: r.id, value: { rev: r.rev } })),
+      });
+      fixture.detectChanges();
+    }
+
+    it('opens the dialog on Create button click', () => {
+      loadEmpty();
+      component.openCreateDialog();
+      fixture.detectChanges();
+      const dialog = fixture.nativeElement.querySelector('app-design-doc-create-dialog');
+      expect(dialog).toBeTruthy();
+      expect(component.showCreateDialog).toBeTrue();
+    });
+
+    it('PUTs /db/_design/<name> on confirm and refreshes the list', () => {
+      loadEmpty();
+      component.openCreateDialog();
+      fixture.detectChanges();
+      component.onCreateConfirmed({ name: 'newapp', body: { language: 'javascript', views: {} } });
+      const putReq = httpMock.expectOne(
+        (r) => r.url === 'testdb/_design/newapp' && r.method === 'PUT',
+      );
+      expect(putReq.request.body).toEqual({ language: 'javascript', views: {} });
+      putReq.flush({ ok: true, id: '_design/newapp', rev: '1-abc' });
+      // After success, dialog closes and list refreshes
+      expectListRequest().flush({
+        total_rows: 1,
+        offset: 0,
+        rows: [{ id: '_design/newapp', key: '_design/newapp', value: { rev: '1-abc' } }],
+      });
+      fixture.detectChanges();
+      expect(component.creating).toBeFalse();
+      expect(component.showCreateDialog).toBeFalse();
+    });
+
+    it('keeps dialog open and shows error on 409 conflict', () => {
+      loadEmpty();
+      component.openCreateDialog();
+      fixture.detectChanges();
+      component.onCreateConfirmed({ name: 'dup', body: {} });
+      httpMock
+        .expectOne((r) => r.url === 'testdb/_design/dup' && r.method === 'PUT')
+        .flush(
+          { error: 'conflict', reason: 'Document update conflict.' },
+          { status: 409, statusText: 'Conflict' },
+        );
+      fixture.detectChanges();
+      expect(component.showCreateDialog).toBeTrue();
+      expect(component.creating).toBeFalse();
+      expect(component.createError).toEqual({
+        error: 'conflict',
+        reason: 'Document update conflict.',
+      });
+      expect(component.createErrorStatus).toBe(409);
+    });
+
+    it('cancels the dialog cleanly', () => {
+      loadEmpty();
+      component.openCreateDialog();
+      fixture.detectChanges();
+      component.onCreateCancelled();
+      fixture.detectChanges();
+      expect(component.showCreateDialog).toBeFalse();
+    });
+
+    it('exposes existing short names for the dialog name validator', () => {
+      loadWith([
+        { id: '_design/alpha', rev: '1-a' },
+        { id: '_design/beta', rev: '1-b' },
+      ]);
+      expect(component.existingShortNames).toEqual(['alpha', 'beta']);
     });
   });
 });

@@ -9,7 +9,11 @@ import { TextInputComponent } from '../text-input/text-input.component';
 import { ButtonComponent } from '../button/button.component';
 import { ErrorDisplayComponent } from '../error-display/error-display.component';
 
-export type ConfirmDialogVariant = 'create' | 'destructive-type-to-confirm' | 'destructive-simple';
+export type ConfirmDialogVariant =
+  | 'create'
+  | 'destructive-type-to-confirm'
+  | 'destructive-simple'
+  | 'warning';
 
 /**
  * CouchUI ConfirmDialog component.
@@ -233,7 +237,11 @@ export class ConfirmDialogComponent implements OnInit, OnDestroy, AfterViewInit 
   private keydownHandler = (e: KeyboardEvent) => this.onKeydown(e);
 
   get isDestructive(): boolean {
-    return this.variant === 'destructive-type-to-confirm' || this.variant === 'destructive-simple';
+    return (
+      this.variant === 'destructive-type-to-confirm' ||
+      this.variant === 'destructive-simple' ||
+      this.variant === 'warning'
+    );
   }
 
   get isConfirmEnabled(): boolean {
@@ -244,7 +252,7 @@ export class ConfirmDialogComponent implements OnInit, OnDestroy, AfterViewInit 
     if (this.variant === 'destructive-type-to-confirm') {
       return this.inputValue === this.confirmValue;
     }
-    return true; // destructive-simple
+    return true; // destructive-simple, warning
   }
 
   ngOnInit(): void {

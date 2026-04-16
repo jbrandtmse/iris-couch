@@ -22,6 +22,7 @@ Method OnBeforeOneTest() As %Status
     Kill ^IRISCouch.Tree("testdochttp")
     Kill ^IRISCouch.Changes("testdochttp")
     Kill ^IRISCouch.Seq("testdochttp")
+    Kill ^IRISCouch.Local("testdochttp")
     ; Create test database
     Set tSC = ##class(IRISCouch.Storage.Database).Create("testdochttp")
     Quit tSC
@@ -35,6 +36,7 @@ Method OnAfterOneTest() As %Status
     Kill ^IRISCouch.Tree("testdochttp")
     Kill ^IRISCouch.Changes("testdochttp")
     Kill ^IRISCouch.Seq("testdochttp")
+    Kill ^IRISCouch.Local("testdochttp")
     Quit $$$OK
 }
 
@@ -140,6 +142,81 @@ Method TestPostDocumentNoDb()
     Do $$$AssertStatusOK(tSC, "POST to nonexistent db request completed")
     Do $$$AssertEquals(tStatus, 404, "POST to nonexistent db returns HTTP 404")
     Do $$$AssertEquals(tBody.error, "not_found", "Error slug is not_found")
+}
+
+/// <p>Story 11.3 Task 0: PUT /:db/_design/:name routes to document handler
+/// (not attachment handler) and stores doc with full composite ID.</p>
+Method TestPutDesignDoc()
+{
+    Set tReqBody = "{""language"":""javascript"",""views"":{}}"
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testdochttp/_design/myapp", .tStatus, .tBody, tReqBody)
+    Do $$$AssertStatusOK(tSC, "PUT _design request completed")
+    Do $$$AssertEquals(tStatus, 201, "PUT _design returns HTTP 201")
+    Do $$$AssertTrue(tBody.ok, "Response has ok: true")
+    Do $$$AssertEquals(tBody.id, "_design/myapp", "Response id is _design/myapp (composite preserved)")
+    Do $$$AssertTrue(tBody.rev '= "", "Response has non-empty rev")
+    Do $$$AssertEquals($Piece(tBody.rev, "-", 1), 1, "Rev starts with generation 1")
+}
+
+/// <p>Story 11.3 Task 0: GET /:db/_design/:name returns the full doc envelope
+/// with _id = "_design/<name>".</p>
+Method TestGetDesignDoc()
+{
+    ; Create design doc
+    Set tReqBody = "{""language"":""javascript"",""views"":{""by_name"":{""map"":""function(doc){emit(doc.name);}""}}}"
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testdochttp/_design/getddoc", .tStatus, .tBody, tReqBody)
+    Do $$$AssertEquals(tStatus, 201, "PUT _design create succeeded")
+    Set tCreatedRev = tBody.rev
+    ; GET it
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/testdochttp/_design/getddoc", .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "GET _design request completed")
+    Do $$$AssertEquals(tStatus, 200, "GET _design returns HTTP 200")
+    Do $$$AssertEquals(tBody."_id", "_design/getddoc", "Response _id is full composite ID")
+    Do $$$AssertEquals(tBody."_rev", tCreatedRev, "Response _rev matches created rev")
+    Do $$$AssertEquals(tBody.language, "javascript", "Body field language preserved")
+}
+
+/// <p>Story 11.3 Task 0: DELETE /:db/_design/:name?rev=... tombstones the design doc.</p>
+Method TestDeleteDesignDoc()
+{
+    ; Create design doc
+    Set tReqBody = "{""language"":""javascript""}"
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testdochttp/_design/delddoc", .tStatus, .tBody, tReqBody)
+    Do $$$AssertEquals(tStatus, 201, "PUT _design create succeeded")
+    Set tCreatedRev = tBody.rev
+    ; DELETE it
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("DELETE", "/testdochttp/_design/delddoc?rev=" _ tCreatedRev, .tStatus, .tBody)
+    Do $$$AssertStatusOK(tSC, "DELETE _design request completed")
+    Do $$$AssertEquals(tStatus, 200, "DELETE _design returns HTTP 200")
+    Do $$$AssertTrue(tBody.ok, "Response has ok: true")
+    Do $$$AssertEquals(tBody.id, "_design/delddoc", "Response id is full composite ID")
+    Do $$$AssertEquals($Piece(tBody.rev, "-", 1), 2, "Tombstone rev is generation 2")
+    ; GET the deleted doc returns 404
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("GET", "/testdochttp/_design/delddoc", .tStatus, .tBody)
+    Do $$$AssertEquals(tStatus, 404, "GET deleted _design returns HTTP 404")
+}
+
+/// <p>Story 11.3 Task 0: confirm /_local/<name> still routes to LocalDoc handler
+/// (regression: explicit _design routes added in front of attachment routes
+/// should not have moved _local handling).</p>
+Method TestLocalDocStillRoutes()
+{
+    Set tReqBody = "{""seq"":1,""checkpoint"":""abc""}"
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("PUT", "/testdochttp/_local/ckpt1", .tStatus, .tBody, tReqBody)
+    Do $$$AssertStatusOK(tSC, "PUT _local request completed")
+    Do $$$AssertTrue((tStatus = 201) || (tStatus = 200), "PUT _local returns 200/201")
+    Do $$$AssertTrue(tBody.ok, "Response has ok: true")
+    Do $$$AssertEquals(tBody.id, "_local/ckpt1", "Response id is full composite ID")
+}
+
+/// <p>Story 11.3 Task 0: POST /:db/_design/:name is not a valid route
+/// (CouchDB returns 405 method_not_allowed; ensure dispatcher doesn't crash).</p>
+Method TestPostDesignDocNotAllowed()
+{
+    Set tReqBody = "{""x"":1}"
+    Set tSC = ##class(IRISCouch.Test.HttpIntegrationTest).MakeRequest("POST", "/testdochttp/_design/noway", .tStatus, .tBody, tReqBody)
+    Do $$$AssertStatusOK(tSC, "POST _design request completed")
+    Do $$$AssertTrue((tStatus = 405) || (tStatus = 404), "POST _design returns 405 or 404")
 }
 
 }

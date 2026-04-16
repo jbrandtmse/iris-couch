@@ -1,7 +1,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter, ActivatedRoute, convertToParamMap } from '@angular/router';
+import { provideRouter, ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { of } from 'rxjs';
 import { DesignDocDetailComponent } from './design-doc-detail.component';
@@ -227,5 +227,300 @@ describe('DesignDocDetailComponent', () => {
       fixture.detectChanges();
       await expectNoAxeViolations(fixture.nativeElement);
     });
+
+    it('has no axe-core violations in edit-clean state', async () => {
+      fixture.detectChanges();
+      expectGetRequest('testdb', '_design/myapp').flush({
+        _id: '_design/myapp',
+        _rev: '1-abc',
+        language: 'javascript',
+      });
+      fixture.detectChanges();
+      component.onEdit();
+      fixture.detectChanges();
+      await expectNoAxeViolations(fixture.nativeElement);
+    });
+  });
+
+  // -------------- Story 11.3 -- edit/save/delete --------------
+
+  describe('Edit mode (AC #2)', () => {
+    beforeEach(async () => {
+      await configure({ dbname: 'testdb', ddocid: 'myapp' });
+      fixture.detectChanges();
+      expectGetRequest('testdb', '_design/myapp').flush({
+        _id: '_design/myapp',
+        _rev: '1-abc',
+        language: 'javascript',
+        views: { by_name: { map: 'function(){}' } },
+      });
+      fixture.detectChanges();
+    });
+
+    it('shows Edit + Delete buttons in view mode', () => {
+      const buttons = Array.from(fixture.nativeElement.querySelectorAll('app-button'));
+      expect(buttons.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('switches to edit mode and pre-fills body without _id/_rev', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      expect(component.mode).toBe('edit');
+      const ta = fixture.nativeElement.querySelector('app-text-area-json');
+      expect(ta).toBeTruthy();
+      expect(component.editValue).toContain('"language"');
+      expect(component.editValue).not.toContain('"_id"');
+      expect(component.editValue).not.toContain('"_rev"');
+    });
+
+    it('PUTs the body with ?rev= on Save and re-fetches on success', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      // Mutate the editor body
+      component.editValue = '{"language":"javascript","views":{"a":{"map":"function(){}"}}}';
+      component.editValid = true;
+      component.onSave();
+      const putReq = httpMock.expectOne(
+        (r) => r.url === 'testdb/_design/myapp?rev=1-abc' && r.method === 'PUT',
+      );
+      expect(putReq.request.body).toEqual({
+        language: 'javascript',
+        views: { a: { map: 'function(){}' } },
+      });
+      putReq.flush({ ok: true, id: '_design/myapp', rev: '2-def' });
+      // After save success the component re-fetches to refresh the rev/body.
+      const refetch = expectGetRequest('testdb', '_design/myapp');
+      refetch.flush({
+        _id: '_design/myapp',
+        _rev: '2-def',
+        language: 'javascript',
+        views: { a: { map: 'function(){}' } },
+      });
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+      expect(component.doc._rev).toBe('2-def');
+      expect(component.saving).toBeFalse();
+    });
+
+    it('shows inline FeatureError on save failure (409 conflict) and stays in edit mode', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      component.editValue = '{"language":"javascript"}';
+      component.editValid = true;
+      component.onSave();
+      httpMock
+        .expectOne((r) => r.url === 'testdb/_design/myapp?rev=1-abc' && r.method === 'PUT')
+        .flush(
+          { error: 'conflict', reason: 'Document update conflict.' },
+          { status: 409, statusText: 'Conflict' },
+        );
+      fixture.detectChanges();
+      expect(component.mode).toBe('edit');
+      expect(component.saveError).toEqual({
+        error: 'conflict',
+        reason: 'Document update conflict.',
+      });
+      expect(component.saveErrorStatus).toBe(409);
+      expect(component.saving).toBeFalse();
+    });
+
+    it('Cancel without changes returns to view mode without prompt', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      // No edit baseline drift -> not dirty.
+      expect(component.hasUnsavedChanges()).toBeFalse();
+      component.onCancel();
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+      expect(component.showDiscardDialog).toBeFalse();
+    });
+
+    it('Cancel with dirty state opens the warning dialog and keeps edit mode on cancel', async () => {
+      component.onEdit();
+      fixture.detectChanges();
+      component.editValue = component.editValue + '\n// dirty';
+      expect(component.hasUnsavedChanges()).toBeTrue();
+      const cancelP = (component as any).onCancel();
+      fixture.detectChanges();
+      expect(component.showDiscardDialog).toBeTrue();
+      // User cancels the discard prompt -> stay in edit mode.
+      component.onDiscardCancelled();
+      fixture.detectChanges();
+      // Allow the awaited promise to settle if returned.
+      await Promise.resolve();
+      expect(component.showDiscardDialog).toBeFalse();
+      expect(component.mode).toBe('edit');
+      void cancelP;
+    });
+
+    it('Cancel with dirty state + Discard exits edit mode', async () => {
+      component.onEdit();
+      fixture.detectChanges();
+      component.editValue = component.editValue + 'oops';
+      component.onCancel();
+      fixture.detectChanges();
+      component.onDiscardConfirmed();
+      // Wait one microtask so the .then() fires.
+      await Promise.resolve();
+      await Promise.resolve();
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+    });
+  });
+
+  describe('Delete (AC #4)', () => {
+    beforeEach(async () => {
+      await configure({ dbname: 'testdb', ddocid: 'myapp' });
+      fixture.detectChanges();
+      expectGetRequest('testdb', '_design/myapp').flush({
+        _id: '_design/myapp',
+        _rev: '1-abc',
+      });
+      fixture.detectChanges();
+    });
+
+    it('opens the type-to-confirm dialog on Delete click', () => {
+      component.onDeleteClick();
+      fixture.detectChanges();
+      expect(component.showDeleteDialog).toBeTrue();
+      const dialog = fixture.nativeElement.querySelector('app-confirm-dialog');
+      expect(dialog).toBeTruthy();
+    });
+
+    it('issues DELETE with ?rev= on confirm and routes back to /db/:dbname/design', () => {
+      const router = TestBed.inject(Router);
+      const navSpy = spyOn(router, 'navigate');
+      component.onDeleteClick();
+      fixture.detectChanges();
+      component.onDeleteConfirmed();
+      const req = httpMock.expectOne(
+        (r) => r.url === 'testdb/_design/myapp?rev=1-abc' && r.method === 'DELETE',
+      );
+      req.flush({ ok: true, id: '_design/myapp', rev: '2-def' });
+      fixture.detectChanges();
+      expect(component.deleting).toBeFalse();
+      expect(component.showDeleteDialog).toBeFalse();
+      expect(navSpy).toHaveBeenCalledWith(['/db', 'testdb', 'design']);
+    });
+
+    it('shows inline error in dialog on DELETE failure and keeps dialog open', () => {
+      component.onDeleteClick();
+      fixture.detectChanges();
+      component.onDeleteConfirmed();
+      httpMock
+        .expectOne(
+          (r) => r.url === 'testdb/_design/myapp?rev=1-abc' && r.method === 'DELETE',
+        )
+        .flush(
+          { error: 'forbidden', reason: 'You may not delete this design document.' },
+          { status: 403, statusText: 'Forbidden' },
+        );
+      fixture.detectChanges();
+      expect(component.deleting).toBeFalse();
+      expect(component.showDeleteDialog).toBeTrue();
+      expect(component.deleteError).toEqual({
+        error: 'forbidden',
+        reason: 'You may not delete this design document.',
+      });
+      expect(component.deleteErrorStatus).toBe(403);
+    });
+
+    it('cancels delete dialog cleanly', () => {
+      component.onDeleteClick();
+      fixture.detectChanges();
+      component.onDeleteCancelled();
+      fixture.detectChanges();
+      expect(component.showDeleteDialog).toBeFalse();
+      expect(component.deleteError).toBeNull();
+    });
+  });
+
+  // Story 11.3 AC #7 — Esc key in edit mode triggers Cancel flow.
+  describe('Esc key handling in edit mode (AC #7)', () => {
+    beforeEach(async () => {
+      await configure({ dbname: 'testdb', ddocid: 'myapp' });
+      fixture.detectChanges();
+      expectGetRequest('testdb', '_design/myapp').flush({
+        _id: '_design/myapp',
+        _rev: '1-abc',
+        language: 'javascript',
+      });
+      fixture.detectChanges();
+    });
+
+    it('Esc in view mode does nothing', () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+      expect(component.showDiscardDialog).toBeFalse();
+    });
+
+    it('Esc in clean edit mode exits to view without prompt', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+      expect(component.showDiscardDialog).toBeFalse();
+    });
+
+    it('Esc in dirty edit mode opens the discard-changes warning', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      component.editValue = component.editValue + ' ';
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.showDiscardDialog).toBeTrue();
+      expect(component.mode).toBe('edit');
+    });
+
+    it('Esc is ignored while saving', () => {
+      component.onEdit();
+      (component as any).saving = true;
+      fixture.detectChanges();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.mode).toBe('edit');
+      expect(component.showDiscardDialog).toBeFalse();
+    });
+  });
+
+  describe('CanDeactivate guard contract (AC #7)', () => {
+    beforeEach(async () => {
+      await configure({ dbname: 'testdb', ddocid: 'myapp' });
+      fixture.detectChanges();
+      expectGetRequest('testdb', '_design/myapp').flush({
+        _id: '_design/myapp',
+        _rev: '1-abc',
+        language: 'javascript',
+      });
+      fixture.detectChanges();
+    });
+
+    it('hasUnsavedChanges() is false outside edit mode', () => {
+      expect(component.hasUnsavedChanges()).toBeFalse();
+    });
+
+    it('hasUnsavedChanges() is false in edit mode with no edits', () => {
+      component.onEdit();
+      expect(component.hasUnsavedChanges()).toBeFalse();
+    });
+
+    it('hasUnsavedChanges() is true in edit mode after a value change', () => {
+      component.onEdit();
+      component.editValue = component.editValue + ' ';
+      expect(component.hasUnsavedChanges()).toBeTrue();
+    });
+
+    it('confirmDiscard() returns a Promise that resolves on dialog action', async () => {
+      component.onEdit();
+      component.editValue = component.editValue + ' ';
+      const p = component.confirmDiscard();
+      expect(component.showDiscardDialog).toBeTrue();
+      component.onDiscardConfirmed();
+      const r = await p;
+      expect(r).toBeTrue();
+    });
   });
 });
+

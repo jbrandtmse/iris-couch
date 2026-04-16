@@ -223,6 +223,82 @@ Smoke steps:
 
 ---
 
+## Story 11.3 -- Design Document & Security Editing (Beta)
+
+Setup:
+- Create a test database via curl:
+  ```
+  curl -u _system:SYS -X PUT http://localhost:52773/iris-couch/testdb11x3
+  ```
+- Backend routing fix from Story 11.3 Task 0 is now in place, so the
+  design-doc write paths below use the handler directly (no `_bulk_docs`
+  workaround needed).
+
+Smoke steps:
+- [ ] **Create design doc (happy path)**: from `/db/testdb11x3/design`, click
+      "Create design doc". Dialog opens with default body
+      `{"language":"javascript","views":{}}`. Type name `myapp`. Create button
+      enables. Click Create. Dialog closes, list refreshes, `_design/myapp`
+      appears.
+- [ ] **Create validation -- name**: re-open Create. Type `BAD NAME` -- inline
+      error "Only lowercase letters, digits, hyphen, underscore allowed"
+      shows, Create disabled. Fix to `otherapp`, Create enables.
+- [ ] **Create validation -- JSON**: in the dialog, replace the body with
+      `{invalid` -- inline `"Invalid JSON at line N"` appears under the
+      textarea, Create disabled. Restore valid body, Create enables.
+- [ ] **Create duplicate (409)**: with `_design/myapp` already existing,
+      open Create and type `myapp`. Client-side "already exists" inline
+      error appears before submit. If the client check is bypassed (e.g.,
+      concurrent create), the verbatim 409 envelope shows inline in the
+      dialog and the dialog stays open.
+- [ ] **Edit design doc (happy)**: navigate to `_design/myapp`. Click Edit.
+      JsonDisplay swaps to TextAreaJson pre-filled with the body (without
+      `_id`/`_rev`). Add a view entry. Click Save. Returns to view mode,
+      header rev updates (e.g., `1-...` -> `2-...`).
+- [ ] **Edit dirty cancel**: Click Edit, change body, click Cancel. Warning
+      dialog "You have unsaved changes. Discard?" appears. Click the
+      Cancel button in the dialog -- returns to the editor with changes
+      still in place. Click Cancel again and choose Discard -- returns to
+      read-only view with the original body.
+- [ ] **Edit invalid JSON**: Click Edit, break the body (e.g., add a stray
+      `,`). Inline `"Invalid JSON at line N"` appears. Save is disabled.
+      Fix the body. Save re-enables.
+- [ ] **Edit 409 conflict**: open the same ddoc in two browser tabs. Edit
+      and Save in tab 1. In tab 2, without refreshing, Edit + modify + Save.
+      The inline FeatureError shows the verbatim 409 `conflict` envelope
+      and the editor stays open. Click Cancel, reload, Edit again -- now
+      saves cleanly.
+- [ ] **Delete design doc**: in view mode, click Delete. Type-to-confirm
+      dialog requires typing the exact short name (`myapp`). Delete is
+      disabled until the name matches. Confirm -- DELETE fires, URL
+      returns to `/db/testdb11x3/design`, ddoc is gone from the list.
+- [ ] **Security edit (happy)**: navigate to `/db/testdb11x3/security`.
+      Click Edit. TextAreaJson pre-filled with normalized body. Add a name
+      to `admins.names`. Click Save. Returns to read-only view with the
+      new admin listed.
+- [ ] **Security dirty nav-away**: click Edit, mutate the body, click the
+      "Documents" sidenav link. Warning dialog appears. Click Cancel in
+      the dialog -- stay on the security editor with the change intact.
+      Click the sidenav link again and choose Discard -- navigation
+      proceeds and the edit is discarded.
+- [ ] **Security edit 401/500 (simulated)**: stop the IRIS node or revoke
+      admin rights. Edit + Save. Inline FeatureError shows the verbatim
+      backend envelope; editor stays open. Restore admin rights and retry
+      -- save succeeds.
+- [ ] **Keyboard-only on dialogs**: all three dialogs (create, delete
+      type-to-confirm, discard warning) are operable with Tab / Shift-Tab
+      only. Focus is trapped in the dialog, restored to the trigger on
+      close, Esc cancels.
+- [ ] **axe-core via Chrome DevTools MCP**: run the axe scan against the
+      detail view in all four states (view, edit-clean, edit-dirty-invalid,
+      edit-saving) and the security view in view + edit modes. All four
+      tests axe-clean apart from the known JsonDisplay contrast issue
+      scoped in the component spec.
+
+**Result**: [ ] PASS / [ ] FAIL
+
+---
+
 ## Sign-Off
 
 | Tester | Date | Overall Result |

@@ -21,6 +21,7 @@ export { ConfirmDialogComponent, type ConfirmDialogVariant } from './confirm-dia
 export { PageHeaderComponent } from './page-header/page-header.component';
 export { PaginationComponent } from './pagination/pagination.component';
 export { JsonDisplayComponent } from './json-display/json-display.component';
+export { TextAreaJsonComponent, type TextAreaJsonValidity, jsonErrorLine } from './text-area-json/text-area-json.component';
 
 // NOTE: test-utils.ts is intentionally NOT exported here.
 // Import directly from './couch-ui/test-utils' in spec files

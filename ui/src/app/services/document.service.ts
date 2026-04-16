@@ -34,6 +34,13 @@ export interface GetDocumentOptions {
   rev?: string;
 }
 
+/** Successful CouchDB write response shape: PUT/DELETE document. */
+export interface DocumentWriteResponse {
+  ok: boolean;
+  id: string;
+  rev: string;
+}
+
 /**
  * Encode a CouchDB document ID for use in a URL path.
  *
@@ -157,5 +164,66 @@ export class DocumentService {
     const query = params.toString();
     const path = `${encodeURIComponent(db)}/_all_docs${query ? '?' + query : ''}`;
     return this.api.get<AllDocsResponse>(path);
+  }
+
+  /**
+   * PUT /{db}/{docid}[?rev={rev}] -- create or update a document.
+   *
+   * The `rev` query parameter is appended only when supplied (i.e., for
+   * updates). When omitted, the request is a create; the backend returns
+   * 409 if the doc already exists. Composite IDs (`_design/<name>`,
+   * `_local/<name>`) are encoded via `encodeDocId()` so the literal `/`
+   * is preserved on the wire.
+   *
+   * Story 11.3 Task 5 -- chose `?rev=` query string over the `If-Match`
+   * header for parity with the existing attachment + delete endpoints
+   * already in the IRISCouch backend.
+   *
+   * @param db    the database name
+   * @param docid the document id, e.g. `_design/myapp` or a UUID
+   * @param body  the document body as a JS object (`_rev` is NOT required;
+   *              prefer the explicit `rev` parameter)
+   * @param rev   optional current revision -- required for updates
+   */
+  putDocument(
+    db: string,
+    docid: string,
+    body: unknown,
+    rev?: string,
+  ): Observable<DocumentWriteResponse> {
+    const params = new URLSearchParams();
+    if (rev) params.set('rev', rev);
+    const query = params.toString();
+    const path =
+      `${encodeURIComponent(db)}/${encodeDocId(docid)}` +
+      (query ? '?' + query : '');
+    return this.api.put<DocumentWriteResponse>(path, body);
+  }
+
+  /**
+   * DELETE /{db}/{docid}?rev={rev} -- tombstone a document.
+   *
+   * The `rev` parameter is required by CouchDB for optimistic concurrency
+   * (see `sources/couchdb/src/chttpd/src/chttpd_db.erl` -> `db_doc_req`).
+   * Composite IDs are encoded via `encodeDocId()`.
+   *
+   * Story 11.3 Task 5.
+   */
+  deleteDocument(
+    db: string,
+    docid: string,
+    rev: string,
+  ): Observable<DocumentWriteResponse> {
+    if (!rev) {
+      // Defensive: a deletion without a rev would be an unconditional delete
+      // and CouchDB would reject it. Surface the bug at the callsite rather
+      // than constructing an invalid URL.
+      throw new Error('deleteDocument requires a rev');
+    }
+    const params = new URLSearchParams();
+    params.set('rev', rev);
+    const path =
+      `${encodeURIComponent(db)}/${encodeDocId(docid)}?${params.toString()}`;
+    return this.api.delete<DocumentWriteResponse>(path);
   }
 }

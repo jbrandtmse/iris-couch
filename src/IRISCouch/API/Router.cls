@@ -56,6 +56,18 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
   <Route Url="/:db" Method="DELETE" Call="HandleDatabaseDelete" />
   <Route Url="/:db" Method="GET" Call="HandleDatabaseInfo" />
+  <!-- Design document endpoints - MUST be BEFORE attachment routes so /:db/_design/:name
+       routes to the document handler, not to the attachment handler with docid="_design"
+       (Story 11.3 Task 0 — fixes deferred-work backend bug from Story 11.1) -->
+  <Route Url="/:db/_design/:ddocid" Method="PUT" Call="HandleDesignDocPut" />
+  <Route Url="/:db/_design/:ddocid" Method="GET" Call="HandleDesignDocGet" />
+  <Route Url="/:db/_design/:ddocid" Method="DELETE" Call="HandleDesignDocDelete" />
+  <!-- Design document attachments — explicit 4-segment routes ahead of the generic
+       :docid/:attname route so the design-doc id (composite "_design/<name>") is
+       reassembled correctly before dispatch (Story 11.3 Task 0) -->
+  <Route Url="/:db/_design/:ddocid/:attname" Method="PUT" Call="HandleDesignDocAttachmentPut" />
+  <Route Url="/:db/_design/:ddocid/:attname" Method="GET" Call="HandleDesignDocAttachmentGet" />
+  <Route Url="/:db/_design/:ddocid/:attname" Method="DELETE" Call="HandleDesignDocAttachmentDelete" />
   <!-- Attachment endpoints - 3-segment routes before 2-segment document routes (Story 5.1) -->
   <Route Url="/:db/:docid/:attname" Method="PUT" Call="HandleAttachmentPut" />
   <Route Url="/:db/:docid/:attname" Method="GET" Call="HandleAttachmentGet" />
@@ -168,6 +180,57 @@ ClassMethod HandleDocumentPost(pDB As %String) As %Status
 ClassMethod HandleDocumentPut(pDB As %String, pDocId As %String) As %Status
 {
     Set tSC = ##class(IRISCouch.API.DocumentHandler).HandlePut(pDB, pDocId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
+}
+
+/// <p>Dispatch PUT /:db/_design/:ddocid to DocumentHandler (Story 11.3 Task 0).</p>
+/// <p>Reassembles the composite ID "_design/<name>" before delegating, so the
+/// document handler stores the document with the correct full ID instead of
+/// the route-fragment "_design".</p>
+ClassMethod HandleDesignDocPut(pDB As %String, pDDocId As %String) As %Status
+{
+    Set tSC = ##class(IRISCouch.API.DocumentHandler).HandlePut(pDB, "_design/" _ pDDocId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
+}
+
+/// <p>Dispatch GET /:db/_design/:ddocid to DocumentHandler (Story 11.3 Task 0).</p>
+ClassMethod HandleDesignDocGet(pDB As %String, pDDocId As %String) As %Status
+{
+    Set tSC = ##class(IRISCouch.API.DocumentHandler).HandleGet(pDB, "_design/" _ pDDocId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
+}
+
+/// <p>Dispatch DELETE /:db/_design/:ddocid to DocumentHandler (Story 11.3 Task 0).</p>
+ClassMethod HandleDesignDocDelete(pDB As %String, pDDocId As %String) As %Status
+{
+    Set tSC = ##class(IRISCouch.API.DocumentHandler).HandleDelete(pDB, "_design/" _ pDDocId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
+}
+
+/// <p>Dispatch PUT /:db/_design/:ddocid/:attname to AttachmentHandler (Story 11.3 Task 0).</p>
+ClassMethod HandleDesignDocAttachmentPut(pDB As %String, pDDocId As %String, pAttName As %String) As %Status
+{
+    Set tSC = ##class(IRISCouch.API.AttachmentHandler).HandlePut(pDB, "_design/" _ pDDocId, pAttName)
+    Do ..RecordRequestMetrics()
+    Quit tSC
+}
+
+/// <p>Dispatch GET /:db/_design/:ddocid/:attname to AttachmentHandler (Story 11.3 Task 0).</p>
+ClassMethod HandleDesignDocAttachmentGet(pDB As %String, pDDocId As %String, pAttName As %String) As %Status
+{
+    Set tSC = ##class(IRISCouch.API.AttachmentHandler).HandleGet(pDB, "_design/" _ pDDocId, pAttName)
+    Do ..RecordRequestMetrics()
+    Quit tSC
+}
+
+/// <p>Dispatch DELETE /:db/_design/:ddocid/:attname to AttachmentHandler (Story 11.3 Task 0).</p>
+ClassMethod HandleDesignDocAttachmentDelete(pDB As %String, pDDocId As %String, pAttName As %String) As %Status
+{
+    Set tSC = ##class(IRISCouch.API.AttachmentHandler).HandleDelete(pDB, "_design/" _ pDDocId, pAttName)
     Do ..RecordRequestMetrics()
     Quit tSC
 }

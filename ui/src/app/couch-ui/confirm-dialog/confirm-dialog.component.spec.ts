@@ -179,6 +179,44 @@ describe('ConfirmDialogComponent', () => {
     });
   });
 
+  // Story 11.3 Task 7 + AC #7 -- "warning" variant for the unsaved-changes
+  // discard prompt. No input field, immediately enabled, destructive button
+  // styling so the visual weight matches the data-loss intent.
+  describe('Warning variant', () => {
+    beforeEach(() => {
+      host.variant = 'warning';
+      host.title = 'Discard changes?';
+      host.body = 'You have unsaved changes. Discard?';
+      host.confirmLabel = 'Discard';
+      fixture.detectChanges();
+    });
+
+    it('renders without an input field', () => {
+      expect(fixture.nativeElement.querySelector('app-text-input')).toBeNull();
+    });
+
+    it('enables the discard button immediately', () => {
+      const buttons = fixture.nativeElement.querySelectorAll('button');
+      const confirmBtn = buttons[buttons.length - 1];
+      expect(confirmBtn.disabled).toBeFalse();
+    });
+
+    it('uses destructive button styling', () => {
+      const buttons = fixture.nativeElement.querySelectorAll('button');
+      const confirmBtn = buttons[buttons.length - 1];
+      expect(confirmBtn.classList).toContain('btn--destructive');
+    });
+
+    it('emits confirm without an input value', () => {
+      const buttons = fixture.nativeElement.querySelectorAll('button');
+      const confirmBtn = buttons[buttons.length - 1];
+      confirmBtn.click();
+      // The warning variant fires confirm with the (empty) input value, which
+      // is fine -- the consumer decides what to do based on which event arrives.
+      expect(host.lastConfirm).toBe('');
+    });
+  });
+
   describe('Destructive simple variant', () => {
     beforeEach(() => {
       host.variant = 'destructive-simple';

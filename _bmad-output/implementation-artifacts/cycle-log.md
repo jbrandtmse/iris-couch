@@ -1,5 +1,20 @@
 # Epic Development Cycle Log
 
+## Epic 11: Admin UI - Design Documents & Security Views
+
+### 2026-04-15T00:00:00Z — Cycle resumed
+- **Scope:** Epic 11, Stories 11.3 (in-progress) and 11.4 (backlog)
+- **Sprint status (resume):** 11.0/11.1/11.2 done, 11.3 in-progress, 11.4 backlog
+- **Phase 0 sprint planning:** Skipped — sprint-status.yaml current as of 2026-04-14, all Epic 11 stories tracked
+- **Phase 0.5 retro review:** Skipped — Epic 10 retro already triaged into Story 11.0 (done)
+- **Story 11.3 state at resume:** Story file present; backend Task 0 already RESOLVED in deferred-work; all expected UI files modified (TextAreaJson, unsaved-changes guard, design-doc-create-dialog, design-doc-detail/list, security-view, services); 4 screenshots present; story checkboxes still unchecked and Dev Agent Record empty — needs dev to verify/close out
+
+### 2026-04-15T00:00:00Z — Story 11.3: Design Document & Security Editing
+- **Create Story:** Story file pre-existing from prior partial run
+- **Development:** Dev confirmed Task 0 backend (6 explicit `/:db/_design/...` UrlMap routes + composite-ID reassembly + 5 new ObjectScript tests) and the full UI editing UX (TextAreaJson primitive with line-numbers gutter and 4 visual states; design-doc detail edit/save/delete; design-doc create dialog; security view edit/save; ConfirmDialog `warning` variant; shared `unsavedChangesGuard`; service additions). All 8 ACs satisfied. 591 Angular specs pass; ObjectScript Task 0 tests pass individually; regression suites green. 4 Chrome DevTools screenshots captured. TESTING-CHECKLIST.md updated. Two Story 11.1 deferrals marked RESOLVED.
+- **Code Review:** 1 MED auto-resolved (Esc key handler in edit mode for design-doc-detail and security-view, +8 specs). 5 LOW deferred (gutter scroll via `getElementById`, 405/404 tolerance in `TestPostDesignDocNotAllowed`, `Date.now()` titleId, delete-dialog `[innerHTML]`, idempotent invalid-event emit). 599 specs pass after fixes.
+- **Status:** done
+
 ## Epic 10: Admin UI - Core Experience
 
 ### 2026-04-14T10:00:00Z — Cycle started

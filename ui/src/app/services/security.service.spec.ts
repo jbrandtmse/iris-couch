@@ -101,6 +101,63 @@ describe('SecurityService', () => {
     });
   });
 
+  // Story 11.3 Task 5 -- write method.
+  describe('setSecurity', () => {
+    const sec = {
+      admins: { names: ['alice'], roles: ['admin'] },
+      members: { names: ['bob'], roles: [] },
+    };
+
+    it('PUTs /{db}/_security with the doc as the body', () => {
+      service.setSecurity('testdb', sec).subscribe((res) => {
+        expect(res.ok).toBeTrue();
+      });
+      const req = httpMock.expectOne('testdb/_security');
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual(sec);
+      req.flush({ ok: true });
+    });
+
+    it('encodes db name with special characters', () => {
+      service.setSecurity('my db', sec).subscribe();
+      const req = httpMock.expectOne('my%20db/_security');
+      expect(req.request.method).toBe('PUT');
+      req.flush({ ok: true });
+    });
+
+    it('propagates 401 unauthorized', (done) => {
+      service.setSecurity('testdb', sec).subscribe({
+        next: () => fail('expected error'),
+        error: (err) => {
+          expect(err.status).toBe(401);
+          done();
+        },
+      });
+      httpMock
+        .expectOne('testdb/_security')
+        .flush(
+          { error: 'unauthorized', reason: 'You are not a server admin.' },
+          { status: 401, statusText: 'Unauthorized' },
+        );
+    });
+
+    it('propagates 500 server error', (done) => {
+      service.setSecurity('testdb', sec).subscribe({
+        next: () => fail('expected error'),
+        error: (err) => {
+          expect(err.status).toBe(500);
+          done();
+        },
+      });
+      httpMock
+        .expectOne('testdb/_security')
+        .flush(
+          { error: 'internal_server_error', reason: 'boom' },
+          { status: 500, statusText: 'Internal Server Error' },
+        );
+    });
+  });
+
   describe('normalizeSecurity pure function', () => {
     it('handles null/undefined input', () => {
       expect(normalizeSecurity(null)).toEqual(DEFAULT_SECURITY);

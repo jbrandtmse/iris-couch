@@ -251,5 +251,213 @@ describe('SecurityViewComponent', () => {
       fixture.detectChanges();
       await expectNoAxeViolations(fixture.nativeElement);
     });
+
+    it('has no axe-core violations in edit mode', async () => {
+      fixture.detectChanges();
+      expectSecurityRequest('testdb').flush(DEFAULT_SECURITY);
+      fixture.detectChanges();
+      component.onEdit();
+      fixture.detectChanges();
+      await expectNoAxeViolations(fixture.nativeElement, {
+        rules: { 'color-contrast': { enabled: false } },
+      });
+    });
+  });
+
+  // -------------- Story 11.3 -- edit/save --------------
+
+  describe('Edit/Save (AC #5)', () => {
+    beforeEach(async () => {
+      await configure({ dbname: 'testdb' });
+      fixture.detectChanges();
+      expectSecurityRequest('testdb').flush({
+        admins: { names: ['alice'], roles: [] },
+        members: { names: [], roles: [] },
+      });
+      fixture.detectChanges();
+    });
+
+    it('switches to edit mode and pre-fills the JSON body', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      expect(component.mode).toBe('edit');
+      expect(component.editValue).toContain('"alice"');
+      const ta = fixture.nativeElement.querySelector('app-text-area-json');
+      expect(ta).toBeTruthy();
+    });
+
+    it('PUTs the normalized doc on Save and re-fetches on success', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      const updated = {
+        admins: { names: ['alice', 'admin2'], roles: [] },
+        members: { names: ['bob'], roles: [] },
+      };
+      component.editValue = JSON.stringify(updated);
+      component.editValid = true;
+      component.onSave();
+      const putReq = httpMock.expectOne('testdb/_security');
+      expect(putReq.request.method).toBe('PUT');
+      expect(putReq.request.body).toEqual(updated);
+      putReq.flush({ ok: true });
+      // Re-fetch
+      expectSecurityRequest('testdb').flush(updated);
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+      expect(component.security).toEqual(updated);
+      expect(component.saving).toBeFalse();
+    });
+
+    it('normalizes the body before sending so partial input is filled out', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      // User edits to only specify admins; nested arrays should be filled.
+      component.editValue = '{"admins":{"names":["a"]}}';
+      component.editValid = true;
+      component.onSave();
+      const putReq = httpMock.expectOne('testdb/_security');
+      expect(putReq.request.body).toEqual({
+        admins: { names: ['a'], roles: [] },
+        members: { names: [], roles: [] },
+      });
+      putReq.flush({ ok: true });
+      expectSecurityRequest('testdb').flush({
+        admins: { names: ['a'], roles: [] },
+        members: { names: [], roles: [] },
+      });
+    });
+
+    it('shows inline FeatureError on 401 unauthorized and stays in edit mode', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      component.editValue = '{"admins":{"names":[],"roles":[]},"members":{"names":[],"roles":[]}}';
+      component.editValid = true;
+      component.onSave();
+      httpMock
+        .expectOne('testdb/_security')
+        .flush(
+          { error: 'unauthorized', reason: 'You are not a server admin.' },
+          { status: 401, statusText: 'Unauthorized' },
+        );
+      fixture.detectChanges();
+      expect(component.mode).toBe('edit');
+      expect(component.saveError?.error).toBe('unauthorized');
+      expect(component.saveErrorStatus).toBe(401);
+    });
+
+    it('shows inline FeatureError on 500 server error and stays in edit mode', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      component.editValue = '{"admins":{"names":[],"roles":[]},"members":{"names":[],"roles":[]}}';
+      component.editValid = true;
+      component.onSave();
+      httpMock
+        .expectOne('testdb/_security')
+        .flush(
+          { error: 'internal_server_error', reason: 'boom' },
+          { status: 500, statusText: 'Internal Server Error' },
+        );
+      fixture.detectChanges();
+      expect(component.mode).toBe('edit');
+      expect(component.saveErrorStatus).toBe(500);
+    });
+
+    it('Cancel without changes returns to view mode immediately', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      component.onCancel();
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+    });
+
+    it('Cancel with dirty state opens warning dialog and Discard exits edit', async () => {
+      component.onEdit();
+      fixture.detectChanges();
+      component.editValue = component.editValue + ' ';
+      component.onCancel();
+      fixture.detectChanges();
+      expect(component.showDiscardDialog).toBeTrue();
+      component.onDiscardConfirmed();
+      // Allow then() to fire.
+      await Promise.resolve();
+      await Promise.resolve();
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+    });
+  });
+
+  // Story 11.3 AC #7 — Esc key in edit mode triggers Cancel flow.
+  describe('Esc key handling in edit mode (AC #7)', () => {
+    beforeEach(async () => {
+      await configure({ dbname: 'testdb' });
+      fixture.detectChanges();
+      expectSecurityRequest('testdb').flush(DEFAULT_SECURITY);
+      fixture.detectChanges();
+    });
+
+    it('Esc in view mode does nothing', () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+      expect(component.showDiscardDialog).toBeFalse();
+    });
+
+    it('Esc in clean edit mode exits to view without prompt', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.mode).toBe('view');
+      expect(component.showDiscardDialog).toBeFalse();
+    });
+
+    it('Esc in dirty edit mode opens the discard-changes warning', () => {
+      component.onEdit();
+      fixture.detectChanges();
+      component.editValue = component.editValue + ' ';
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.showDiscardDialog).toBeTrue();
+      expect(component.mode).toBe('edit');
+    });
+
+    it('Esc is ignored while saving', () => {
+      component.onEdit();
+      (component as any).saving = true;
+      fixture.detectChanges();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      fixture.detectChanges();
+      expect(component.mode).toBe('edit');
+      expect(component.showDiscardDialog).toBeFalse();
+    });
+  });
+
+  describe('CanDeactivate guard contract (AC #7)', () => {
+    beforeEach(async () => {
+      await configure({ dbname: 'testdb' });
+      fixture.detectChanges();
+      expectSecurityRequest('testdb').flush(DEFAULT_SECURITY);
+      fixture.detectChanges();
+    });
+
+    it('hasUnsavedChanges() is false in view mode', () => {
+      expect(component.hasUnsavedChanges()).toBeFalse();
+    });
+
+    it('hasUnsavedChanges() flips true after editing', () => {
+      component.onEdit();
+      component.editValue = component.editValue + ' ';
+      expect(component.hasUnsavedChanges()).toBeTrue();
+    });
+
+    it('confirmDiscard() resolves on dialog action', async () => {
+      component.onEdit();
+      component.editValue = component.editValue + ' ';
+      const p = component.confirmDiscard();
+      expect(component.showDiscardDialog).toBeTrue();
+      component.onDiscardCancelled();
+      const r = await p;
+      expect(r).toBeFalse();
+    });
   });
 });
