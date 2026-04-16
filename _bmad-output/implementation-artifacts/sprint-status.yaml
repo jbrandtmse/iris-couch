@@ -152,7 +152,7 @@ development_status:
   epic-11: in-progress
   11-0-epic-10-deferred-cleanup: done
   11-1-design-document-list-and-detail-view: done
-  11-2-security-configuration-view: backlog
+  11-2-security-configuration-view: done
   11-3-design-document-and-security-editing: backlog
   11-4-revision-history-view: backlog
   epic-11-retrospective: optional

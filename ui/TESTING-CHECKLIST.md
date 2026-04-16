@@ -175,6 +175,54 @@ Smoke steps:
 
 ---
 
+## Story 11.2 -- Security Configuration View (Read-Only Alpha)
+
+Setup:
+- Create a test database via curl:
+  ```
+  curl -u _system:SYS -X PUT http://localhost:52773/iris-couch/testsec12
+  ```
+- (Optional) Populate `_security` so the populated path can be exercised:
+  ```
+  curl -u _system:SYS -X PUT http://localhost:52773/iris-couch/testsec12/_security \
+    -H 'Content-Type: application/json' \
+    -d '{"admins":{"names":["alice"],"roles":["admin"]},"members":{"names":["bob"],"roles":["reader"]}}'
+  ```
+
+Backend behavior verified during Story 11.2 dev (2026-04-14):
+- `GET /db/_security` on an unset database returns the full default object
+  `{"admins":{"names":[],"roles":[]},"members":{"names":[],"roles":[]}}` (HTTP 200).
+  This diverges from CouchDB 3.x which returns `{}` -- see deferred-work.md.
+  SecurityService normalizes both shapes so UI behavior is identical either way.
+
+Smoke steps:
+- [ ] **Default (empty) security**: from `/db/testsec12`, click "Security" in
+      the per-database SideNav. URL becomes `/db/testsec12/security`. JsonDisplay
+      shows the full default object with empty `names` and `roles` arrays.
+- [ ] **Populated security**: after the PUT above, click Refresh in the page
+      header (or reload). JsonDisplay body reflects `alice`/`admin` and
+      `bob`/`reader`.
+- [ ] **Deep link**: paste `/iris-couch/_utils/db/testsec12/security` into the
+      browser address bar (no list view visited). View renders the JSON body.
+- [ ] **CopyButton -- raw JSON**: click the JsonDisplay Copy button. Clipboard
+      JSON matches the output of
+      `curl -u _system:SYS http://localhost:52773/iris-couch/testsec12/_security`
+      byte-for-byte.
+- [ ] **Read-only**: no Edit, Delete, or Save affordance visible on the view.
+      There are no `_id`/`_rev` identity rows (security has no revisions).
+- [ ] **Error path (simulated)**: stop the IRIS node or block the endpoint,
+      then reload. `FeatureError` renders the verbatim backend envelope with
+      a Retry button. Restoring the endpoint + clicking Retry returns the
+      populated JSON.
+- [ ] **SideNav regression**: the per-database SideNav Security link now
+      resolves to the new component (not a redirect/wildcard fallback).
+      `aria-current="page"` is set on the Security item when the route is
+      active.
+
+**Result**: [ ] PASS / [ ] FAIL
+
+---
+
 ## Sign-Off
 
 | Tester | Date | Overall Result |

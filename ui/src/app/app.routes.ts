@@ -6,6 +6,7 @@ import { DatabaseDetailComponent } from './features/database/database-detail.com
 import { DocumentDetailComponent } from './features/document/document-detail.component';
 import { DesignDocListComponent } from './features/design-docs/design-doc-list.component';
 import { DesignDocDetailComponent } from './features/design-docs/design-doc-detail.component';
+import { SecurityViewComponent } from './features/security/security-view.component';
 
 /**
  * Custom URL matcher for /db/:dbname/doc/:docid that supports `_design/<name>`
@@ -91,6 +92,7 @@ export const routes: Routes = [
   { path: 'db/:dbname', component: DatabaseDetailComponent, canActivate: [authGuard] },
   { path: 'db/:dbname/design', component: DesignDocListComponent, canActivate: [authGuard] },
   { matcher: designDocDetailMatcher, component: DesignDocDetailComponent, canActivate: [authGuard] },
+  { path: 'db/:dbname/security', component: SecurityViewComponent, canActivate: [authGuard] },
   { matcher: docDetailMatcher, component: DocumentDetailComponent, canActivate: [authGuard] },
   { path: '', redirectTo: 'databases', pathMatch: 'full' },
   { path: '**', redirectTo: 'databases' },

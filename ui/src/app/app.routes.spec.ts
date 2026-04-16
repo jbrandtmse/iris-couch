@@ -90,4 +90,12 @@ describe('app routes table', () => {
     expect(detailIdx).toBeGreaterThan(-1);
     expect(listIdx).toBeLessThan(detailIdx);
   });
+
+  // Story 11.2 AC #3 -- security view route wiring.
+  it('registers the security view route at /db/:dbname/security', () => {
+    const secRoute = routes.find((r) => r.path === 'db/:dbname/security');
+    expect(secRoute).toBeDefined();
+    expect(secRoute!.canActivate).toBeTruthy();
+    expect(secRoute!.component).toBeDefined();
+  });
 });

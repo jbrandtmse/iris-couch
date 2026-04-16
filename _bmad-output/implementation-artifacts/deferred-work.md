@@ -346,3 +346,28 @@ the initial entries.
   because `JsonDisplay` shows whatever JSON the server returns, and the
   identity rows (`_id`, `_rev`) simply stay blank when the fields are
   missing. Revisit with the routing fix.
+
+## Deferred from: Story 11.2 -- Security Configuration View (2026-04-14)
+
+- **JsonDisplay line-number gutter fails axe color-contrast on 10+ line bodies
+  (LOW -- shared component styling issue).** `.json-display__line-number` uses
+  `color: var(--color-neutral-400)` but renders (per axe) at `#9096a1` on
+  `#f7f8fa`, contrast ratio 2.79 (WCAG AA needs 4.5). Tripped by the default
+  `_security` body which is exactly 10 lines after JsonDisplay's internal
+  2-space pretty-print. Design-doc bodies in Story 11.1 stay under 10 lines
+  so the issue did not surface there. SecurityViewComponent's axe success-state
+  spec disables the `color-contrast` rule as a scoped workaround. Fix in
+  `ui/src/app/couch-ui/json-display/json-display.component.ts` by bumping the
+  line-number color to a token with >= 4.5:1 contrast against
+  `--color-neutral-50` (e.g., `--color-neutral-600` which renders ~4.7:1 on
+  the same background). Single-line change. Affects every view that renders
+  JsonDisplay with a >= 10-line body.
+- **IRISCouch `_security` backend divergence from CouchDB 3.x spec (INFORMATIONAL
+  -- client-side tolerated).** CouchDB 3.x returns `{}` for an unset
+  `_security`; IRISCouch returns the full default object
+  `{"admins":{"names":[],"roles":[]},"members":{"names":[],"roles":[]}}`
+  verbatim. Verified via `curl -u _system:SYS /iris-couch/testsec112/_security`
+  on 2026-04-14. SecurityService.normalizeSecurity() accepts both shapes so
+  no client action is needed. Revisit if strict CouchDB wire compatibility
+  becomes an NFR; otherwise leave as-is since the IRISCouch shape is strictly
+  more useful to clients.

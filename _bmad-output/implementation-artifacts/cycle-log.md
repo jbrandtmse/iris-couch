@@ -728,3 +728,11 @@
 - **Development:** Agent `dev-11-1` — 2 new feature components, 1 new service method, routes. Backend `_all_docs` startkey/endkey verified working. Discovered pre-existing backend bug: PUT `/db/_design/<name>` routes to attachment handler (logged as deferred — blocks Story 11.3 but not 11.1 read-only). 471/471 tests pass.
 - **Code Review:** Agent `cr-11-1` — 0 CRITICAL, 1 MEDIUM (onRowClick guards) auto-resolved, 2 LOW deferred. 473/473 tests after.
 - **Status:** done (pending commit)
+
+### 2026-04-15T00:50:00Z — Story 11.2: Security Configuration View
+- **Create Story:** Written from epics.md spec + Story 11.1 pattern (5 ACs, 5 Tasks)
+- **Development:** Agent `dev-11-2` started but went silent mid-task; lead completed browser verification + finalized story file. New `SecurityService` (with defensive `normalizeSecurity` helper) + `SecurityViewComponent`. Backend verified: IRISCouch returns full default `_security` object (more spec-compliant than CouchDB 3.x which returns `{}`). Component normalizes anyway for safety.
+- **Code Review:** Lead self-reviewed — clean. Subscription discipline ✓, mapError ✓, FeatureError ✓, axe ✓, no hardcoded colors ✓.
+- **Browser verification:** Chrome DevTools MCP — login → deep-link `/db/testdb/security` → renders default; PUT populated `_security` via curl, refresh → renders populated. Screenshot saved.
+- **Tests:** 500/500 pass (+27 new)
+- **Status:** done (pending commit)
