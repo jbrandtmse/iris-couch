@@ -2,6 +2,11 @@
 
 ## Epic 11: Admin UI - Design Documents & Security Views
 
+### 2026-04-16T00:00:00Z — Epic 11 Retrospective
+- **Retrospective saved:** `epic-11-retro-2026-04-16.md` (document-form, not party-mode dialogue since cycle was automated end-to-end)
+- **Key findings:** All 6 Epic-10 action items completed or carried forward. Subscription-leak rule paid for itself twice. Task 0 pattern caught real backend gaps in both beta/gamma stories. `RevisionTree` pure-layout-helper + CDK-overlay pattern reusable. Chrome DevTools MCP caught one bug (deleted-leaf 404) invisible to specs.
+- **5 new action items** (process, technical, infrastructure). Epic 11 retrospective complete. Sprint status: `epic-11-retrospective: optional → done`.
+
 ### 2026-04-15T00:00:00Z — Cycle resumed
 - **Scope:** Epic 11, Stories 11.3 (in-progress) and 11.4 (backlog)
 - **Sprint status (resume):** 11.0/11.1/11.2 done, 11.3 in-progress, 11.4 backlog
@@ -14,6 +19,8 @@
 - **Development:** Dev discovered story-spec assumption was wrong — `?deleted_conflicts=true` was NOT yet implemented in the backend handler. Added `Storage.RevTree.GetDeletedConflicts()` + handler clause (4+4 lines) and 2 new ObjectScript HTTP tests (`TestRevisionTreeCombinedQuery`, `TestDeletedConflictsEmpty`). New UI: the `RevisionTree` couch-ui primitive (SVG-based, pure layout helper `computeRevisionTreeLayout`, CDK overlay popover), `IconHistoryComponent`, `RevisionsService` (N+1 forkJoin with 404-tolerance for deleted leaves), `RevisionsViewComponent` (two-slot subscription discipline), `revisionsMatcher` registered before `docDetailMatcher`, extended SideNav with optional `[docId]` input + disabled state. 599 → 669 specs (+70). 5 Chrome DevTools screenshots captured. All 7 ACs satisfied.
 - **Code Review:** 2 MED auto-resolved: (1) routing regression upgraded from index-comparison to real `provideRouter` integration test with navigateByUrl + component assertion + negative-control reversed-order test; (2) Esc handler now defers to open CDK overlay popover (first Esc dismisses popover, second navigates back). 6 LOW deferred. 676/676 specs pass after fixes. ObjectScript classes compile clean.
 - **Sprint status:** 11-4 moved backlog → ready-for-dev → review
+- **Commit:** `cc5b14b` pushed to origin/main
+- **Status:** done
 
 ### 2026-04-15T00:00:00Z — Story 11.3: Design Document & Security Editing
 - **Create Story:** Story file pre-existing from prior partial run

@@ -155,8 +155,8 @@ development_status:
   11-1-design-document-list-and-detail-view: done
   11-2-security-configuration-view: done
   11-3-design-document-and-security-editing: done
-  11-4-revision-history-view: review
-  epic-11-retrospective: optional
+  11-4-revision-history-view: done
+  epic-11-retrospective: done
 
   # Epic 12: Pluggable JavaScript Runtime
   epic-12: backlog
