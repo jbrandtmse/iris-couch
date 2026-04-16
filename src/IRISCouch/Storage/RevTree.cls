@@ -184,6 +184,31 @@ ClassMethod GetConflicts(pDB As %String, pDocId As %String) As %DynamicArray
     Quit tConflicts
 }
 
+/// <p>Get all deleted, non-winning leaf revisions.</p>
+/// <p>Returns a <class>%DynamicArray</class> of revision strings that are leaves,
+/// not the winner, and marked as deleted. Empty array if there are none.</p>
+/// <p>Counterpart to <method>GetConflicts</method>, used by the UI to render
+/// deleted-leaf branches in the revision tree graph (Story 11.4).</p>
+/// @param pDB The database name
+/// @param pDocId The document identifier
+/// @return %DynamicArray Array of deleted conflict revision strings
+ClassMethod GetDeletedConflicts(pDB As %String, pDocId As %String) As %DynamicArray
+{
+    Set tDeleted = []
+    Set tWinner = ..GetWinner(pDB, pDocId)
+    Set tRev = ""
+    For {
+        Set tRev = $Order(^IRISCouch.Tree(pDB, pDocId, "L", tRev))
+        Quit:tRev=""
+        ; Skip the winner
+        If tRev = tWinner Continue
+        ; Include only deleted leaves
+        If '+$Get(^IRISCouch.Tree(pDB, pDocId, "D", tRev)) Continue
+        Do tDeleted.%Push(tRev)
+    }
+    Quit tDeleted
+}
+
 /// <p>Get the revision history path from a specific revision to the root.</p>
 /// <p>Returns a <class>%DynamicObject</class> with <code>start</code> (generation integer)
 /// and <code>ids</code> (array of hex hashes from newest to oldest).</p>

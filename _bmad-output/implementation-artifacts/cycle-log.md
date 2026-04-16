@@ -9,10 +9,17 @@
 - **Phase 0.5 retro review:** Skipped — Epic 10 retro already triaged into Story 11.0 (done)
 - **Story 11.3 state at resume:** Story file present; backend Task 0 already RESOLVED in deferred-work; all expected UI files modified (TextAreaJson, unsaved-changes guard, design-doc-create-dialog, design-doc-detail/list, security-view, services); 4 screenshots present; story checkboxes still unchecked and Dev Agent Record empty — needs dev to verify/close out
 
+### 2026-04-16T00:00:00Z — Story 11.4: Revision History View
+- **Create Story:** Story file created at `11-4-revision-history-view.md` with 7 ACs and 6 tasks (backend regression test, RevisionTree primitive with CDK overlay popover, RevisionsService for client-side tree stitching, RevisionsViewComponent feature page, routing/sidenav, testing).
+- **Development:** Dev discovered story-spec assumption was wrong — `?deleted_conflicts=true` was NOT yet implemented in the backend handler. Added `Storage.RevTree.GetDeletedConflicts()` + handler clause (4+4 lines) and 2 new ObjectScript HTTP tests (`TestRevisionTreeCombinedQuery`, `TestDeletedConflictsEmpty`). New UI: the `RevisionTree` couch-ui primitive (SVG-based, pure layout helper `computeRevisionTreeLayout`, CDK overlay popover), `IconHistoryComponent`, `RevisionsService` (N+1 forkJoin with 404-tolerance for deleted leaves), `RevisionsViewComponent` (two-slot subscription discipline), `revisionsMatcher` registered before `docDetailMatcher`, extended SideNav with optional `[docId]` input + disabled state. 599 → 669 specs (+70). 5 Chrome DevTools screenshots captured. All 7 ACs satisfied.
+- **Code Review:** 2 MED auto-resolved: (1) routing regression upgraded from index-comparison to real `provideRouter` integration test with navigateByUrl + component assertion + negative-control reversed-order test; (2) Esc handler now defers to open CDK overlay popover (first Esc dismisses popover, second navigates back). 6 LOW deferred. 676/676 specs pass after fixes. ObjectScript classes compile clean.
+- **Sprint status:** 11-4 moved backlog → ready-for-dev → review
+
 ### 2026-04-15T00:00:00Z — Story 11.3: Design Document & Security Editing
 - **Create Story:** Story file pre-existing from prior partial run
 - **Development:** Dev confirmed Task 0 backend (6 explicit `/:db/_design/...` UrlMap routes + composite-ID reassembly + 5 new ObjectScript tests) and the full UI editing UX (TextAreaJson primitive with line-numbers gutter and 4 visual states; design-doc detail edit/save/delete; design-doc create dialog; security view edit/save; ConfirmDialog `warning` variant; shared `unsavedChangesGuard`; service additions). All 8 ACs satisfied. 591 Angular specs pass; ObjectScript Task 0 tests pass individually; regression suites green. 4 Chrome DevTools screenshots captured. TESTING-CHECKLIST.md updated. Two Story 11.1 deferrals marked RESOLVED.
 - **Code Review:** 1 MED auto-resolved (Esc key handler in edit mode for design-doc-detail and security-view, +8 specs). 5 LOW deferred (gutter scroll via `getElementById`, 405/404 tolerance in `TestPostDesignDocNotAllowed`, `Date.now()` titleId, delete-dialog `[innerHTML]`, idempotent invalid-event emit). 599 specs pass after fixes.
+- **Commit:** `8b993ce` pushed to origin/main
 - **Status:** done
 
 ## Epic 10: Admin UI - Core Experience

@@ -40,6 +40,7 @@ last_story_completed: 8-3-replication-ready-bulk-get
 
 generated: 2026-04-12
 last_updated: 2026-04-15
+last_story_in_progress: 11-4-revision-history-view
 last_story_completed: 10-7-error-handling-accessibility-and-cross-browser-verification
 last_story_reviewed: 10-7-error-handling-accessibility-and-cross-browser-verification
 last_story_in_progress: 10-0-epic-9-deferred-cleanup
@@ -154,7 +155,7 @@ development_status:
   11-1-design-document-list-and-detail-view: done
   11-2-security-configuration-view: done
   11-3-design-document-and-security-editing: done
-  11-4-revision-history-view: backlog
+  11-4-revision-history-view: review
   epic-11-retrospective: optional
 
   # Epic 12: Pluggable JavaScript Runtime

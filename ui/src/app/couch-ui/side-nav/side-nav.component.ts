@@ -5,6 +5,8 @@ import {
   ElementRef,
   AfterViewInit,
   OnDestroy,
+  Input,
+  OnChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, ActivatedRoute, NavigationEnd, Router } from '@angular/router';
@@ -17,6 +19,10 @@ export interface NavItem {
   label: string;
   route: string;
   icon?: string;
+  /** When true, render the item but disable routing / focus (Story 11.4). */
+  disabled?: boolean;
+  /** Optional tooltip shown via title attribute (e.g. "Select a document first"). */
+  tooltip?: string;
 }
 
 /**
@@ -34,7 +40,9 @@ export interface NavItem {
     <nav role="navigation" aria-label="Main navigation">
       <ul class="nav-list" (keydown)="onKeydown($event)">
         <li *ngFor="let item of items; let i = index" class="nav-item">
+          <!-- Enabled entry: a real router link. -->
           <a
+            *ngIf="!item.disabled"
             #navLink
             class="nav-link"
             [routerLink]="item.route"
@@ -45,6 +53,19 @@ export interface NavItem {
             (focus)="onFocusItem(i)">
             {{ item.label }}
           </a>
+          <!-- Disabled entry (Story 11.4): a non-link with aria-disabled
+               and a tooltip explaining why it can't be clicked. -->
+          <span
+            *ngIf="item.disabled"
+            #navLink
+            class="nav-link nav-link--disabled"
+            role="link"
+            aria-disabled="true"
+            [attr.title]="item.tooltip || null"
+            [attr.tabindex]="i === focusedIndex ? 0 : -1"
+            (focus)="onFocusItem(i)">
+            {{ item.label }}
+          </span>
         </li>
       </ul>
     </nav>
@@ -96,6 +117,15 @@ export interface NavItem {
       font-weight: 500;
     }
 
+    .nav-link--disabled {
+      color: var(--color-neutral-400);
+      cursor: not-allowed;
+    }
+
+    .nav-link--disabled:hover {
+      background-color: transparent;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .nav-link {
         transition: none;
@@ -103,8 +133,16 @@ export interface NavItem {
     }
   `]
 })
-export class SideNavComponent implements AfterViewInit, OnDestroy {
-  @ViewChildren('navLink') navLinks!: QueryList<ElementRef<HTMLAnchorElement>>;
+export class SideNavComponent implements AfterViewInit, OnDestroy, OnChanges {
+  @ViewChildren('navLink') navLinks!: QueryList<ElementRef<HTMLElement>>;
+
+  /**
+   * When the consumer is on a document-detail or revisions view, pass the
+   * current doc ID in so the "Revision History" entry becomes an enabled
+   * deep link. When absent, the entry renders in a disabled state.
+   * (Story 11.4 Task 5.)
+   */
+  @Input() docId?: string | null;
 
   /** Global navigation items. */
   private readonly globalItems: NavItem[] = [
@@ -148,15 +186,30 @@ export class SideNavComponent implements AfterViewInit, OnDestroy {
 
   /** Determine if we are in a per-database scope or global. */
   private updateNavScope(): void {
-    const url = this.router.url;
+    const url = this.router.url.split('?')[0];
     const dbMatch = url.match(/^\/db\/([^/]+)/);
 
     if (dbMatch) {
       this.dbName = decodeURIComponent(dbMatch[1]);
+      // Story 11.4: detect if a doc is in scope from the URL so the
+      // Revision History entry becomes an enabled deep link. The parent
+      // component can also override by passing in `[docId]`.
+      const effectiveDocId = this.docId ?? this.extractDocIdFromUrl(url, this.dbName);
       this.items = [
         { label: 'Documents', route: `/db/${this.dbName}` },
         { label: 'Design Documents', route: `/db/${this.dbName}/design` },
         { label: 'Security', route: `/db/${this.dbName}/security` },
+        effectiveDocId
+          ? {
+              label: 'Revision History',
+              route: `/db/${this.dbName}/doc/${effectiveDocId}/revisions`,
+            }
+          : {
+              label: 'Revision History',
+              route: '',
+              disabled: true,
+              tooltip: 'Select a document first to view its revisions',
+            },
       ];
     } else {
       this.dbName = null;
@@ -171,10 +224,31 @@ export class SideNavComponent implements AfterViewInit, OnDestroy {
     }, 0);
   }
 
+  /**
+   * Extract a docid from the URL when it looks like
+   * `/db/{dbname}/doc/<anything>[/revisions]`. Returns null when no doc
+   * is in scope.
+   */
+  private extractDocIdFromUrl(url: string, dbName: string): string | null {
+    const prefix = `/db/${dbName}/doc/`;
+    if (!url.startsWith(prefix)) return null;
+    let remainder = url.slice(prefix.length);
+    if (remainder.endsWith('/revisions')) {
+      remainder = remainder.slice(0, -'/revisions'.length);
+    }
+    return remainder.length > 0 ? decodeURIComponent(remainder) : null;
+  }
+
+  ngOnChanges(): void {
+    // Re-evaluate scope when the host passes in a new docId (e.g. the user
+    // navigated from the doc list to a doc detail view).
+    this.updateNavScope();
+  }
+
   private setupKeyManager(): void {
     if (!this.navLinks) return;
     const focusableItems = this.navLinks.map(
-      (ref) => new FocusableNavItem(ref.nativeElement)
+      (ref) => new FocusableNavItem(ref.nativeElement as HTMLElement)
     );
     this.keyManager = new FocusKeyManager(focusableItems).withWrap();
   }
@@ -201,9 +275,9 @@ export class SideNavComponent implements AfterViewInit, OnDestroy {
   }
 }
 
-/** Wrapper to make anchor elements work with CDK FocusKeyManager. */
+/** Wrapper to make anchor or span elements work with CDK FocusKeyManager. */
 class FocusableNavItem implements FocusableOption {
-  constructor(private readonly element: HTMLAnchorElement) {}
+  constructor(private readonly element: HTMLElement) {}
 
   focus(): void {
     this.element.focus();

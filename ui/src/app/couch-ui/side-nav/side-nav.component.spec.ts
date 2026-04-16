@@ -100,4 +100,61 @@ describe('SideNavComponent', () => {
       expect(designLink!.getAttribute('href')).toBe('/db/testdb/design');
     });
   });
+
+  // Story 11.4 -- Revision History entry:
+  //   - enabled (routes to /db/{db}/doc/{id}/revisions) when docId is set
+  //   - disabled with tooltip otherwise
+  describe('per-database scope — Revision History (Story 11.4)', () => {
+    it('renders a disabled Revision History entry when docId is absent', () => {
+      component.items = [
+        { label: 'Documents', route: '/db/testdb' },
+        { label: 'Design Documents', route: '/db/testdb/design' },
+        { label: 'Security', route: '/db/testdb/security' },
+        {
+          label: 'Revision History',
+          route: '',
+          disabled: true,
+          tooltip: 'Select a document first to view its revisions',
+        },
+      ];
+      fixture.detectChanges();
+      const disabledSpan = fixture.nativeElement.querySelector(
+        'span.nav-link--disabled',
+      ) as HTMLElement | null;
+      expect(disabledSpan).toBeTruthy();
+      expect(disabledSpan?.textContent?.trim()).toBe('Revision History');
+      expect(disabledSpan?.getAttribute('aria-disabled')).toBe('true');
+      expect(disabledSpan?.getAttribute('title')).toContain('Select a document');
+    });
+
+    it('renders an enabled Revision History link when docId is in scope', () => {
+      component.items = [
+        { label: 'Documents', route: '/db/testdb' },
+        { label: 'Design Documents', route: '/db/testdb/design' },
+        { label: 'Security', route: '/db/testdb/security' },
+        { label: 'Revision History', route: '/db/testdb/doc/doc1/revisions' },
+      ];
+      fixture.detectChanges();
+      const links = fixture.nativeElement.querySelectorAll('a.nav-link');
+      const revLink = Array.from(links).find(
+        (a: any) => a.textContent.trim() === 'Revision History',
+      ) as HTMLAnchorElement | undefined;
+      expect(revLink).toBeTruthy();
+      expect(revLink!.getAttribute('href')).toBe('/db/testdb/doc/doc1/revisions');
+    });
+
+    it('is axe-clean with a disabled Revision History entry', async () => {
+      component.items = [
+        { label: 'Documents', route: '/db/testdb' },
+        {
+          label: 'Revision History',
+          route: '',
+          disabled: true,
+          tooltip: 'Select a document first to view its revisions',
+        },
+      ];
+      fixture.detectChanges();
+      await expectNoAxeViolations(fixture.nativeElement);
+    });
+  });
 });

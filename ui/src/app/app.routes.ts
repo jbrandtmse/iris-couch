@@ -8,6 +8,7 @@ import { DocumentDetailComponent } from './features/document/document-detail.com
 import { DesignDocListComponent } from './features/design-docs/design-doc-list.component';
 import { DesignDocDetailComponent } from './features/design-docs/design-doc-detail.component';
 import { SecurityViewComponent } from './features/security/security-view.component';
+import { RevisionsViewComponent } from './features/revisions/revisions-view.component';
 
 /**
  * Custom URL matcher for /db/:dbname/doc/:docid that supports `_design/<name>`
@@ -87,6 +88,44 @@ export const designDocDetailMatcher: UrlMatcher = (
   };
 };
 
+/**
+ * Custom URL matcher for `/db/:dbname/doc/<docid+>/revisions`.
+ *
+ * MUST be registered BEFORE `docDetailMatcher` since that matcher consumes
+ * all trailing segments after `/doc/` — otherwise a URL like
+ * `/db/foo/doc/bar/revisions` would be swallowed as a doc with id
+ * `bar/revisions`.
+ *
+ * Supports composite `_design/<name>` doc IDs the same way
+ * `docDetailMatcher` does: all segments between `doc` and the final
+ * `revisions` segment are joined with `/` to form the docid parameter.
+ *
+ * See Story 11.4 Task 5 and `.claude/rules/angular-patterns.md`
+ * (Design-Doc ID Encoding).
+ */
+export const revisionsMatcher: UrlMatcher = (
+  segments: UrlSegment[],
+  _group: UrlSegmentGroup,
+  _route: Route,
+) => {
+  // Expect: db, :dbname, doc, :docid[+], revisions
+  if (segments.length < 5) return null;
+  if (segments[0].path !== 'db' || segments[2].path !== 'doc') return null;
+  if (segments[segments.length - 1].path !== 'revisions') return null;
+
+  const dbname = segments[1];
+  const docidRaw = segments.slice(3, segments.length - 1).map((s) => s.path).join('/');
+  const docid = new UrlSegment(docidRaw, {});
+
+  return {
+    consumed: segments,
+    posParams: {
+      dbname,
+      docid,
+    },
+  };
+};
+
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'databases', component: DatabaseListComponent, canActivate: [authGuard] },
@@ -104,6 +143,9 @@ export const routes: Routes = [
     canActivate: [authGuard],
     canDeactivate: [unsavedChangesGuard],
   },
+  // NOTE: revisionsMatcher MUST come BEFORE docDetailMatcher — otherwise the
+  // trailing "revisions" segment would be swallowed as part of the docid.
+  { matcher: revisionsMatcher, component: RevisionsViewComponent, canActivate: [authGuard] },
   { matcher: docDetailMatcher, component: DocumentDetailComponent, canActivate: [authGuard] },
   { path: '', redirectTo: 'databases', pathMatch: 'full' },
   { path: '**', redirectTo: 'databases' },

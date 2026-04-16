@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Subscription } from 'rxjs';
 import { DocumentService, encodeDocId } from '../../services/document.service';
@@ -12,7 +12,8 @@ import { CopyButtonComponent } from '../../couch-ui/copy-button/copy-button.comp
 import { FeatureErrorComponent } from '../../couch-ui/feature-error/feature-error.component';
 import { JsonDisplayComponent } from '../../couch-ui/json-display/json-display.component';
 import { IconButtonComponent } from '../../couch-ui/icon-button/icon-button.component';
-import { IconDownloadComponent } from '../../couch-ui/icons';
+import { ButtonComponent } from '../../couch-ui/button/button.component';
+import { IconDownloadComponent, IconHistoryComponent } from '../../couch-ui/icons';
 
 /** Attachment stub metadata from CouchDB response. */
 interface AttachmentStub {
@@ -43,7 +44,9 @@ interface AttachmentStub {
     FeatureErrorComponent,
     JsonDisplayComponent,
     IconButtonComponent,
+    ButtonComponent,
     IconDownloadComponent,
+    IconHistoryComponent,
   ],
   template: `
     <app-page-header
@@ -54,6 +57,12 @@ interface AttachmentStub {
       (refresh)="onRefresh()">
       <ng-container breadcrumb>
         <app-breadcrumb [segments]="breadcrumbs"></app-breadcrumb>
+      </ng-container>
+      <ng-container actions>
+        <app-button variant="ghost" (click)="viewRevisions()">
+          <app-icon-history [size]="14" />
+          Revisions
+        </app-button>
       </ng-container>
     </app-page-header>
 
@@ -344,9 +353,18 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly route: ActivatedRoute,
+    private readonly router: Router,
     private readonly docService: DocumentService,
     private readonly liveAnnouncer: LiveAnnouncer,
   ) {}
+
+  viewRevisions(): void {
+    // Split the ID on "/" so composite IDs (_design/<name>, _local/<name>)
+    // become separate route segments — the revisionsMatcher reassembles
+    // them correctly without Angular percent-encoding the inner "/".
+    const segments = this.docId.split('/');
+    this.router.navigate(['/db', this.dbName, 'doc', ...segments, 'revisions']);
+  }
 
   get hasAnyBadge(): boolean {
     return !!this.doc?._deleted || this.conflictCount > 0 || this.attachmentCount > 0;

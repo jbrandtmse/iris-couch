@@ -1,7 +1,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter, ActivatedRoute } from '@angular/router';
+import { provideRouter, ActivatedRoute, Router } from '@angular/router';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { BehaviorSubject } from 'rxjs';
@@ -377,5 +377,40 @@ describe('DocumentDetailComponent', () => {
   it('should pass axe-core accessibility checks on error state', async () => {
     initAndFail(404, { error: 'not_found', reason: 'missing' });
     await expectNoAxeViolations(fixture.nativeElement);
+  });
+
+  // --- Story 11.4: Revisions button ---
+
+  it('renders a "Revisions" button in the page header actions', () => {
+    initAndFlush();
+    const buttons = fixture.nativeElement.querySelectorAll('button');
+    const revBtn = Array.from(buttons).find((b: any) =>
+      b.textContent?.trim().includes('Revisions'),
+    ) as HTMLButtonElement | undefined;
+    expect(revBtn).toBeTruthy();
+  });
+
+  it('viewRevisions() navigates to /db/{db}/doc/{id}/revisions', () => {
+    initAndFlush();
+    const router = TestBed.inject(Router);
+    const spy = spyOn(router, 'navigate').and.returnValue(Promise.resolve(true));
+    component.viewRevisions();
+    expect(spy).toHaveBeenCalledWith(['/db', 'testdb', 'doc', 'test-doc-001', 'revisions']);
+  });
+
+  it('viewRevisions() splits composite _design/<name> IDs into separate route segments', () => {
+    // Re-wire the paramMap to supply a design-doc ID instead.
+    paramMapSubject.next(createParamMap({ dbname: 'testdb', docid: '_design/myapp' }));
+    fixture.detectChanges();
+    const req = httpMock.expectOne((r) =>
+      r.url.includes('testdb/_design/myapp') && r.url.includes('conflicts=true'),
+    );
+    req.flush({ _id: '_design/myapp', _rev: '1-a' });
+    fixture.detectChanges();
+
+    const router = TestBed.inject(Router);
+    const spy = spyOn(router, 'navigate').and.returnValue(Promise.resolve(true));
+    component.viewRevisions();
+    expect(spy).toHaveBeenCalledWith(['/db', 'testdb', 'doc', '_design', 'myapp', 'revisions']);
   });
 });

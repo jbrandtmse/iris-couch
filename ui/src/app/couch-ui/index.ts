@@ -22,6 +22,16 @@ export { PageHeaderComponent } from './page-header/page-header.component';
 export { PaginationComponent } from './pagination/pagination.component';
 export { JsonDisplayComponent } from './json-display/json-display.component';
 export { TextAreaJsonComponent, type TextAreaJsonValidity, jsonErrorLine } from './text-area-json/text-area-json.component';
+export { RevisionTreeComponent } from './revision-tree/revision-tree.component';
+export {
+  type RevisionNode,
+  type RevisionStatus,
+  type PositionedNode,
+  type LayoutEdge,
+  type RevisionTreeLayout,
+  computeRevisionTreeLayout,
+  revGeneration,
+} from './revision-tree/revision-tree-layout';
 
 // NOTE: test-utils.ts is intentionally NOT exported here.
 // Import directly from './couch-ui/test-utils' in spec files

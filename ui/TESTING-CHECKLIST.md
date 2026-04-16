@@ -299,6 +299,66 @@ Smoke steps:
 
 ---
 
+## 8. Story 11.4 — Revision History View
+
+Manual verification scenarios for the new `/db/{dbname}/doc/{docid}/revisions`
+view. Use Chrome DevTools MCP to drive each scenario against a running
+iris-couch server and capture screenshots for the story deliverable.
+
+- [ ] **Single-rev tree**: Create a fresh document. Navigate to its
+      revision view (from document detail → "Revisions" button).
+      Verify a single node renders with the ★ winner badge and that
+      clicking it shows the body below. The `?rev=` query param updates.
+- [ ] **Linear chain**: Update the same document 4 more times
+      (PUT with the returned rev). Navigate to its revisions view.
+      Verify all 5 nodes render top-to-bottom in one column with edges
+      between them, winner at the bottom, and the body of the winning
+      rev pre-selected.
+- [ ] **2-leaf conflict**: Using a `?new_edits=false` bulk write or the
+      `RevTree.AddBranch` helper (see `ChangesHttpTest` for the pattern),
+      create a document with two rev-2 leaves sharing a rev-1 parent.
+      Navigate to revisions. Verify two leaves render side-by-side,
+      one ★-badged as winner, and the rev-1 ancestor collapses onto
+      the winner's column.
+- [ ] **Conflict + delete**: Mark one conflict branch as deleted
+      (PUT `{"_deleted":true,"_rev":"<leaf>"}`). Navigate back. Verify
+      the deleted leaf renders with strikethrough text and the deleted
+      border style.
+- [ ] **Selection deep-link**: Click a non-winner leaf. Copy the URL
+      from the address bar (note the `?rev=` query param). Paste into
+      a new tab. Verify the same node is pre-selected on load and its
+      body renders beneath the tree.
+- [ ] **Keyboard navigation**:
+      - Tab from the tree container cycles through the leaves.
+      - Arrow Up moves focus to the parent; Arrow Down to a child;
+        Arrow Left/Right between siblings.
+      - Enter / Space selects the focused node, updates URL + body.
+      - Esc returns to the document detail view.
+- [ ] **Popover on hover/focus**: Hover (or Tab to) a node. A popover
+      appears with the full rev string, status, generation, parent rev,
+      and role (winner / conflict leaf). Blur / move mouse dismisses.
+- [ ] **401 error**: Log out, then paste a revisions URL into the
+      address bar. Verify an inline `FeatureError` renders with the
+      verbatim `{error:"unauthorized", reason:"..."}` envelope. No
+      tree is shown.
+- [ ] **SideNav Revision History entry**:
+      - From `/db/{dbname}` (doc list), verify the "Revision History"
+        entry is disabled (greyed out) with the tooltip "Select a
+        document first to view its revisions".
+      - From `/db/{dbname}/doc/{docid}`, verify the entry becomes
+        enabled and links to the current doc's revisions.
+- [ ] **axe-core via Chrome DevTools MCP**: run the axe scan against
+      the revisions view in loading, loaded-with-selection, error,
+      and single-rev states. All should be axe-clean apart from the
+      known JsonDisplay contrast issue scoped in the component spec.
+- [ ] **Subscription discipline regression (per `.claude/rules/angular-patterns.md`)**:
+      rapidly click between multiple leaves and verify the final body
+      shown matches the last click (not a stale prior fetch).
+
+**Result**: [ ] PASS / [ ] FAIL
+
+---
+
 ## Sign-Off
 
 | Tester | Date | Overall Result |

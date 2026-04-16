@@ -650,6 +650,11 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
             Set tConflicts = ##class(IRISCouch.Storage.RevTree).GetConflicts(pDB, pDocId)
             Do tRespObj.%Set("_conflicts", tConflicts)
         }
+        ; Add _deleted_conflicts if requested (Story 11.4)
+        If $Get(%request.Data("deleted_conflicts", 1)) = "true" {
+            Set tDeletedConflicts = ##class(IRISCouch.Storage.RevTree).GetDeletedConflicts(pDB, pDocId)
+            Do tRespObj.%Set("_deleted_conflicts", tDeletedConflicts)
+        }
         ; Add _revisions if requested
         If $Get(%request.Data("revs", 1)) = "true" {
             Set tRevisions = ##class(IRISCouch.Storage.RevTree).GetRevisions(pDB, pDocId, tRev)

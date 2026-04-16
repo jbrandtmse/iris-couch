@@ -78,4 +78,20 @@
   /* ── Font Family Tokens ── */
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+
+  /* ── Revision Tree tokens (Story 11.4)
+     The RevisionTree primitive renders an SVG graph of a document's
+     revision history; these tokens separate its colors from the
+     generic palette so a visual tweak never drags other components. */
+  --color-revtree-node-fill: var(--color-neutral-0);
+  --color-revtree-node-border: var(--color-neutral-300);
+  --color-revtree-edge: var(--color-neutral-300);
+  --color-revtree-winner-border: var(--color-success);
+  --color-revtree-winner-fill: var(--color-success-bg);
+  --color-revtree-leaf-border: var(--color-info);
+  --color-revtree-deleted-border: var(--color-warn);
+  --color-revtree-deleted-fill: var(--color-warn-bg);
+  --color-revtree-missing-border: var(--color-neutral-300);
+  --color-revtree-selected-ring: var(--color-info);
+  --color-revtree-popover-fg: var(--color-neutral-800);
 }

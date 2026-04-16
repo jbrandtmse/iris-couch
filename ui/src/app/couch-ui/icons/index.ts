@@ -17,6 +17,7 @@ export { IconCheckComponent } from './icon-check.component';
 export { IconDownloadComponent } from './icon-download.component';
 export { IconSearchComponent } from './icon-search.component';
 export { IconXComponent } from './icon-x.component';
+export { IconHistoryComponent } from './icon-history.component';
 
 // Status
 export { IconAlertTriangleComponent } from './icon-alert-triangle.component';
