@@ -8,6 +8,7 @@ import {
   ButtonComponent,
 } from '../../couch-ui';
 import { ErrorDisplayComponent } from '../../couch-ui/error-display/error-display.component';
+import { mapError } from '../../services/error-mapping';
 
 /**
  * LoginForm component.
@@ -201,23 +202,14 @@ export class LoginComponent implements AfterViewInit {
       },
       error: (err) => {
         this.submitting = false;
-        this.errorStatusCode = err.status;
-        if (err.status === 0) {
-          this.error = {
-            error: 'network_error',
-            reason: 'Cannot reach `/iris-couch/`. Check that the server is running.',
-          };
-        } else if (err.error && typeof err.error === 'object' && err.error.error) {
-          this.error = { error: err.error.error, reason: err.error.reason || '' };
-        } else if (err.status === 401) {
+        const mapped = mapError(err);
+        this.errorStatusCode = mapped.statusCode ?? 0;
+        // Preserve the login-specific 401 friendly message for the edge case
+        // where /_session returns 401 without a recognized error body.
+        if (mapped.statusCode === 401 && mapped.display.error !== 'unauthorized') {
           this.error = { error: 'unauthorized', reason: 'Name or password is incorrect.' };
         } else {
-          this.error = {
-            error: err.statusText || 'error',
-            reason: typeof err.error === 'string' && err.error.length < 200
-              ? err.error
-              : `Unexpected response from server (HTTP ${err.status}).`,
-          };
+          this.error = mapped.display;
         }
         // Do NOT reset the username field, but DO clear the password for
         // security (Story 11.0 AC #7 / Task 8). The user should re-enter

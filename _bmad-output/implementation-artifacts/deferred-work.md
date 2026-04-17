@@ -1,5 +1,110 @@
 # Deferred Work Log
 
+## Open Items Summary (as of 2026-04-17)
+
+> **Convention.** This summary is maintained by each `X.0` cleanup story.
+> Resolving an item requires (a) striking it in the full entry below
+> (or annotating with `-- **RESOLVED in Story X.Y (YYYY-MM-DD):** ...`),
+> and (b) removing its bullet here. New deferrals are appended to the
+> appropriate severity list when the originating story's review lands.
+> Initial population: Story 12.0 (2026-04-17) walked the full file and
+> enumerated still-open items. HIGH is empty today.
+
+### HIGH
+
+_(none open)_
+
+### MEDIUM
+
+- **[MED] Story 10.3** ErrorDisplay test suite has only 3 examples (401/404/500); UX spec requires 5 -- add 409 and network-error -- [full entry](#deferred-from-code-review-of-10-3-appshell-navigation-and-login-2026-04-14)
+- **[MED] Story 10.4** No UI trigger for database delete action (AC #5) -- backing method exists but DataTable lacks action-column support -- [full entry](#deferred-from-code-review-of-10-4-database-list-view-with-create-and-delete-2026-04-14)
+- **[MED] Story 11.0** UI smoke workflow requires self-hosted runner; workflow queues indefinitely without infra -- [full entry](#deferred-from-story-110-implementation-2026-04-14)
+
+### LOW
+
+**ObjectScript backend (Epics 1-9):**
+
+- **[LOW] Story 1.1** `Config.Get()` silently returns "" for misspelled keys -- [full entry](#deferred-from-code-review-of-1-1-configuration-system-and-package-scaffold-2026-04-12)
+- **[LOW] Story 1.1** `Config.GetAll()` numeric parameters serialize as strings -- [full entry](#deferred-from-code-review-of-1-1-configuration-system-and-package-scaffold-2026-04-12)
+- **[LOW] Story 1.1** `Config.Set()` accepts arbitrary keys without validation -- [full entry](#deferred-from-code-review-of-1-1-configuration-system-and-package-scaffold-2026-04-12)
+- **[LOW] Story 1.1** `Request.ReadBody()` has no size limit -- [full entry](#deferred-from-code-review-of-1-1-configuration-system-and-package-scaffold-2026-04-12)
+- **[LOW] Story 1.4** `Error.Render()` crashes if `%response` missing (non-HTTP context) -- [full entry](#deferred-from-code-review-of-1-4-error-envelope-and-consistent-error-responses-2026-04-12)
+- **[LOW] Story 1.2** Missing metrics dispatch wrapper structure in `Router.cls` -- [full entry](#deferred-from-code-review-of-1-2-http-router-and-couchdb-welcome-endpoint-2026-04-12)
+- **[LOW] Story 2.1** No maximum database name length validation -- [full entry](#deferred-from-code-review-of-2-1-create-and-delete-databases-2026-04-12)
+- **[LOW] Story 3.1** `RevTree.AddChild` does not verify parent revision exists in leaf index -- [full entry](#deferred-from-code-review-of-3-1-single-document-create-and-read-2026-04-12)
+- **[LOW] Story 3.1** No underscore-prefix validation on document IDs in `HandlePut` -- [full entry](#deferred-from-code-review-of-3-1-single-document-create-and-read-2026-04-12)
+- **[LOW] Story 3.4** `HandleBulkGet` silently skips docs with empty id -- [full entry](#deferred-from-code-review-of-3-4-bulk-document-operations-2026-04-12)
+- **[LOW] Story 3.6** `_local_seq` omitted when no changes entry found -- [full entry](#deferred-from-code-review-of-3-6-all-documents-view-2026-04-12)
+- **[LOW] Epic 3 retro** `HandleAllDocs` iterates `^IRISCouch.Docs` directly (9 lines) -- [full entry](#deferred-from-epic-3-retrospective--storage-encapsulation-violations-2026-04-13)
+- **[LOW] Story 5.1** `FindRevWithAttachment` lexicographic sort fails at generation 10+ -- [full entry](#deferred-from-code-review-of-5-1-standalone-attachment-upload-and-download-2026-04-12)
+- **[LOW] Story 5.1** Stream OID leak on attachment Delete -- [full entry](#deferred-from-code-review-of-5-1-standalone-attachment-upload-and-download-2026-04-12)
+- **[LOW] Story 5.2** Double base64 encode/decode in multipart/related path -- [full entry](#deferred-from-code-review-of-5-2-inline-and-multipart-attachment-upload-2026-04-12)
+- **[LOW] Story 5.3** Attachment buffering in base64 paths reads entire stream into memory -- [full entry](#deferred-from-code-review-of-5-3-attachment-retrieval-options-and-multipart-response-2026-04-12)
+- **[LOW] Story 5.3** No `attachments=true` support for open_revs JSON response path -- [full entry](#deferred-from-code-review-of-5-3-attachment-retrieval-options-and-multipart-response-2026-04-12)
+- **[LOW] Epic 5 cleanup** Delete() clears shared stream OID data affecting other revisions -- [full entry](#deferred-from-code-review-of-6-0-epic-5-deferred-cleanup-2026-04-13)
+- **[LOW] Epic 5 cleanup** Stub delimiter "||" in SaveWithAttachments may collide with attachment names -- [full entry](#deferred-from-code-review-of-6-0-epic-5-deferred-cleanup-2026-04-13)
+- **[LOW] Epic 5 cleanup** Delete Clear+Save leaves zero-byte stream entry -- [full entry](#deferred-from-code-review-of-6-0-epic-5-deferred-cleanup-2026-04-13)
+- **[LOW] Story 6.1** `GetJsonType` treats string "true"/"false" as boolean without type hint -- [full entry](#deferred-from-code-review-of-6-1-mango-index-management-2026-04-13)
+- **[LOW] Story 6.1** `ExtractFieldValue` cannot distinguish missing vs empty-string field -- [full entry](#deferred-from-code-review-of-6-1-mango-index-management-2026-04-13)
+- **[LOW] Epic 6 cleanup** `TypeRank` vs `InferType` inconsistency on empty string -- [full entry](#deferred-from-code-review-of-7-0-epic-6-deferred-cleanup-2026-04-13)
+- **[LOW] Story 7.1** Username containing colons breaks cookie parsing -- [full entry](#deferred-from-code-review-of-7-1-session-authentication-and-basic-auth-2026-04-13)
+- **[LOW] Story 7.2** JWT exp check has no clock skew tolerance -- [full entry](#deferred-from-code-review-of-7-2-jwt-and-proxy-authentication-2026-04-13)
+- **[LOW] Story 7.3** `SaveWithHistory` does not call `_users` hooks -- [full entry](#deferred-from-code-review-of-7-3-user-management-via-users-database-2026-04-13)
+- **[LOW] Story 7.3** `SaveWithAttachments` does not call `_users` hooks -- [full entry](#deferred-from-code-review-of-7-3-user-management-via-users-database-2026-04-13)
+- **[LOW] Story 7.3** Falsy password values not guarded in `Auth/Users.cls` -- [full entry](#deferred-from-code-review-of-7-3-user-management-via-users-database-2026-04-13)
+- **[LOW] Story 8.1** `RenderInternal` called without exception arg for Storage write failures -- [full entry](#deferred-from-code-review-of-8-1-local-documents-and-replication-checkpoints-2026-04-13)
+- **[LOW] Story 8.1** No error handling in `Storage.Local.Read()/GetRev()` for corrupted `$ListBuild` data -- [full entry](#deferred-from-code-review-of-8-1-local-documents-and-replication-checkpoints-2026-04-13)
+- **[LOW] Story 8.2** `possible_ancestors` returns all leaf revisions without generation filtering -- [full entry](#deferred-from-code-review-of-8-2-revision-difference-calculation-2026-04-13)
+- **[LOW] Story 8.3** Partial attachment `Get()` failure produces mixed stubs+inline response -- [full entry](#deferred-from-code-review-of-8-3-replication-ready-bulk-get-2026-04-13)
+- **[LOW] Story 8.4** `ReplicateLocal` (push) path lacks NFR-R1 corruption detection -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
+- **[LOW] Story 8.4** `ReplicateLocal` (push) path does not include inline attachment data in `_bulk_docs` -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
+- **[LOW] Story 8.4** `HttpClient` SSLConfiguration hardcoded to `"ISC.FeatureTracker.SSL.Config"` -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
+- **[LOW] Story 8.4** `HttpClient.Request` reads entire response body into string -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
+- **[LOW] Story 8.4** `Checkpoint.BuildCheckpointDoc` types `source_last_seq` as "number" (CouchDB 2.x uses strings) -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
+- **[LOW] Story 8.4** No checkpoint written when source has zero changes and no prior checkpoint -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
+- **[LOW] Story 8.5** Missing MangoIndex re-indexing in `_replicator` Save hook -- [full entry](#deferred-from-code-review-of-8-5-replicator-database-and-continuous-replication-jobs-2026-04-13)
+- **[LOW] Story 8.5** `ReplicateLocal` / `ReplicateRemote` do not populate `pStats` Output -- [full entry](#deferred-from-code-review-of-8-5-replicator-database-and-continuous-replication-jobs-2026-04-13)
+- **[LOW] Story 8.5** One-shot replication error does not retry -- [full entry](#deferred-from-code-review-of-8-5-replicator-database-and-continuous-replication-jobs-2026-04-13)
+- **[LOW] Story 9.1** `BuildOutput` string concatenation may exceed ObjectScript ~3.6MB string limit -- [full entry](#deferred-from-code-review-of-9-1-prometheus-opentelemetry-metrics-endpoint-2026-04-13)
+- **[LOW] Story 9.3** `Log.Debug()` has no gating for debug-level logging -- [full entry](#deferred-from-code-review-of-9-3-operational-resilience-and-data-durability-2026-04-13)
+- **[LOW] Epic 9 cleanup** `JWT.UnixTimestamp()` uses `$Horolog` (local time) but doc claims UTC -- [full entry](#deferred-from-code-review-of-10-0-epic-9-deferred-cleanup-2026-04-14)
+- **[LOW] Story 10.6** Design doc ID double-encoding in `getDocument` / `getAttachmentUrl` (pending Epic 11 routing) -- [full entry](#deferred-from-code-review-of-10-6-document-detail-view-2026-04-14)
+- **[LOW] Story 11.2** IRISCouch `_security` backend divergence from CouchDB 3.x spec (informational) -- [full entry](#deferred-from-story-112----security-configuration-view-2026-04-14)
+- **[LOW] Story 11.3** `TestPostDesignDocNotAllowed` accepts 404 OR 405 -- [full entry](#deferred-from-code-review-of-11-3-design-document-and-security-editing-2026-04-15)
+- **[LOW] Story 11.0 impl** `sizes.external` / `sizes.active` report allocated bytes, not pre-compression JSON -- [full entry](#deferred-from-story-110-implementation-2026-04-14)
+
+**Angular UI (Epics 10-11):**
+
+- **[LOW] Story 10.1** No `ChangeDetectionStrategy.OnPush` on icon components -- [full entry](#deferred-from-code-review-of-10-1-angular-scaffold-design-tokens-and-icon-system-2026-04-14)
+- **[LOW] Story 10.1** `@Input()` decorator vs modern `input()` signal (see also "Angular UI — ongoing") -- [full entry](#deferred-from-code-review-of-10-1-angular-scaffold-design-tokens-and-icon-system-2026-04-14)
+- **[LOW] Story 10.1** No JetBrains Mono weight 500 bundled -- [full entry](#deferred-from-code-review-of-10-1-angular-scaffold-design-tokens-and-icon-system-2026-04-14)
+- **[LOW] Story 10.2** Badge 10px font-size vs AC #6 "no text below 12px" -- [full entry](#deferred-from-code-review-of-10-2-core-ui-components-2026-04-14)
+- **[LOW] Story 10.2** Hardcoded RGBA values in badge backgrounds -- [full entry](#deferred-from-code-review-of-10-2-core-ui-components-2026-04-14)
+- **[LOW] Story 10.2** CopyButton no error feedback on failed clipboard copy -- [full entry](#deferred-from-code-review-of-10-2-core-ui-components-2026-04-14)
+- **[LOW] Story 10.3** Password field not cleared after successful login -- [full entry](#deferred-from-code-review-of-10-3-appshell-navigation-and-login-2026-04-14)
+- **[LOW] Story 10.3** Button component CSS budget warning -- [full entry](#deferred-from-code-review-of-10-3-appshell-navigation-and-login-2026-04-14)
+- **[LOW] Story 10.5** `paginationStart` assumes linear page history -- [full entry](#deferred-from-code-review-of-10-5-document-list-view-with-filtering-and-pagination-2026-04-14)
+- **[LOW] Story 10.5** `totalRows` reflects total DB doc count, not filtered count -- [full entry](#deferred-from-code-review-of-10-5-document-list-view-with-filtering-and-pagination-2026-04-14)
+- **[LOW] Story 10.7** Network error message hardcoded in 3 components (DRY) -- [full entry](#deferred-from-code-review-of-10-7-error-handling-accessibility-and-cross-browser-verification-2026-04-14)
+- **[LOW] Story 10.7** Error handler pattern (status=0 branch) duplicated 3x -- [full entry](#deferred-from-code-review-of-10-7-error-handling-accessibility-and-cross-browser-verification-2026-04-14)
+- **[LOW] Angular UI ongoing** Real favicon -- [full entry](#angular-ui--ongoing-deferrals-initialized-by-story-110)
+- **[LOW] Angular UI ongoing** Angular 19+ idiom polish -- [full entry](#angular-ui--ongoing-deferrals-initialized-by-story-110)
+- **[LOW] Story 11.0 impl** stylelint configured but not installed -- [full entry](#deferred-from-story-110-implementation-2026-04-14)
+- **[LOW] Story 11.0 review** Smoke.mjs path resolution on Windows -- [full entry](#deferred-from-story-110-code-review-2026-04-14)
+- **[LOW] Story 11.0 review** FeatureError rawError setter clears statusCode -- [full entry](#deferred-from-story-110-code-review-2026-04-14)
+- **[LOW] Story 11.3** TextAreaJson uses `getElementById` for gutter scroll sync -- [full entry](#deferred-from-code-review-of-11-3-design-document-and-security-editing-2026-04-15)
+- **[LOW] Story 11.3** `design-doc-create-dialog` `titleId` uses `Date.now()` without randomness -- [full entry](#deferred-from-code-review-of-11-3-design-document-and-security-editing-2026-04-15)
+- **[LOW] Story 11.3** Delete-dialog body uses `[innerHTML]` -- [full entry](#deferred-from-code-review-of-11-3-design-document-and-security-editing-2026-04-15)
+- **[LOW] Story 11.3** TextAreaJson `emitValidity` re-emits on every invalid tick -- [full entry](#deferred-from-code-review-of-11-3-design-document-and-security-editing-2026-04-15)
+- **[LOW] Story 11.4** Rapid mouseenter popover churn -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
+- **[LOW] Story 11.4** `selectedRev` not preserved across Refresh click -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
+- **[LOW] Story 11.4** `showPopover` anchors SVG cast as `HTMLElement` -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
+- **[LOW] Story 11.4** AC #5 wording says "move the selected node"; impl moves focus -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
+- **[LOW] Story 11.4** No explicit "≥ 5 conflict branches" layout test -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
+- **[LOW] Story 11.5** AC #4 error message says `%IRISCouch_Admin` vs `IRISCouch_Admin` -- [full entry](#deferred-from-code-review-of-11-5-admin-ui-handler-and-security-2026-04-15)
+
+---
+
 ## Deferred from: code review of 1-1-configuration-system-and-package-scaffold (2026-04-12)
 
 - **Config.Get() silently returns "" for invalid/misspelled keys** [Config.cls:36] -- $Parameter() returns empty string for non-existent parameter names. No error signaling for typos like Get("JSRUNTIM"). Consider adding key validation when the API layer is built.
@@ -276,14 +381,19 @@ the initial entries.
   added to `devDependencies` (this requires an `npm install` in a
   sandboxed environment). Next developer should install them and run
   the initial pass; all existing violations have already been refactored
-  during Story 11.0. LOW.
+  during Story 11.0. LOW. -- **KEPT DEFERRED (2026-04-17, Story 12.0):**
+  requires an environment with network access to install npm packages;
+  not a code concern. Revisit bundled with the next `npm install`-capable
+  infra task.
 - **UI smoke workflow requires self-hosted runner** [.github/workflows/ui-smoke.yml]
   -- The CI job is configured to run on a `[self-hosted, iris-smoke]`
   runner because the smoke script needs a live IRIS backend. Provisioning
   the runner is an infra task outside this story's scope. MEDIUM -- without
   a runner the workflow queues indefinitely. Either provision the runner,
   change to GitHub-hosted + service container, or gate the workflow behind
-  a `workflow_dispatch` trigger.
+  a `workflow_dispatch` trigger. -- **KEPT DEFERRED (2026-04-17, Story 12.0):**
+  already tagged MEDIUM; infra work that belongs with Epic 14 DevOps
+  story, not Epic 12 JSRuntime work. No code change required.
 - **sizes.external and sizes.active use allocated bytes (not uncompressed
   JSON)** [src/IRISCouch/Storage/Database.cls ComputeDiskSize] -- CouchDB
   spec defines `sizes.external` as the pre-compression JSON size and
@@ -293,7 +403,10 @@ the initial entries.
   subtrees. Sufficient for the UI's informational display and for
   spec-compliance at the JSON-shape level, but consumers that compute
   compression ratios from these fields will see a ratio of 1.0. LOW --
-  revisit if a replicator or monitoring consumer surfaces the gap.
+  revisit if a replicator or monitoring consumer surfaces the gap. --
+  **KEPT DEFERRED (2026-04-17, Story 12.0):** ObjectScript backend
+  concern, not UI. Story 12.0 is UI-only; revisit trigger (replicator
+  or monitoring consumer surfacing the gap) still applies.
 
 ## Deferred from: Story 11.0 code review (2026-04-14)
 
@@ -301,12 +414,18 @@ the initial entries.
   so paths with spaces become `%20` literals in the `cwd` passed to
   `spawn()`. Prefer `fileURLToPath(new URL('..', import.meta.url))` from
   `node:url`. Does not affect the CI runner path. Revisit next time the
-  smoke script is touched.
+  smoke script is touched. -- **KEPT DEFERRED (2026-04-17, Story 12.0):**
+  revisit trigger already named (next time smoke.mjs is touched). No
+  current consumer hit by this; CI runner path has no spaces.
 - **FeatureError rawError setter clears statusCode (LOW).** When a consumer
   binds both `[statusCode]` and `[rawError]`, the `rawError` setter resets
   `statusCode` to the mapped value — binding-order dependent. Pre-existing
   in the new code but no current consumer binds both. If a future caller
   needs to override status, split into `setFromRaw(err, overrideStatus?)`.
+  -- **KEPT DEFERRED (2026-04-17, Story 12.0):** no consumer binds both
+  inputs today; the revisit trigger (first caller that needs explicit
+  status override) is already documented. Splitting the API speculatively
+  would add surface without a concrete use case.
 
 ## Deferred from: Story 11.1 development (2026-04-14)
 
@@ -336,24 +455,24 @@ the initial entries.
 
 ## Deferred from: code review of 11-3-design-document-and-security-editing (2026-04-15)
 
-- **TextAreaJson uses `document.getElementById` for gutter scroll sync** [ui/src/app/couch-ui/text-area-json/text-area-json.component.ts:332] -- Gutter scroll sync looks up the textarea element via `document.getElementById(this.textareaId)` instead of the already-declared `@ViewChild('textareaEl')` / `@ViewChild('gutterEl')` refs. Works reliably today but relies on the id being unique across the page and on DOM availability at event-dispatch time. LOW -- refactor to use the ViewChild references when next editing the file.
-- **`TestPostDesignDocNotAllowed` accepts both 404 and 405** [src/IRISCouch/Test/DocumentHttpTest.cls:219] -- Story 11.3 Task 0 test asserts `(tStatus = 405) || (tStatus = 404)` for `POST /{db}/_design/{name}`. Backend currently returns 405 per %CSP.REST's `Http405` handler; the 404 tolerance was added defensively because the exact dispatcher behaviour for POST on a GET/PUT/DELETE-only route was not formally specced. LOW -- tighten to strict 405 once the behaviour is nailed down in a regression test for `Http405()`.
-- **`design-doc-create-dialog` `titleId` uses `Date.now()` without randomness** [ui/src/app/features/design-docs/design-doc-create-dialog.component.ts:183] -- If two instances of the dialog were ever mounted in the same millisecond the `aria-labelledby` IDs would collide. Only one create dialog can ever be open at a time, so this is functionally harmless; mentioned for consistency with other dialogs that use a monotonic counter. LOW.
-- **Delete-dialog body uses `[innerHTML]` with `ddocShortName` interpolated into raw HTML** [ui/src/app/features/design-docs/design-doc-detail.component.ts:141] -- The delete-confirm dialog body concatenates the user-visible ddoc short name (sourced from the route param) into an HTML string rendered via `[innerHTML]="body"` inside ConfirmDialog. Angular's DomSanitizer strips dangerous HTML so script injection is not practically reachable, and the same pattern is used in `database-list.component.ts`. LOW -- consider migrating both call sites to a template-projected body variant if ConfirmDialog grows a structured API.
-- **TextAreaJson `emitValidity` re-emits on every invalid event** [ui/src/app/couch-ui/text-area-json/text-area-json.component.ts:374] -- The guard `if (this.lastEmittedValid === valid && !errorMessage) return;` only suppresses re-emission for the valid case. When the JSON remains invalid across keystrokes, `validityChange` fires on every debounce tick. Current subscribers treat this idempotently, but it is unnecessary event-bus chatter. LOW -- tighten by tracking `lastEmittedErrorMessage` and suppressing duplicate-invalid emissions too.
+- **TextAreaJson uses `document.getElementById` for gutter scroll sync** [ui/src/app/couch-ui/text-area-json/text-area-json.component.ts:332] -- Gutter scroll sync looks up the textarea element via `document.getElementById(this.textareaId)` instead of the already-declared `@ViewChild('textareaEl')` / `@ViewChild('gutterEl')` refs. Works reliably today but relies on the id being unique across the page and on DOM availability at event-dispatch time. LOW -- refactor to use the ViewChild references when next editing the file. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** revisit when TextAreaJson grows a second consumer or the file is next touched. Single consumer today (DesignDocDetail); getElementById works reliably.
+- **`TestPostDesignDocNotAllowed` accepts both 404 and 405** [src/IRISCouch/Test/DocumentHttpTest.cls:219] -- Story 11.3 Task 0 test asserts `(tStatus = 405) || (tStatus = 404)` for `POST /{db}/_design/{name}`. Backend currently returns 405 per %CSP.REST's `Http405` handler; the 404 tolerance was added defensively because the exact dispatcher behaviour for POST on a GET/PUT/DELETE-only route was not formally specced. LOW -- tighten to strict 405 once the behaviour is nailed down in a regression test for `Http405()`. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** ObjectScript backend concern, not UI. Story 12.0 is UI-only; revisit as part of a future Http405 regression story.
+- **`design-doc-create-dialog` `titleId` uses `Date.now()` without randomness** [ui/src/app/features/design-docs/design-doc-create-dialog.component.ts:183] -- If two instances of the dialog were ever mounted in the same millisecond the `aria-labelledby` IDs would collide. Only one create dialog can ever be open at a time, so this is functionally harmless; mentioned for consistency with other dialogs that use a monotonic counter. LOW. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** guarded by "only one dialog instance ever mounted" invariant. Revisit if multiple simultaneous dialog mounts become possible.
+- **Delete-dialog body uses `[innerHTML]` with `ddocShortName` interpolated into raw HTML** [ui/src/app/features/design-docs/design-doc-detail.component.ts:141] -- The delete-confirm dialog body concatenates the user-visible ddoc short name (sourced from the route param) into an HTML string rendered via `[innerHTML]="body"` inside ConfirmDialog. Angular's DomSanitizer strips dangerous HTML so script injection is not practically reachable, and the same pattern is used in `database-list.component.ts`. LOW -- consider migrating both call sites to a template-projected body variant if ConfirmDialog grows a structured API. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** revisit bundled with the next ConfirmDialog API extension (e.g., when a structured-body overload is added). DomSanitizer keeps the current form safe.
+- **TextAreaJson `emitValidity` re-emits on every invalid event** [ui/src/app/couch-ui/text-area-json/text-area-json.component.ts:374] -- The guard `if (this.lastEmittedValid === valid && !errorMessage) return;` only suppresses re-emission for the valid case. When the JSON remains invalid across keystrokes, `validityChange` fires on every debounce tick. Current subscribers treat this idempotently, but it is unnecessary event-bus chatter. LOW -- tighten by tracking `lastEmittedErrorMessage` and suppressing duplicate-invalid emissions too. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** subscribers are idempotent; revisit only if a profiler shows emission overhead or a future subscriber is sensitive to duplicate-invalid events.
 
 ## Deferred from: code review of 11-4-revision-history-view (2026-04-15)
 
-- **Hardcoded `font-size: 12px` on `.revision-tree__node-badge`** [ui/src/app/couch-ui/revision-tree/revision-tree.component.ts:~230] -- The winner-star badge inside the SVG uses a literal `12px` instead of a design token. The pattern everywhere else in this file is `var(--font-size-xs)` etc. LOW -- replace with a token (or add a dedicated `--revtree-badge-size` token) the next time this component is touched. Not covered by stylelint today because stylelint only flags color literals, not font-size literals.
-- **Rapid mouseenter popover churn** [ui/src/app/couch-ui/revision-tree/revision-tree.component.ts:showPopover] -- Every `mouseenter` creates a fresh CDK overlay (after disposing the previous one). Rapid hover across adjacent nodes results in dispose/create ping-pong. No correctness bug (the overlay is always cleaned up on destroy and on mouseleave), but cheaper to reuse a single `OverlayRef` and just call `overlayRef.updatePosition()` + swap the portal component inputs. LOW -- optimize if perf profiling shows overlay creation dominating.
-- **`selectedRev` not preserved across a Refresh click** [ui/src/app/features/revisions/revisions-view.component.ts:loadTree] -- `loadTree()` clears `this.tree = null` but leaves `selectedRev` alone, and then its next-callback initialises `candidate` from `route.snapshot.queryParamMap.get('rev')` -- so a refresh that resets the URL would lose the selection. In practice `?rev=` is kept in sync via `onNodeSelect`'s `router.navigate({ replaceUrl: true })`, so the snapshot does contain the last-selected rev and the selection round-trips correctly. LOW -- documented for completeness; revisit if the refresh path stops updating the URL.
-- **`showPopover` anchors via an SVG element cast as `HTMLElement`** [ui/src/app/couch-ui/revision-tree/revision-tree.component.ts:~421] -- CDK's `flexibleConnectedTo` types its origin as `HTMLElement`, but we pass an `<g>` (SVGGraphicsElement). CDK only uses `getBoundingClientRect()` which SVG elements support, so this works at runtime; the cast is a type-system lie. LOW -- clean up by narrowing the type or by anchoring to a wrapping `<div>` if the component grows a more elaborate popover API.
-- **AC #5 wording says arrow keys "move the selected node"; implementation moves focus** [ui/src/app/couch-ui/revision-tree/revision-tree.component.ts:onKeydown] -- The story Task 2 spec and every existing Angular keyboard-nav pattern in this codebase use "move focus; activate with Enter/Space" semantics, which is what was implemented (and what axe-core + keyboard-nav specs assert). AC #5's "move the selected node" is a minor wording mismatch between the user-facing AC and the Task 2 design note. LOW -- tighten the AC wording in the next epic retro or leave as-is since the keyboard model is deliberate and axe-clean.
-- **No explicit unit test for a "≥ 5 conflict branches" legibility scenario** [ui/src/app/couch-ui/revision-tree/revision-tree-layout.spec.ts] -- Layout helper has specs for the 3-leaf tree and the 50-rev linear chain, but not the 5-leaf width test referenced in AC #5. Given that the layout is fixed-grid (one column per leaf), five leaves always fit trivially; a test would mostly assert deterministic column assignment. LOW -- add a fixture-driven "5-leaf wide" test if the layout algorithm ever grows heuristics that could mis-pack wide trees.
+- ~~**Hardcoded `font-size: 12px` on `.revision-tree__node-badge`** [ui/src/app/couch-ui/revision-tree/revision-tree.component.ts:~230] -- The winner-star badge inside the SVG uses a literal `12px` instead of a design token. The pattern everywhere else in this file is `var(--font-size-xs)` etc. LOW -- replace with a token (or add a dedicated `--revtree-badge-size` token) the next time this component is touched. Not covered by stylelint today because stylelint only flags color literals, not font-size literals.~~ -- **RESOLVED in Story 12.0 (2026-04-17):** swapped `12px` -> `var(--font-size-xs)` (token resolves to same 12px) in `revision-tree.component.ts`.
+- **Rapid mouseenter popover churn** [ui/src/app/couch-ui/revision-tree/revision-tree.component.ts:showPopover] -- Every `mouseenter` creates a fresh CDK overlay (after disposing the previous one). Rapid hover across adjacent nodes results in dispose/create ping-pong. No correctness bug (the overlay is always cleaned up on destroy and on mouseleave), but cheaper to reuse a single `OverlayRef` and just call `overlayRef.updatePosition()` + swap the portal component inputs. LOW -- optimize if perf profiling shows overlay creation dominating. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** revisit trigger (profiler showing overlay dominance) still applies; no correctness bug.
+- **`selectedRev` not preserved across a Refresh click** [ui/src/app/features/revisions/revisions-view.component.ts:loadTree] -- `loadTree()` clears `this.tree = null` but leaves `selectedRev` alone, and then its next-callback initialises `candidate` from `route.snapshot.queryParamMap.get('rev')` -- so a refresh that resets the URL would lose the selection. In practice `?rev=` is kept in sync via `onNodeSelect`'s `router.navigate({ replaceUrl: true })`, so the snapshot does contain the last-selected rev and the selection round-trips correctly. LOW -- documented for completeness; revisit if the refresh path stops updating the URL. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** URL round-trips correctly today; documented for completeness only.
+- **`showPopover` anchors via an SVG element cast as `HTMLElement`** [ui/src/app/couch-ui/revision-tree/revision-tree.component.ts:~421] -- CDK's `flexibleConnectedTo` types its origin as `HTMLElement`, but we pass an `<g>` (SVGGraphicsElement). CDK only uses `getBoundingClientRect()` which SVG elements support, so this works at runtime; the cast is a type-system lie. LOW -- clean up by narrowing the type or by anchoring to a wrapping `<div>` if the component grows a more elaborate popover API. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** revisit trigger (richer popover API growing) still applies; runtime-correct.
+- **AC #5 wording says arrow keys "move the selected node"; implementation moves focus** [ui/src/app/couch-ui/revision-tree/revision-tree.component.ts:onKeydown] -- The story Task 2 spec and every existing Angular keyboard-nav pattern in this codebase use "move focus; activate with Enter/Space" semantics, which is what was implemented (and what axe-core + keyboard-nav specs assert). AC #5's "move the selected node" is a minor wording mismatch between the user-facing AC and the Task 2 design note. LOW -- tighten the AC wording in the next epic retro or leave as-is since the keyboard model is deliberate and axe-clean. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** spec-text divergence only; implementation is axe-clean and matches the app-wide keyboard-nav idiom. Revisit during the next epics.md edit pass if that file becomes the source of truth for AC wording.
+- **No explicit unit test for a "≥ 5 conflict branches" legibility scenario** [ui/src/app/couch-ui/revision-tree/revision-tree-layout.spec.ts] -- Layout helper has specs for the 3-leaf tree and the 50-rev linear chain, but not the 5-leaf width test referenced in AC #5. Given that the layout is fixed-grid (one column per leaf), five leaves always fit trivially; a test would mostly assert deterministic column assignment. LOW -- add a fixture-driven "5-leaf wide" test if the layout algorithm ever grows heuristics that could mis-pack wide trees. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** fixed-grid layout cannot mis-pack by construction; revisit if layout grows packing heuristics.
 
 ## Deferred from: Story 11.2 -- Security Configuration View (2026-04-14)
 
-- **JsonDisplay line-number gutter fails axe color-contrast on 10+ line bodies
+- ~~**JsonDisplay line-number gutter fails axe color-contrast on 10+ line bodies
   (LOW -- shared component styling issue).** `.json-display__line-number` uses
   `color: var(--color-neutral-400)` but renders (per axe) at `#9096a1` on
   `#f7f8fa`, contrast ratio 2.79 (WCAG AA needs 4.5). Tripped by the default
@@ -365,7 +484,11 @@ the initial entries.
   line-number color to a token with >= 4.5:1 contrast against
   `--color-neutral-50` (e.g., `--color-neutral-600` which renders ~4.7:1 on
   the same background). Single-line change. Affects every view that renders
-  JsonDisplay with a >= 10-line body.
+  JsonDisplay with a >= 10-line body.~~ -- **RESOLVED in Story 12.0 (2026-04-17):**
+  swapped `--color-neutral-400` -> `--color-neutral-600` in
+  `json-display.component.ts`. Removed the scoped `color-contrast` disable
+  in `security-view.component.spec.ts`; full axe-core pass restored for the
+  10-line default `_security` body.
 - **IRISCouch `_security` backend divergence from CouchDB 3.x spec (INFORMATIONAL
   -- client-side tolerated).** CouchDB 3.x returns `{}` for an unset
   `_security`; IRISCouch returns the full default object
@@ -374,8 +497,8 @@ the initial entries.
   on 2026-04-14. SecurityService.normalizeSecurity() accepts both shapes so
   no client action is needed. Revisit if strict CouchDB wire compatibility
   becomes an NFR; otherwise leave as-is since the IRISCouch shape is strictly
-  more useful to clients.
+  more useful to clients. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** ObjectScript backend concern; revisit trigger (strict CouchDB wire compat becoming an NFR) still applies.
 
 ## Deferred from: code review of 11-5-admin-ui-handler-and-security (2026-04-15)
 
-- **AC #4 error message says `%IRISCouch_Admin` but role is `IRISCouch_Admin`** [Story 11.5 AC #4] -- The role was renamed from `%IRISCouch_Admin` to `IRISCouch_Admin` during implementation because IRIS rejects `%`-prefixed custom roles (Error #887). The 403 error body and all code correctly reference `IRISCouch_Admin`, but the AC text still says `%IRISCouch_Admin`. Cosmetic documentation mismatch only. LOW -- update the AC wording in the next story or epic retro.
+- **AC #4 error message says `%IRISCouch_Admin` but role is `IRISCouch_Admin`** [Story 11.5 AC #4] -- The role was renamed from `%IRISCouch_Admin` to `IRISCouch_Admin` during implementation because IRIS rejects `%`-prefixed custom roles (Error #887). The 403 error body and all code correctly reference `IRISCouch_Admin`, but the AC text still says `%IRISCouch_Admin`. Cosmetic documentation mismatch only. LOW -- update the AC wording in the next story or epic retro. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** documentation-only mismatch; code is already correct. Revisit during the next epics.md / PRD-level edit when AC text is being touched for other reasons.

@@ -26,6 +26,70 @@ export interface NavItem {
 }
 
 /**
+ * Context passed to each per-database nav entry's functions. Grows over time
+ * as new conditional-rendering signals emerge (e.g. user role gates in
+ * Epic 14). Keep it flat — factories should not read from component state.
+ */
+export interface NavContext {
+  dbName: string;
+  docId: string | null;
+}
+
+/**
+ * Declarative shape for a single per-database nav entry. Story 12.0 replaced
+ * the hardcoded four-entry array inside `updateNavScope()` with a config list
+ * of these records so that adding a fifth entry (Epic 14 user-role gates,
+ * Epic 15 replication view, etc.) is a one-line append rather than another
+ * bolt-on inside a growing if/else chain.
+ *
+ *   - `route(ctx)`   — route string rendered on an enabled entry. Unused when
+ *                      `enabled()` returns false.
+ *   - `enabled(ctx)` — if false, the entry renders as a disabled `<span>`
+ *                      with `aria-disabled="true"` and `tooltip()` text.
+ *   - `tooltip(ctx)` — optional title-attribute hint shown when disabled.
+ */
+export interface PerDbNavEntry {
+  id: string;
+  label: string;
+  route: (ctx: NavContext) => string;
+  enabled: (ctx: NavContext) => boolean;
+  tooltip?: (ctx: NavContext) => string | null;
+}
+
+/**
+ * The canonical per-database nav config. Order here is the render order in
+ * the SideNav list. To add a fifth entry, append one record.
+ */
+export const NAV_ENTRY_CONFIG: readonly PerDbNavEntry[] = [
+  {
+    id: 'documents',
+    label: 'Documents',
+    route: (ctx) => `/db/${ctx.dbName}`,
+    enabled: () => true,
+  },
+  {
+    id: 'design-documents',
+    label: 'Design Documents',
+    route: (ctx) => `/db/${ctx.dbName}/design`,
+    enabled: () => true,
+  },
+  {
+    id: 'security',
+    label: 'Security',
+    route: (ctx) => `/db/${ctx.dbName}/security`,
+    enabled: () => true,
+  },
+  {
+    id: 'revision-history',
+    label: 'Revision History',
+    route: (ctx) => `/db/${ctx.dbName}/doc/${ctx.docId}/revisions`,
+    enabled: (ctx) => ctx.docId !== null,
+    tooltip: (ctx) =>
+      ctx.docId === null ? 'Select a document first to view its revisions' : null,
+  },
+];
+
+/**
  * SideNav component.
  *
  * Displays global navigation items (Databases, Active tasks, Setup, About)
@@ -152,8 +216,13 @@ export class SideNavComponent implements AfterViewInit, OnDestroy, OnChanges {
     { label: 'About', route: '/about' },
   ];
 
-  /** Per-database navigation items (when a database is in scope). */
-  private readonly dbItems: NavItem[] = [];
+  /**
+   * Per-database nav-entry config. Defaults to the canonical
+   * {@link NAV_ENTRY_CONFIG}; tests may override via `TestBed.overrideComponent`
+   * or direct assignment to verify that appending a fifth entry flows through
+   * to the rendered `<li>` list without template changes.
+   */
+  navEntryConfig: readonly PerDbNavEntry[] = NAV_ENTRY_CONFIG;
 
   items: NavItem[] = this.globalItems;
   focusedIndex = 0;
@@ -195,22 +264,8 @@ export class SideNavComponent implements AfterViewInit, OnDestroy, OnChanges {
       // Revision History entry becomes an enabled deep link. The parent
       // component can also override by passing in `[docId]`.
       const effectiveDocId = this.docId ?? this.extractDocIdFromUrl(url, this.dbName);
-      this.items = [
-        { label: 'Documents', route: `/db/${this.dbName}` },
-        { label: 'Design Documents', route: `/db/${this.dbName}/design` },
-        { label: 'Security', route: `/db/${this.dbName}/security` },
-        effectiveDocId
-          ? {
-              label: 'Revision History',
-              route: `/db/${this.dbName}/doc/${effectiveDocId}/revisions`,
-            }
-          : {
-              label: 'Revision History',
-              route: '',
-              disabled: true,
-              tooltip: 'Select a document first to view its revisions',
-            },
-      ];
+      const ctx: NavContext = { dbName: this.dbName, docId: effectiveDocId };
+      this.items = this.navEntryConfig.map((entry) => this.toNavItem(entry, ctx));
     } else {
       this.dbName = null;
       this.items = this.globalItems;
@@ -222,6 +277,25 @@ export class SideNavComponent implements AfterViewInit, OnDestroy, OnChanges {
         this.setupKeyManager();
       }
     }, 0);
+  }
+
+  /**
+   * Translate a {@link PerDbNavEntry} + context into the {@link NavItem}
+   * shape the template consumes. Preserves the Story 11.4 disabled-with-
+   * tooltip contract: when `enabled(ctx)` returns false, the entry renders
+   * as a disabled `<span>` with an empty `route` (it must never navigate)
+   * and whatever `tooltip(ctx)` returns.
+   */
+  private toNavItem(entry: PerDbNavEntry, ctx: NavContext): NavItem {
+    if (entry.enabled(ctx)) {
+      return { label: entry.label, route: entry.route(ctx) };
+    }
+    return {
+      label: entry.label,
+      route: '',
+      disabled: true,
+      tooltip: entry.tooltip?.(ctx) ?? undefined,
+    };
   }
 
   /**

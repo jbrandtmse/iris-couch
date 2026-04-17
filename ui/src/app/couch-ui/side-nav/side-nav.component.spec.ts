@@ -1,6 +1,10 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { SideNavComponent } from './side-nav.component';
+import {
+  NAV_ENTRY_CONFIG,
+  PerDbNavEntry,
+  SideNavComponent,
+} from './side-nav.component';
 import { expectNoAxeViolations } from '../test-utils';
 
 describe('SideNavComponent', () => {
@@ -155,6 +159,82 @@ describe('SideNavComponent', () => {
       ];
       fixture.detectChanges();
       await expectNoAxeViolations(fixture.nativeElement);
+    });
+  });
+
+  // Story 12.0 AC #2 — SideNav per-db entries are now produced from a typed
+  // config array. Verify that appending a fifth entry to the config (without
+  // any template edit) flows through to an additional `<li>` with the right
+  // attributes. This is the regression that makes future epic additions
+  // one-line appends.
+  describe('per-database scope — config-driven rendering (Story 12.0)', () => {
+    it('canonical NAV_ENTRY_CONFIG produces the expected four entries', () => {
+      expect(NAV_ENTRY_CONFIG.map((e) => e.id)).toEqual([
+        'documents',
+        'design-documents',
+        'security',
+        'revision-history',
+      ]);
+    });
+
+    it('appending a config entry renders an additional <li> with correct attributes', () => {
+      // Arrange: extend the canonical config with a synthetic fifth entry.
+      const extendedConfig: PerDbNavEntry[] = [
+        ...NAV_ENTRY_CONFIG,
+        {
+          id: 'stats',
+          label: 'Stats',
+          route: (ctx) => `/db/${ctx.dbName}/stats`,
+          enabled: () => true,
+        },
+      ];
+      component.navEntryConfig = extendedConfig;
+
+      // Act: trigger the per-db scope with a URL carrying a doc ID so the
+      // Revision History entry is also enabled (the original four all render
+      // as <a>s; the fifth appends at the end).
+      const router = TestBed.inject(Router);
+      spyOnProperty(router, 'url', 'get').and.returnValue('/db/testdb/doc/d1');
+      (component as any).updateNavScope();
+      fixture.detectChanges();
+
+      const listItems = fixture.nativeElement.querySelectorAll('li.nav-item');
+      expect(listItems.length).toBe(5);
+
+      const anchors = fixture.nativeElement.querySelectorAll('a.nav-link');
+      const labels = Array.from(anchors).map((a: any) => a.textContent.trim());
+      expect(labels).toEqual([
+        'Documents',
+        'Design Documents',
+        'Security',
+        'Revision History',
+        'Stats',
+      ]);
+
+      const statsLink = Array.from(anchors).find(
+        (a: any) => a.textContent.trim() === 'Stats',
+      ) as HTMLAnchorElement | undefined;
+      expect(statsLink).toBeTruthy();
+      expect(statsLink!.getAttribute('href')).toBe('/db/testdb/stats');
+    });
+
+    it('disabled-with-tooltip branch survives the refactor for Revision History', () => {
+      // Simulate a per-db scope with no doc in URL -> Revision History should
+      // remain disabled with the Story 11.4 tooltip text.
+      const router = TestBed.inject(Router);
+      spyOnProperty(router, 'url', 'get').and.returnValue('/db/testdb');
+      (component as any).updateNavScope();
+      fixture.detectChanges();
+
+      const disabled = fixture.nativeElement.querySelector(
+        'span.nav-link--disabled',
+      ) as HTMLElement | null;
+      expect(disabled).toBeTruthy();
+      expect(disabled?.textContent?.trim()).toBe('Revision History');
+      expect(disabled?.getAttribute('aria-disabled')).toBe('true');
+      expect(disabled?.getAttribute('title')).toBe(
+        'Select a document first to view its revisions',
+      );
     });
   });
 });

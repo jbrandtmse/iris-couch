@@ -38,6 +38,42 @@
 - After research, verify uncertain SQL/globals/vector behavior with small, isolated tests using IRIS MCP tools.
 - Prefer native ObjectScript patterns for IRIS operations; reserve embedded Python for external library integrations (after researching correct bridge usage).
 
+### Task 0 backend-surface probe (Epic 12+ story creation)
+
+Added by Story 12.0 (2026-04-17) to codify the Epic 11 retrospective Action
+Item #1. Applies to every **Epic 12 and later** story whose acceptance
+criteria reference a new or modified backend endpoint (or a new subprocess /
+bridge surface). Non-binding for Angular-UI-only stories that only consume
+already-shipped endpoints.
+
+Every such story **must** include a **Task 0** item in Tasks/Subtasks that
+captures:
+
+1. **A live `curl` probe against the proposed endpoint**, e.g.
+   `curl -u _system:SYS -i http://localhost:52773/iris-couch/_session`.
+   Run it before writing any code. If the endpoint does not exist yet, probe
+   the *closest existing* endpoint (same handler family) so the story has a
+   concrete before-state to diff against.
+2. **Verbatim expected output pasted into the story Tasks** — status code
+   plus body (truncated to ~20 lines if large). This locks the wire shape
+   before the dev starts writing code and makes the AC auditable at review
+   time.
+3. **A concrete reference read cited in the story Dev Notes.** For Epic 12
+   specifically:
+   - Stories consuming `%SYS.Python` must cite a page from
+     `documentation/IRIS_Embedded_Python_Complete_Manual.md` (bridge usage,
+     object lifetime, GIL considerations).
+   - Stories using `$ZF(-1)` subprocess APIs must cite the couchjs line
+     protocol in `sources/couchdb/share/server/` (stdin/stdout framing,
+     error handling, shutdown signaling) or the InterSystems `$ZF(-1)` doc.
+   - Stories touching any other backend surface must cite either the
+     CouchDB 3.x source under `sources/couchdb/` or an InterSystems doc
+     page, not just a Perplexity search summary.
+
+This rule supersedes the ad-hoc "read the manual" prep tasks the Epic 11
+retro dropped — the citation lives inside each story's Dev Notes where the
+implementing developer will actually see it.
+
 ## Escalation if ambiguity remains
 - If sources disagree, briefly summarize the conflict and propose the safest standards-compliant approach.
 - If uncertainty persists after an initial research pass, ask one targeted clarifying question to unblock.

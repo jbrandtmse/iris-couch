@@ -772,3 +772,39 @@
 - **Browser verification:** Chrome DevTools MCP — login → deep-link `/db/testdb/security` → renders default; PUT populated `_security` via curl, refresh → renders populated. Screenshot saved.
 - **Tests:** 500/500 pass (+27 new)
 - **Status:** done (pending commit)
+
+---
+
+## Epic 12: Pluggable JavaScript Runtime
+
+### 2026-04-17 — Phase 0: Sprint Planning
+- Sprint-status.yaml metadata refreshed (`last_updated: 2026-04-17`); cleaned stale `last_story_*` duplicates
+- Epic 12 inventory confirmed: 5 stories (12.1 JSRuntime sandbox + None backend, 12.2 subprocess views, 12.3 subprocess validate + filter, 12.4 Python backend, 12.5 incremental indexing + sandbox safety); epic-12-retrospective optional
+- Lead orchestrator picked Epic 12 only per user selection
+
+### 2026-04-17 — Phase 0.5: Epic 11 Retrospective Triage
+- Retrospective source: `epic-11-retro-2026-04-16.md`
+- Action item triage:
+  - **AI#2 Network-error DRY cleanup** → include in Story 12.0 as non-deferrable (retro names this explicitly as "what you agreed to fix last retro and didn't")
+  - **AI#3 SideNav config-driven refactor** → include in Story 12.0 (touching SideNav fifth time threshold reached)
+  - **AI#4 Story 11.4 LOW items triage** → include in Story 12.0 (explicit reviewer decision on each of 6 Story 11.4 LOW items)
+  - **AI#1 Task 0 curl probe in story-creation template** → process rule, applies to all future Epic 12 create-story runs (not a 12.0 task)
+  - **AI#5 Spawn retry backoff in /epic-dev-cycle** → drop (skill maintainer scope, not a story task)
+- Preparation tasks (research only, non-gating) → drop from 12.0:
+  - Embedded Python manual (for Story 12.4)
+  - couchjs line protocol (for Stories 12.2/12.3)
+  - $ZF(-1) subprocess lifecycle (Perplexity research for Stories 12.2–12.5)
+- Deferred-work.md review: 11.0–11.5 deferrals all LOW UI polish or already-resolved; no Epic 12-blocking items
+
+### 2026-04-17 — Phase 1 (Story 12.0): Story File Created
+- File: `_bmad-output/implementation-artifacts/12-0-epic-11-deferred-cleanup.md`
+- Status: ready-for-dev
+- 5 ACs mapping to retro AI#1 (process rule → Task 4), AI#2 (`login.component.ts` → Task 1), AI#3 (SideNav config → Task 2), AI#4 (LOW-item triage → Task 3), plus a deferred-work.md TL;DR seeding (Task 5)
+- Sprint-status updated: `epic-12: in-progress`, `12-0-epic-11-deferred-cleanup: ready-for-dev`
+- Scope discovery: retro claim of "4 components duplicate network-error pattern" overstated — grep shows only `login.component.ts:205-208` still hand-codes it; rest use `mapError()` already (fixed in Story 10.7). Task 1 scoped down accordingly.
+
+### 2026-04-17 — Phase 1 (Story 12.0): Dev + Review
+- **Dev agent** (dev-12-0): implemented all 6 tasks; 683/683 UI specs pass; login.component migrated to mapError(); SideNav extracted to NAV_ENTRY_CONFIG with typed PerDbNavEntry; 19 Epic 11 LOW items triaged (2 resolved, 17 kept, 0 escalated); Task-0 backend-probe rule added to research-first.md; TL;DR summary seeded in deferred-work.md
+- **Code review** (cr-12-0): CLEAN — 0 HIGH/MEDIUM/CRITICAL, 0 patches required, 0 new deferrals; all 5 ACs explicitly verified; 683/683 specs pass
+- Files changed: login.component[.ts,.spec.ts], side-nav.component[.ts,.spec.ts], json-display.component.ts, revision-tree.component.ts, security-view.component.spec.ts, research-first.md, deferred-work.md, sprint-status.yaml, new 12-0 story file
+- Sprint-status: `12-0-epic-11-deferred-cleanup: done`; `last_story_completed/reviewed: 12-0-epic-11-deferred-cleanup`

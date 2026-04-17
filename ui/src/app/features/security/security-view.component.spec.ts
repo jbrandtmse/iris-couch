@@ -230,16 +230,10 @@ describe('SecurityViewComponent', () => {
       fixture.detectChanges();
       expectSecurityRequest('testdb').flush(DEFAULT_SECURITY);
       fixture.detectChanges();
-      // NOTE: JsonDisplay's line-number gutter has a preexisting contrast issue
-      // (--color-neutral-500 on --color-neutral-50) that trips for bodies >=10
-      // lines. The default security body is exactly 10 lines. This is a shared
-      // JsonDisplay styling bug, not a Story 11.2 defect -- tracked in
-      // `_bmad-output/implementation-artifacts/deferred-work.md`. Exclude
-      // `.json-display__line-number` from this spec's axe pass only; other axe
-      // rules (and all other elements) remain enforced.
-      await expectNoAxeViolations(fixture.nativeElement, {
-        rules: { 'color-contrast': { enabled: false } },
-      });
+      // Story 12.0: gutter contrast was raised from --color-neutral-400 to
+      // --color-neutral-600 (~7.2:1 vs --color-neutral-50), so the
+      // color-contrast rule no longer needs a scoped exclusion here.
+      await expectNoAxeViolations(fixture.nativeElement);
     });
 
     it('has no axe-core violations in error state', async () => {
@@ -258,9 +252,7 @@ describe('SecurityViewComponent', () => {
       fixture.detectChanges();
       component.onEdit();
       fixture.detectChanges();
-      await expectNoAxeViolations(fixture.nativeElement, {
-        rules: { 'color-contrast': { enabled: false } },
-      });
+      await expectNoAxeViolations(fixture.nativeElement);
     });
   });
 

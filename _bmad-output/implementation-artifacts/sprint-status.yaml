@@ -1,9 +1,5 @@
 # generated: 2026-04-12
-# last_updated: 2026-04-14 (Epic 10 sprint planning)
-# last_story_in_progress: 10-7-error-handling-accessibility-and-cross-browser-verification
-last_story_reviewed: 8-3-replication-ready-bulk-get
-last_story_completed: 8-3-replication-ready-bulk-get
-# last_story_reviewed: 8-0-epic-7-deferred-cleanup
+# last_updated: 2026-04-17 (Story 12.0 review → done)
 # project: iris-couch
 # project_key: NOKEY
 # tracking_system: file-system
@@ -39,19 +35,9 @@ last_story_completed: 8-3-replication-ready-bulk-get
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-15 (Story 11.5 code review)
-last_story_in_progress: 11-4-revision-history-view
-last_story_completed: 10-7-error-handling-accessibility-and-cross-browser-verification
-last_story_reviewed: 10-7-error-handling-accessibility-and-cross-browser-verification
-last_story_in_progress: 10-0-epic-9-deferred-cleanup
-last_review: 2026-04-13
-last_story_in_progress: 10-1-angular-scaffold-design-tokens-and-icon-system
-last_story_reviewed: 8-5-replicator-database-and-continuous-replication-jobs
-last_story_completed: 8-5-replicator-database-and-continuous-replication-jobs
-last_story_reviewed: 7-4-per-database-security-configuration
-last_story_in_progress: 7-4-per-database-security-configuration
-last_story_completed: 7-4-per-database-security-configuration
-last_story_created: 3-1-single-document-create-and-read
+last_updated: 2026-04-17
+last_story_completed: 12-0-epic-11-deferred-cleanup
+last_story_reviewed: 12-0-epic-11-deferred-cleanup
 project: iris-couch
 project_key: NOKEY
 tracking_system: file-system
@@ -160,7 +146,8 @@ development_status:
   epic-11-retrospective: done
 
   # Epic 12: Pluggable JavaScript Runtime
-  epic-12: backlog
+  epic-12: in-progress
+  12-0-epic-11-deferred-cleanup: done
   12-1-jsruntime-sandbox-interface-and-none-backend: backlog
   12-2-subprocess-jsruntime-map-reduce-views: backlog
   12-3-subprocess-jsruntime-validation-and-filter-functions: backlog

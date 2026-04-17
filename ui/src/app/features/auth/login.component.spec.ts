@@ -1,9 +1,10 @@
 import { TestBed, ComponentFixture, fakeAsync, tick } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
 import { LoginComponent } from './login.component';
 import { AuthService } from '../../services/auth.service';
+import { mapError } from '../../services/error-mapping';
 import { expectNoAxeViolations } from '../../couch-ui/test-utils';
 import { of, throwError, Subject } from 'rxjs';
 
@@ -107,8 +108,9 @@ describe('LoginComponent', () => {
   }));
 
   it('should show error on failed login', fakeAsync(() => {
-    mockAuth.login.and.returnValue(throwError(() => ({
+    mockAuth.login.and.returnValue(throwError(() => new HttpErrorResponse({
       status: 401,
+      statusText: 'Unauthorized',
       error: { error: 'unauthorized', reason: 'Name or password is incorrect.' },
     })));
 
@@ -125,8 +127,9 @@ describe('LoginComponent', () => {
   }));
 
   it('should NOT reset the username field on error', fakeAsync(() => {
-    mockAuth.login.and.returnValue(throwError(() => ({
+    mockAuth.login.and.returnValue(throwError(() => new HttpErrorResponse({
       status: 401,
+      statusText: 'Unauthorized',
       error: { error: 'unauthorized', reason: 'Bad credentials.' },
     })));
 
@@ -138,9 +141,60 @@ describe('LoginComponent', () => {
     expect(component.username).toBe('keepme');
   }));
 
-  it('should show error display component on failure', fakeAsync(() => {
-    mockAuth.login.and.returnValue(throwError(() => ({
+  it('uses friendly "Name or password is incorrect." fallback when 401 has no error body', fakeAsync(() => {
+    // Preserves login-specific 401 handling when /_session returns a bare 401
+    // (no JSON error envelope). mapError() alone would surface a generic
+    // "Unexpected response" message; the component refines it to the CouchDB
+    // idiom.
+    mockAuth.login.and.returnValue(throwError(() => new HttpErrorResponse({
       status: 401,
+      statusText: 'Unauthorized',
+      error: null,
+    })));
+
+    component.username = 'baduser';
+    component.password = 'badpass';
+    component.onSubmit();
+    tick();
+    fixture.detectChanges();
+
+    expect(component.error?.error).toBe('unauthorized');
+    expect(component.error?.reason).toBe('Name or password is incorrect.');
+    expect(component.errorStatusCode).toBe(401);
+  }));
+
+  it('shows network error when /_session unreachable (matches shared mapError output)', fakeAsync(() => {
+    // Story 12.0 AC #1: login.component must consume the canonical mapError()
+    // for the status=0 network-unreachable branch.
+    const networkErr = new HttpErrorResponse({
+      status: 0,
+      statusText: 'Unknown Error',
+      url: '/iris-couch/_session',
+      error: new ProgressEvent('error'),
+    });
+    mockAuth.login.and.returnValue(throwError(() => networkErr));
+
+    component.username = 'admin';
+    component.password = 'secret';
+    component.onSubmit();
+    tick();
+    fixture.detectChanges();
+
+    const expected = mapError(networkErr);
+    expect(component.error).toBeTruthy();
+    expect(component.error?.error).toBe(expected.display.error);
+    expect(component.error?.reason).toBe(expected.display.reason);
+    // Regression guard: byte-identical to prior hard-coded message.
+    expect(component.error?.error).toBe('network_error');
+    expect(component.error?.reason).toBe(
+      'Cannot reach `/iris-couch/`. Check that the server is running.'
+    );
+  }));
+
+  it('should show error display component on failure', fakeAsync(() => {
+    mockAuth.login.and.returnValue(throwError(() => new HttpErrorResponse({
+      status: 401,
+      statusText: 'Unauthorized',
       error: { error: 'unauthorized', reason: 'Name or password is incorrect.' },
     })));
 

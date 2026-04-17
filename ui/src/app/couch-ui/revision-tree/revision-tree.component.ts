@@ -227,7 +227,8 @@ export const REVTREE_PADDING = 24;
       text-decoration: line-through;
     }
     .revision-tree__node-badge {
-      font-size: 12px;
+      /* Story 12.0: was hardcoded 12px; token maps to same value. */
+      font-size: var(--font-size-xs);
       fill: var(--color-revtree-winner-border);
       pointer-events: none;
       user-select: none;

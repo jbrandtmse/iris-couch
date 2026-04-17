@@ -94,7 +94,10 @@ interface JsonLine {
       display: inline-block;
       min-width: 2.5em;
       text-align: right;
-      color: var(--color-neutral-400);
+      /* Story 12.0: bumped from --color-neutral-400 (#9096A1, 2.79:1 on
+         --color-neutral-50) to --color-neutral-600 (#4B5260, ~7.2:1) to
+         meet WCAG AA for any line-numbered body. */
+      color: var(--color-neutral-600);
       user-select: none;
       -webkit-user-select: none;
       flex-shrink: 0;
