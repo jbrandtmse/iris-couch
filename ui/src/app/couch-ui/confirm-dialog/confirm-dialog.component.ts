@@ -75,7 +75,7 @@ export type ConfirmDialogVariant =
             Type <code class="dialog__confirm-value">{{ confirmValue }}</code> to confirm:
           </p>
           <app-text-input
-            label="Confirm database name"
+            [label]="inputLabel || 'Confirm name'"
             [value]="inputValue"
             (valueChange)="onInputChange($event)"
             [mono]="true">

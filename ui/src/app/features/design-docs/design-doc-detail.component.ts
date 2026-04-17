@@ -141,6 +141,7 @@ type ViewMode = 'view' | 'edit';
       [body]="'This will permanently delete the design document &lt;code class=&quot;mono&quot;&gt;' + ddocShortName + '&lt;/code&gt; and all associated views.'"
       variant="destructive-type-to-confirm"
       confirmLabel="Delete"
+      inputLabel="Confirm design document name"
       [confirmValue]="ddocShortName"
       [loading]="deleting"
       [serverError]="deleteError ?? undefined"

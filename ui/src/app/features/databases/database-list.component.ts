@@ -111,6 +111,7 @@ import { IconPlusComponent, IconTrashComponent } from '../../couch-ui/icons';
       [body]="deleteBody"
       variant="destructive-type-to-confirm"
       confirmLabel="Delete"
+      inputLabel="Confirm database name"
       [confirmValue]="deleteTarget?.name || ''"
       [serverError]="deleteError"
       [serverErrorCode]="deleteErrorCode"

@@ -168,6 +168,20 @@ describe('ConfirmDialogComponent', () => {
       expect(deleteBtn.disabled).toBeTrue();
     });
 
+    it('should use inputLabel for the confirm input label', () => {
+      host.inputLabel = 'Confirm design document name';
+      fixture.detectChanges();
+      const label = fixture.nativeElement.querySelector('label');
+      expect(label.textContent.trim()).toBe('Confirm design document name');
+    });
+
+    it('should fall back to "Confirm name" when inputLabel is empty', () => {
+      host.inputLabel = '';
+      fixture.detectChanges();
+      const label = fixture.nativeElement.querySelector('label');
+      expect(label.textContent.trim()).toBe('Confirm name');
+    });
+
     it('should use destructive button variant', () => {
       const input = fixture.nativeElement.querySelector('input');
       input.value = 'mydb';

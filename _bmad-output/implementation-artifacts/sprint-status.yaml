@@ -156,6 +156,7 @@ development_status:
   11-2-security-configuration-view: done
   11-3-design-document-and-security-editing: done
   11-4-revision-history-view: done
+  11-5-admin-ui-handler-and-security: in-progress
   epic-11-retrospective: done
 
   # Epic 12: Pluggable JavaScript Runtime

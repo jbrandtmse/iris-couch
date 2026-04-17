@@ -2,6 +2,10 @@
 
 ## Epic 11: Admin UI - Design Documents & Security Views
 
+### 2026-04-17T00:00:00Z — Story 11.5: Admin UI Static Hosting & Access Control
+- **Create Story:** Story file pre-created via sprint change proposal at `11-5-admin-ui-handler-and-security.md`. Status: ready-for-dev.
+- **Sprint status:** 11-5 added via correct-course, epic-11 reopened (in-progress)
+
 ### 2026-04-16T00:00:00Z — Epic 11 Retrospective
 - **Retrospective saved:** `epic-11-retro-2026-04-16.md` (document-form, not party-mode dialogue since cycle was automated end-to-end)
 - **Key findings:** All 6 Epic-10 action items completed or carried forward. Subscription-leak rule paid for itself twice. Task 0 pattern caught real backend gaps in both beta/gamma stories. `RevisionTree` pure-layout-helper + CDK-overlay pattern reusable. Chrome DevTools MCP caught one bug (deleted-leaf 404) invisible to specs.

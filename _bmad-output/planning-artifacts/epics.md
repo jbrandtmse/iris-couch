@@ -2053,6 +2053,39 @@ So that I can understand how a document evolved and inspect specific revisions.
 **When** filtering is needed
 **Then** optionally a Select component allows filtering by revision type or branch
 
+### Story 11.5: Admin UI Static Hosting & Access Control
+
+As an operator,
+I want the admin UI served directly from IRIS at /_utils/ without requiring a separate web server, and I want to restrict UI access to authorized users,
+So that the admin UI works out of the box after ZPM install and is not accessible to unauthorized personnel.
+
+**Acceptance Criteria:**
+
+**Given** IRISCouch is installed via the Installer
+**When** the operator navigates to /iris-couch/_utils/ in a browser
+**Then** the Angular SPA loads and renders the login page
+**And** no external web server, Node.js, or ng serve is required
+
+**Given** the Angular SPA is loaded
+**When** a deep-linked URL like /iris-couch/_utils/db/mydb/doc/doc1 is requested
+**Then** the server returns index.html (SPA fallback)
+**And** Angular's client-side router handles the route correctly
+
+**Given** the Installer.Install() method is called
+**When** installation completes
+**Then** the /_utils/ web application (or route) is configured automatically
+**And** no manual Management Portal steps are required
+
+**Given** the admin UI security configuration
+**When** an IRIS user without the designated admin role navigates to /_utils/
+**Then** they receive a 403 Forbidden response
+**And** only users with the configured role (e.g., %IRISCouch_Admin) can access the UI
+
+**Given** static assets (JS, CSS, fonts, icons)
+**When** they are requested via /_utils/
+**Then** correct Content-Type headers are set (application/javascript, text/css, font/woff2, etc.)
+**And** appropriate Cache-Control headers are set for immutable hashed assets
+
 ## Epic 12: Pluggable JavaScript Runtime
 
 Operators can enable JavaScript execution for design-document views, validation hooks, and custom change filters.
