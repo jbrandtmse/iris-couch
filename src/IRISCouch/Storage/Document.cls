@@ -88,4 +88,29 @@ ClassMethod ListDocIds(pDB As %String) As %DynamicArray
     Quit tArr
 }
 
+/// <p>List all <em>live</em> (non-deleted, winning-rev) document IDs in a
+/// database (Story 12.2).</p>
+/// <p>Filters out tombstoned and missing-rev documents by consulting
+/// <class>IRISCouch.Storage.RevTree</class>. Used by the view query engine
+/// to iterate only the documents that will contribute emissions.</p>
+/// @param pDB The database name
+/// @param pIncludeDesign If 1, include <code>_design/*</code> docs (default
+///        0 — views don't self-emit by convention, matching CouchDB)
+/// @return %DynamicArray of document ID strings for live winning revs only
+ClassMethod ListLiveDocIds(pDB As %String, pIncludeDesign As %Boolean = 0) As %DynamicArray
+{
+    Set tArr = []
+    Set tDocId = ""
+    For {
+        Set tDocId = $Order(^IRISCouch.Docs(pDB, tDocId))
+        If tDocId = "" Quit
+        If 'pIncludeDesign, $Extract(tDocId, 1, 8) = "_design/" Continue
+        Set tWin = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, tDocId)
+        If tWin = "" Continue
+        If ##class(IRISCouch.Storage.RevTree).IsDeleted(pDB, tDocId, tWin) Continue
+        Do tArr.%Push(tDocId)
+    }
+    Quit tArr
+}
+
 }

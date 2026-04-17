@@ -823,3 +823,21 @@
 - New files: `src/IRISCouch/JSRuntime/{Sandbox,None,Subprocess,Python,Factory}.cls`, `src/IRISCouch/API/ViewHandler.cls`, `src/IRISCouch/Test/JSRuntimeHttpTest.cls`, `documentation/js-runtime.md`
 - Modified: Router.cls (+`_view` routes, local wrappers), ChangesHandler.cls (+custom filter 501), DocumentEngine.cls (+validate_doc_update skeleton no-op in all 4 Save* methods), Util/Error.cls (+Render501), Audit/Emit.cls (+view_attempt registration), Config.cls (+js-runtime.md pointer)
 - Sprint-status: `12-1-jsruntime-sandbox-interface-and-none-backend: done`
+
+### 2026-04-17 — Phase 1 (Story 12.2): Story File Created
+- File: `_bmad-output/implementation-artifacts/12-2-subprocess-jsruntime-map-reduce-views.md`
+- Status: ready-for-dev
+- 8 ACs + 9 Tasks — largest Epic 12 story (subprocess lifecycle, couchjs protocol, QueryEngine, BuiltinReduce natives, end-to-end tests)
+- Task 0 probe confirmed Node v22.19.0 available at /c/Program Files/nodejs/node
+- Explicit scope boundaries: Stories 12.3 (validate/filter), 12.4 (Python backend), 12.5 (persistent pooling + incremental indexing + ETag) are deliberately excluded; Task 5 defers `group`/`group_level`/`startkey`/`endkey`/`limit`/`skip` view params to a follow-up story
+- Windows IRIS subprocess-stdio fallback path documented in Dev Notes
+
+### 2026-04-17 — Phase 1 (Story 12.2): Dev + Review
+- **Dev agent** (dev-12-2): implemented 9 tasks; 22/22 new tests pass, 0 regressions
+- **Code review** (cr-12-2): 0 CRITICAL/0 HIGH/2 MED/3 LOW — all deferred (MEDs to Story 12.5 sandbox hardening and Story 12.2a timeout enforcement; LOWs diagnostic-only)
+- **Scope cut:** View query params (`group`/`group_level`/`startkey`/`endkey`/`limit`/`skip`) deferred to Story 12.2a follow-up per explicit dev report
+- **$ZF decision:** `$ZF(-100)` with file-redirected STDIN/STDOUT/STDERR rather than bidirectional pipe mode (Windows IRIS compat + per-query lifecycle)
+- **Subprocess interpreter:** Node v22.19.0 at `/c/Program Files/nodejs/node.exe`
+- New files: Subprocess/Pipe.cls, View/{QueryEngine,BuiltinReduce}.cls, Test/{BuiltinReduceTest,JSRuntimeSubprocessHttpTest,SubprocessTestRunner,SubprocessTestRunner/ProbeManager}.cls, documentation/couchjs/{couchjs-entry.js, README.md, loop.js, views.js, util.js, state.js, validate.js, filter.js}
+- Modified: JSRuntime/Subprocess.cls (stub → implementation), API/ViewHandler.cls (route to QueryEngine when IsAvailable()=1), Audit/Emit.cls (view_execute, view_error events), Storage/Document.cls (+ListLiveDocIds iterator)
+- Sprint-status: `12-2-subprocess-jsruntime-map-reduce-views: done`; last_story_completed/reviewed updated

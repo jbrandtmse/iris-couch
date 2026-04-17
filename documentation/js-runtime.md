@@ -13,7 +13,7 @@ values:
 | Value         | Status              | Story |
 | ------------- | ------------------- | ----- |
 | `None`        | Shipped default     | 12.1  |
-| `Subprocess`  | Not yet implemented | 12.2  |
+| `Subprocess`  | Shipped (map/reduce) | 12.2  |
 | `Python`      | Not yet implemented | 12.4  |
 
 Read the current value:
@@ -48,12 +48,61 @@ precedence over the `Parameter JSRUNTIME = "None"` default defined on
   makes `None` a migration-friendly default: design docs can be staged
   before a runtime is installed.
 
-### Subprocess (Story 12.2 — in progress)
+### Subprocess (Story 12.2 — shipped)
 
-Executes JavaScript via an out-of-process `couchjs`-compatible sandbox
-using the Mozilla SpiderMonkey interpreter. Configured by
-`JSRUNTIMESUBPROCESSPATH` (path to the executable) and
-`JSRUNTIMETIMEOUT` (per-call wall-clock limit).
+Executes JavaScript via an out-of-process `couchjs`-compatible sandbox.
+Any of Node 18+, Bun 1+, Deno 1.40+, or a packaged `couchjs` binary will
+work — each is driven through the same dispatcher-entry script, which
+implements the CouchDB query-server line protocol on top of Node's
+`vm.runInNewContext` (a documented replacement for SpiderMonkey's
+`evalcx`).
+
+**Enabling the Subprocess backend:**
+
+```objectscript
+Do ##class(IRISCouch.Config).Set("JSRUNTIME", "Subprocess")
+Do ##class(IRISCouch.Config).Set("JSRUNTIMESUBPROCESSPATH", "C:\Program Files\nodejs\node.exe")
+```
+
+On Linux/macOS set `JSRUNTIMESUBPROCESSPATH` to a full path like
+`/usr/bin/node` or `/usr/local/bin/bun`. If your interpreter is on
+PATH under the IRIS service account, just the binary name works too —
+but the full path avoids PATH-related surprises when the service runs
+under a restricted user.
+
+**Entry-point script.** The Subprocess backend invokes the interpreter
+with `documentation/couchjs/couchjs-entry.js`. This ships with the
+repository under the IRISCouch layout. Custom deployments can override
+with `JSRUNTIMESUBPROCESSENTRY`.
+
+**Execution model (Story 12.2).** A subprocess is spawned per view
+query, issued the command stream over file-based stdin, and captured
+from file-based stdout. The pipe file (`Pipe.cls`) uses `$ZF(-100)` with
+`/STDIN`/`/STDOUT`/`/STDERR` redirection — the canonical IRIS pattern
+per `irislib/%Net/Remote/Utility.cls::RunCommandViaZF`. This avoids
+the well-known Windows IRIS fragility of real-time bidirectional stdio
+via `$ZF(-1)`. Story 12.5 will add a persistent subprocess pool on
+top of the same Pipe API; the pool is an additive change — no
+changes to calling code.
+
+**Supported CouchDB protocol commands (Story 12.2):**
+
+- `reset` — reset per-query state
+- `add_fun` — compile a map or reduce function
+- `map_doc` — run every registered map function against a document
+- `reduce` — run one or more reduce functions over `[key, value]` pairs
+- `rereduce` — rereduce intermediate results
+
+**Out of scope for Story 12.2:**
+
+- `validate_doc_update` and custom changes filters — **Story 12.3**
+- Incremental view indexing, ETag/304 caching, persistent pool — **Story 12.5**
+- HyperLogLog for `_approx_count_distinct` — **Epic 14**
+
+**Builtin reduce functions** (`_sum`, `_count`, `_stats`,
+`_approx_count_distinct`) execute **natively in ObjectScript** (via
+`IRISCouch.View.BuiltinReduce`), bypassing the subprocess entirely.
+User-supplied reduce functions execute via the subprocess.
 
 ### Python (Story 12.4 — not yet implemented)
 
@@ -83,12 +132,35 @@ the matching CouchDB line-protocol references in `sources/couchdb/share/server/`
 subsystem. Typical remedies:
 
 - Confirm the configured backend: `Config.Get("JSRUNTIME")`.
-- If `Subprocess` is configured and still returns 501, Story 12.2 has not
-  yet landed; fall back to `None` until it ships.
-- If the response names `custom filter functions` but you expected a
-  built-in filter, verify the `filter` query parameter is one of
-  `_doc_ids`, `_selector`, or `_design`. Anything else of the shape
-  `ddoc/name` is treated as a custom JS filter.
+- If `Subprocess` is configured and still returns 501 for views, confirm
+  `JSRUNTIMESUBPROCESSPATH` points at a real interpreter and
+  `documentation/couchjs/couchjs-entry.js` is accessible to the IRIS
+  service account. `Subprocess.IsAvailable()` short-circuits to 0 when
+  either file is missing.
+- If the response names `custom filter functions` or
+  `validate_doc_update hooks`, those subsystems land in Story 12.3 and
+  stay 501 today even under `JSRUNTIME=Subprocess`.
+
+**Subprocess fails to launch.** The 500 response's log includes the
+interpreter path, exit code, and first 512 bytes of stderr. Run the
+interpreter manually with `--version` from the same shell IRIS spawns
+from to verify PATH and permissions — Windows service accounts often
+differ from interactive logins.
+
+**Map function throws on a specific document.** Per CouchDB semantics,
+per-document map errors are logged via `Util.Log.Warn` and the document
+is skipped from the result set. The view query continues with the
+remaining documents. See `IRISCouch.Util.Log` / `cconsole.log` for the
+warn entry naming the failed doc id.
+
+**Timeout after Nms.** `JSRUNTIMETIMEOUT` (default 5000 ms) caps the
+per-query interpreter wall-clock. Long-running reduces should use a
+builtin (`_sum`, `_count`, `_stats`) which bypasses the subprocess.
+
+**Protocol reference.** The CouchDB query-server line protocol is
+documented in `sources/couchdb/share/server/loop.js` (dispatcher) and
+`sources/couchdb/share/server/views.js` (map/reduce semantics). The
+IRISCouch entry script matches this behaviour on Node/Bun/Deno.
 
 **Unexpected backend.** The factory falls back to `None` and logs a
 warning to the structured log if `JSRUNTIME` holds an unrecognised value.

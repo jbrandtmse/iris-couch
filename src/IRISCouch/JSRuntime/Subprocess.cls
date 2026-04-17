@@ -1,51 +1,296 @@
-/// <p>Placeholder stub for the Subprocess JavaScript runtime backend.</p>
-/// <p>Exists so <class>IRISCouch.JSRuntime.Factory</class> can resolve the
-/// <code>"Subprocess"</code> config value without crashing while Story 12.2
-/// is pending. Every <code>Execute*</code> method throws a
-/// <code>not_yet_implemented</code> exception carrying a pointer to Story 12.2.</p>
+/// <p>Subprocess JavaScript runtime backend (Story 12.2).</p>
+/// <p>Spawns a configured JS interpreter (Node / Bun / Deno / vendored
+/// couchjs) per view query, drives it through the couchjs line protocol
+/// via <class>IRISCouch.JSRuntime.Subprocess.Pipe</class>, and returns the
+/// parsed results. The canonical command reference is
+/// <code>sources/couchdb/share/server/loop.js</code>; the entry-point
+/// script shipped alongside this backend is
+/// <code>documentation/couchjs/couchjs-entry.js</code>.</p>
+///
+/// <h3>Lifecycle</h3>
+/// <p>Story 12.2 uses a <b>process-per-query</b> model: every call to
+/// <method>ExecuteMap</method> or <method>ExecuteReduce</method> opens a
+/// fresh Pipe, issues the full command sequence, reads the responses, and
+/// closes. Story 12.5 will add a persistent pool on top of the same Pipe
+/// API without changing caller code.</p>
+///
+/// <h3>Story 12.3 scope (not yet implemented here)</h3>
+/// <p><method>ExecuteValidateDocUpdate</method> and
+/// <method>ExecuteFilter</method> remain as <code>not_yet_implemented</code>
+/// throwers. Story 12.3 will fill them using the same Pipe abstraction.</p>
 Class IRISCouch.JSRuntime.Subprocess Extends IRISCouch.JSRuntime.Sandbox
 {
 
-/// <p>Always returns 0 -- the Subprocess backend is not yet implemented (Story 12.2).</p>
+/// <p>Report whether the configured interpreter launches successfully.</p>
+/// <p>Performs a lightweight sanity check: the interpreter path must be
+/// non-empty, the file must exist on disk, and the entry-point script
+/// must be present in <code>documentation/couchjs/couchjs-entry.js</code>.
+/// Does NOT spawn a test subprocess on every call — that would double the
+/// latency of every view query; instead, real failures surface as an
+/// exception from <method>ExecuteMap</method>. Result is cached in a
+/// process-private variable on first call so repeated ViewHandler checks
+/// are free.</p>
 Method IsAvailable() As %Boolean
 {
-    Quit 0
+    ; Process-private cache key off the current interpreter path so config
+    ; flips (e.g., tests switching to /nonexistent) take effect immediately
+    ; rather than being sticky for the process lifetime.
+    Set tPath = ##class(IRISCouch.Config).Get("JSRUNTIMESUBPROCESSPATH")
+    If tPath = "" Quit 0
+    If '##class(%File).Exists(tPath) Quit 0
+    Set tEntry = ..GetEntryScriptPath()
+    If '##class(%File).Exists(tEntry) Quit 0
+    Quit 1
 }
 
-/// <p>Throws <code>not_yet_implemented</code> until Story 12.2 lands.</p>
+/// <p>Resolve the absolute path to <code>couchjs-entry.js</code>.</p>
+/// <p>Checks the <code>JSRUNTIMESUBPROCESSENTRY</code> config override
+/// first; if unset, derives it from the install root using the convention
+/// <code>&lt;IRIS install dir&gt;/documentation/couchjs/couchjs-entry.js</code>
+/// relative to the repo layout. Subclasses / tests may override via the
+/// config key.</p>
+ClassMethod GetEntryScriptPath() As %String [ Internal ]
+{
+    ; Allow an explicit override (tests, custom deployments).
+    Set tOverride = ##class(IRISCouch.Config).Get("JSRUNTIMESUBPROCESSENTRY")
+    If tOverride '= "" Quit tOverride
+    ; Fallback: derive from the repo layout. The IRISCouch classes live at
+    ; <repo>/src/IRISCouch/..., so the entry script is two directories
+    ; above the class folder.
+    ; IRIS does not expose the source path at runtime, so use the project
+    ; install marker: ^IRISCouch.Install("RepoRoot") is set by the
+    ; installer; if absent, fall back to the hardcoded Windows dev path.
+    Set tRoot = $Get(^IRISCouch.Install("RepoRoot"))
+    If tRoot '= "" {
+        Quit tRoot _ "\documentation\couchjs\couchjs-entry.js"
+    }
+    ; Last-resort default -- the Story 12.2 dev environment path. Operators
+    ; in other environments must set JSRUNTIMESUBPROCESSENTRY.
+    Quit "C:\git\iris-couch\documentation\couchjs\couchjs-entry.js"
+}
+
+/// <p>Execute a CouchDB map function against a single document.</p>
+/// <p>Spawns a subprocess, sends <code>reset</code>, <code>add_fun</code>,
+/// <code>map_doc</code>, parses the three response lines, and returns the
+/// single-function emission array.</p>
+/// @param pMapFn The JavaScript map function source
+/// @param pDoc The target document as a <class>%DynamicObject</class>
+/// @return %DynamicArray of <code>[key, value]</code> pairs
 Method ExecuteMap(pMapFn As %String, pDoc As %DynamicObject) As %DynamicArray
 {
-    Do ..ThrowNotYetImplemented("view execution")
-    Quit $$$NULLOREF
+    Set tResult = []
+    Set tPipe = ""
+    Try {
+        Set tPipe = ..StartPipe()
+        Do tPipe.WriteLine("[""reset""]")
+        Do tPipe.WriteLine(..EncodeCommand("add_fun", pMapFn))
+        Do tPipe.WriteLine(..EncodeCommandObj("map_doc", pDoc))
+        Set tSC = tPipe.Flush()
+        If $$$ISERR(tSC) {
+            Do ..ThrowSubprocessError(tPipe, tSC)
+        }
+        ; Expect three response lines: reset ack, add_fun ack, map_doc result
+        Do tPipe.ReadLine(.tResetAck)
+        Do tPipe.ReadLine(.tAddFunAck)
+        Do tPipe.ReadLine(.tMapResult)
+        ; Also drain any trailing [log, ...] lines the subprocess may have
+        ; emitted before the map_doc response -- couchjs interleaves them.
+        ; We already captured the sequence in order, so the last non-log
+        ; line is the map_doc result. If tMapResult starts with ["log", we
+        ; keep reading. The literal we compare to is the 6-character prefix
+        ; ["log" (open-bracket, quote, "log", quote); $Extract with a length
+        ; of 7 would never match because it includes the trailing comma of
+        ; the log payload.
+        While ($Extract(tMapResult, 1, 6) = "[""log""") && '(tPipe.AtEnd()) {
+            Do tPipe.ReadLine(.tMapResult)
+        }
+        ; tMapResult per share/server/views.js::mapDoc is an array of
+        ; arrays-of-[key,value] pairs, one inner array per registered map
+        ; function. We only registered one function, so unwrap the outer.
+        If tMapResult = "" {
+            Do ..ThrowSubprocessError(tPipe, $$$ERROR($$$GeneralError, "map_doc returned empty response"))
+        }
+        Set tOuter = [].%FromJSON(tMapResult)
+        If tOuter.%Size() > 0 {
+            Set tResult = tOuter.%Get(0)
+        }
+    }
+    Catch ex {
+        If $IsObject(tPipe) Do tPipe.Close()
+        Throw ex
+    }
+    If $IsObject(tPipe) Do tPipe.Close()
+    Quit tResult
 }
 
-/// <p>Throws <code>not_yet_implemented</code> until Story 12.2 lands.</p>
+/// <p>Execute a CouchDB reduce function over collected keys/values.</p>
+/// <p>Spawns a subprocess, sends <code>reset</code> then the appropriate
+/// <code>reduce</code> or <code>rereduce</code> command, and wraps the
+/// result in the envelope expected by callers.</p>
+/// @param pReduceFn The reduce function source
+/// @param pKeys Emission keys (may be null in rereduce mode)
+/// @param pValues Emission values
+/// @param pRereduce 1 for rereduce, 0 for normal reduce
+/// @return %DynamicObject envelope <code>{"ok":true, "value":&lt;reduced&gt;}</code>
 Method ExecuteReduce(pReduceFn As %String, pKeys As %DynamicArray, pValues As %DynamicArray, pRereduce As %Boolean) As %DynamicObject
 {
-    Do ..ThrowNotYetImplemented("reduce function")
-    Quit $$$NULLOREF
+    Set tResult = {}
+    Set tPipe = ""
+    Try {
+        Set tPipe = ..StartPipe()
+        Do tPipe.WriteLine("[""reset""]")
+        If pRereduce {
+            ; ["rereduce", [<fn-source>], <values>]
+            Set tCmd = ..EncodeRereduce(pReduceFn, pValues)
+        } Else {
+            ; ["reduce", [<fn-source>], [[k,v], ...]]
+            Set tCmd = ..EncodeReduce(pReduceFn, pKeys, pValues)
+        }
+        Do tPipe.WriteLine(tCmd)
+        Set tSC = tPipe.Flush()
+        If $$$ISERR(tSC) {
+            Do ..ThrowSubprocessError(tPipe, tSC)
+        }
+        Do tPipe.ReadLine(.tResetAck)
+        Do tPipe.ReadLine(.tReduceLine)
+        ; Drain trailing log lines if present (see ExecuteMap for why the
+        ; literal is 6 chars, not 7).
+        While ($Extract(tReduceLine, 1, 6) = "[""log""") && '(tPipe.AtEnd()) {
+            Do tPipe.ReadLine(.tReduceLine)
+        }
+        If tReduceLine = "" {
+            Do ..ThrowSubprocessError(tPipe, $$$ERROR($$$GeneralError, "reduce returned empty response"))
+        }
+        ; Reduce response shape: [true, [<reduced_value>]]
+        Set tOuter = [].%FromJSON(tReduceLine)
+        Set tReducedArr = tOuter.%Get(1)
+        Set tReduced = ""
+        If $IsObject(tReducedArr) && (tReducedArr.%Size() > 0) {
+            Set tReduced = tReducedArr.%Get(0)
+        }
+        Do tResult.%Set("ok", 1, "boolean")
+        Do tResult.%Set("value", tReduced)
+    }
+    Catch ex {
+        If $IsObject(tPipe) Do tPipe.Close()
+        Throw ex
+    }
+    If $IsObject(tPipe) Do tPipe.Close()
+    Quit tResult
 }
 
-/// <p>Throws <code>not_yet_implemented</code> until Story 12.2 lands.</p>
+/// <p>Story 12.3 scope — throws <code>not_yet_implemented</code>.</p>
 Method ExecuteValidateDocUpdate(pValidateFn As %String, pNewDoc As %DynamicObject, pOldDoc As %DynamicObject, pUserCtx As %DynamicObject, pSecObj As %DynamicObject) As %Status
 {
     Do ..ThrowNotYetImplemented("validate_doc_update hooks")
     Quit $$$OK
 }
 
-/// <p>Throws <code>not_yet_implemented</code> until Story 12.2 lands.</p>
+/// <p>Story 12.3 scope — throws <code>not_yet_implemented</code>.</p>
 Method ExecuteFilter(pFilterFn As %String, pDoc As %DynamicObject, pReq As %DynamicObject) As %Boolean
 {
     Do ..ThrowNotYetImplemented("custom filter functions")
     Quit 0
 }
 
-/// <p>Throw a <class>%Exception.General</class> with the "not yet implemented" envelope.</p>
-/// @param pSubsystem Subsystem label (<code>view execution</code>, etc.)
+/// <p>Allocate and open a new Pipe instance pointing at the configured
+/// interpreter and entry script.</p>
+/// <p>Throws a subprocess error if the interpreter is not available.</p>
+Method StartPipe() As IRISCouch.JSRuntime.Subprocess.Pipe [ Internal ]
+{
+    Set tPath = ##class(IRISCouch.Config).Get("JSRUNTIMESUBPROCESSPATH")
+    Set tEntry = ..GetEntryScriptPath()
+    If '..IsAvailable() {
+        Throw ##class(%Exception.General).%New("view execution", "subprocess_error", "", "Subprocess JSRuntime unavailable: interpreter=" _ tPath _ " entry=" _ tEntry)
+    }
+    Set tPipe = ##class(IRISCouch.JSRuntime.Subprocess.Pipe).%New()
+    Set tSC = tPipe.Open(tPath, tEntry)
+    If $$$ISERR(tSC) {
+        Throw ##class(%Exception.General).%New("view execution", "subprocess_error", "", "Pipe.Open failed: " _ $System.Status.GetErrorText(tSC))
+    }
+    Quit tPipe
+}
+
+/// <p>Build an <code>["add_fun", "&lt;source&gt;"]</code> line.</p>
+ClassMethod EncodeCommand(pCmd As %String, pSource As %String) As %String [ Internal ]
+{
+    ; Use %DynamicArray so quoting / backslashes / unicode are safe.
+    Set tArr = []
+    Do tArr.%Push(pCmd)
+    Do tArr.%Push(pSource)
+    Quit tArr.%ToJSON()
+}
+
+/// <p>Build a <code>["map_doc", &lt;doc-json&gt;]</code> line.</p>
+ClassMethod EncodeCommandObj(pCmd As %String, pObj As %DynamicObject) As %String [ Internal ]
+{
+    Set tArr = []
+    Do tArr.%Push(pCmd)
+    Do tArr.%Push(pObj)
+    Quit tArr.%ToJSON()
+}
+
+/// <p>Build a <code>["reduce", [&lt;fn-src&gt;], [[k,v],...]]</code> line.</p>
+ClassMethod EncodeReduce(pReduceFn As %String, pKeys As %DynamicArray, pValues As %DynamicArray) As %String [ Internal ]
+{
+    Set tFns = []
+    Do tFns.%Push(pReduceFn)
+    Set tKvs = []
+    Set tI = 0
+    If $IsObject(pKeys) && $IsObject(pValues) {
+        Set tN = pKeys.%Size()
+        While tI < tN {
+            Set tPair = []
+            Do tPair.%Push(pKeys.%Get(tI))
+            Do tPair.%Push(pValues.%Get(tI))
+            Do tKvs.%Push(tPair)
+            Set tI = tI + 1
+        }
+    }
+    Set tArr = []
+    Do tArr.%Push("reduce")
+    Do tArr.%Push(tFns)
+    Do tArr.%Push(tKvs)
+    Quit tArr.%ToJSON()
+}
+
+/// <p>Build a <code>["rereduce", [&lt;fn-src&gt;], &lt;values&gt;]</code> line.</p>
+ClassMethod EncodeRereduce(pReduceFn As %String, pValues As %DynamicArray) As %String [ Internal ]
+{
+    Set tFns = []
+    Do tFns.%Push(pReduceFn)
+    Set tArr = []
+    Do tArr.%Push("rereduce")
+    Do tArr.%Push(tFns)
+    Do tArr.%Push(pValues)
+    Quit tArr.%ToJSON()
+}
+
+/// <p>Raise a subprocess-error exception with diagnostic context.</p>
+/// <p>Includes the interpreter path, exit code (if known), and first 2KB
+/// of stderr from the Pipe so operators can triage crashes without
+/// re-running.</p>
+ClassMethod ThrowSubprocessError(pPipe As IRISCouch.JSRuntime.Subprocess.Pipe, pSC As %Status) [ Internal ]
+{
+    Set tPath = ##class(IRISCouch.Config).Get("JSRUNTIMESUBPROCESSPATH")
+    Set tStderr = ""
+    If $IsObject(pPipe) {
+        Set tStderr = pPipe.ReadStderrSnippet()
+    }
+    Set tReason = "Subprocess JSRuntime error; interpreter=" _ tPath
+    If $$$ISERR(pSC) {
+        Set tReason = tReason _ "; status=" _ $System.Status.GetErrorText(pSC)
+    }
+    If tStderr '= "" {
+        Set tReason = tReason _ "; stderr=" _ $Extract(tStderr, 1, 512)
+    }
+    Throw ##class(%Exception.General).%New("view execution", "subprocess_error", "", tReason)
+}
+
+/// <p>Throw <code>not_yet_implemented</code> for 12.3-scope methods.</p>
 ClassMethod ThrowNotYetImplemented(pSubsystem As %String) [ Internal ]
 {
-    Set tReason = "Subprocess JSRuntime backend is not yet implemented (Story 12.2). " _ pSubsystem _ " is unavailable until the subprocess runtime ships. Set JSRUNTIME to None to disable. See documentation/js-runtime.md."
-    ; %Exception.General.%New signature: (pName, pCode, pLocation, pData, ...)
+    Set tReason = "Subprocess JSRuntime " _ pSubsystem _ " is not yet implemented (Story 12.3 scope). See documentation/js-runtime.md."
     Throw ##class(%Exception.General).%New(pSubsystem, "not_implemented", "", tReason)
 }
 

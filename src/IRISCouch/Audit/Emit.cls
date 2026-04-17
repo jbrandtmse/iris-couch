@@ -72,7 +72,7 @@ ClassMethod EnsureEvents() As %Status
     Set tOrigNS = $Namespace
     Try {
         Set $Namespace = "%SYS"
-        Set tTypes = "DocWrite,DocDelete,AuthSuccess,AuthFailure,SecurityChange,UserWrite,ReplicationStart,ReplicationComplete,ViewAttempt"
+        Set tTypes = "DocWrite,DocDelete,AuthSuccess,AuthFailure,SecurityChange,UserWrite,ReplicationStart,ReplicationComplete,ViewAttempt,ViewExecute,ViewError"
         For tI = 1:1:$Length(tTypes, ",") {
             Set tType = $Piece(tTypes, ",", tI)
             If '##class(Security.Events).Exists("IRISCouch", tType, tType) {
@@ -197,6 +197,43 @@ ClassMethod ViewAttempt(pDB As %String, pDDocId As %String, pViewName As %String
     Set tExtra.view = pViewName
     Set tExtra.status = pStatus
     Do ..Emit("ViewAttempt", pDB, pDDocId, "", pUser, tExtra)
+}
+
+/// <p>Emit a ViewExecute audit event on successful view execution (Story 12.2).</p>
+/// <p>Payload includes the database, composite design-doc id, view name,
+/// row count, and wall-clock duration in milliseconds. Operators can grep
+/// the audit log to correlate slow queries with specific ddocs.</p>
+/// @param pDB The database name
+/// @param pDDocId The design document identifier
+/// @param pViewName The view name
+/// @param pRows The number of rows returned
+/// @param pDurationMs Wall-clock duration of the query in milliseconds
+/// @param pUser The user who made the request (optional)
+ClassMethod ViewExecute(pDB As %String, pDDocId As %String, pViewName As %String, pRows As %Integer = 0, pDurationMs As %Numeric = 0, pUser As %String = "")
+{
+    Set tExtra = {}
+    Set tExtra.view = pViewName
+    Set tExtra.rows = pRows
+    Set tExtra.durationMs = pDurationMs
+    Do ..Emit("ViewExecute", pDB, pDDocId, "", pUser, tExtra)
+}
+
+/// <p>Emit a ViewError audit event on view execution failure (Story 12.2).</p>
+/// <p>Distinct from <method>ViewAttempt</method>: ViewError fires only
+/// when execution genuinely failed (subprocess crashed, fatal map error,
+/// design doc syntactically valid but semantically broken). Callers still
+/// emit ViewAttempt alongside for the HTTP-level traceability.</p>
+/// @param pDB The database name
+/// @param pDDocId The design document identifier
+/// @param pViewName The view name
+/// @param pReason Short human-readable error reason
+/// @param pUser The user who made the request (optional)
+ClassMethod ViewError(pDB As %String, pDDocId As %String, pViewName As %String, pReason As %String = "", pUser As %String = "")
+{
+    Set tExtra = {}
+    Set tExtra.view = pViewName
+    Set tExtra.reason = $Extract(pReason, 1, 256)
+    Do ..Emit("ViewError", pDB, pDDocId, "", pUser, tExtra)
 }
 
 }
