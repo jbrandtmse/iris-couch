@@ -87,6 +87,52 @@ ClassMethod RenderInternal(pSlug As %String, pReason As %String, pException As %
     Quit
 }
 
+/// <p>Render a 501 Not Implemented response for a blocked JSRuntime subsystem.</p>
+/// <p>Centralises the JSRuntime 501 envelope used by
+/// <class>IRISCouch.API.ViewHandler</class>,
+/// <class>IRISCouch.API.ChangesHandler</class>, and
+/// <class>IRISCouch.Core.DocumentEngine</class>. Sets HTTP status 501,
+/// Content-Type <code>application/json</code>, and writes a body of the form
+/// <code>{"error":"not_implemented","reason":"&lt;pReason&gt;"}</code>.</p>
+/// <p>Callers pass the subsystem label (e.g., <code>view execution</code>) for
+/// symmetry with the exception thrown by <class>IRISCouch.JSRuntime.None</class>.
+/// The <var>pSubsystem</var> parameter is recorded in structured logs and can
+/// be used by callers to grep for blocked subsystems.</p>
+/// @param pSubsystem Subsystem label for logging (e.g., <code>view execution</code>)
+/// @param pReason Full reason string rendered as the response body's <code>reason</code> field
+ClassMethod Render501(pSubsystem As %String, pReason As %String)
+{
+    ; Emit a structured log line so operators can grep for blocked subsystems.
+    Set tLogData = {"subsystem":(pSubsystem),"reason":(pReason)}
+    Do ##class(IRISCouch.Util.Log).Info("jsruntime", "501 Not Implemented", tLogData)
+    Do ..Render(501, ..#NOTIMPLEMENTED, pReason)
+    Quit
+}
+
+/// <p>Build the canonical JSRuntime 501 reason string for a blocked subsystem.</p>
+/// <p>Single source of truth for the <code>reason</code> field in every 501
+/// response emitted when <code>JSRUNTIME=None</code> (or a stub backend) blocks
+/// a JS-dependent subsystem. The exact literal body is codified by Story 12.1
+/// AC #2 for <em>view execution</em> and extended by AC #4 for every other
+/// blocked subsystem. Centralising the template prevents drift between
+/// <class>IRISCouch.JSRuntime.None</class> (which throws this reason),
+/// <class>IRISCouch.API.ViewHandler</class>, and
+/// <class>IRISCouch.API.ChangesHandler</class> (which render it).</p>
+/// <p>Template (AC #2 literal):</p>
+/// <pre>
+/// JSRuntime backend is set to None. Set ^IRISCouch.Config("JSRUNTIME") to
+/// "Subprocess" or "Python" to enable &lt;subsystem&gt;. See
+/// documentation/js-runtime.md.
+/// </pre>
+/// @param pSubsystem Subsystem label (e.g., <code>view execution</code>,
+///        <code>custom filter functions</code>, <code>validate_doc_update hooks</code>,
+///        <code>reduce function</code>)
+/// @return The fully-assembled reason string
+ClassMethod BuildJSRuntimeNotImplementedReason(pSubsystem As %String) As %String
+{
+    Quit "JSRuntime backend is set to None. Set ^IRISCouch.Config(""JSRUNTIME"") to ""Subprocess"" or ""Python"" to enable " _ pSubsystem _ ". See documentation/js-runtime.md."
+}
+
 /// <p>Render a 405 Method Not Allowed response with Allow header.</p>
 /// <p>Sets the <code>Allow</code> HTTP header to indicate which methods
 /// are supported for the requested resource.</p>

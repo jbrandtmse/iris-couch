@@ -1,5 +1,5 @@
 # generated: 2026-04-12
-# last_updated: 2026-04-17 (Story 12.0 review → done)
+# last_updated: 2026-04-17 (Story 12.1 in-progress → review)
 # project: iris-couch
 # project_key: NOKEY
 # tracking_system: file-system
@@ -36,8 +36,8 @@
 
 generated: 2026-04-12
 last_updated: 2026-04-17
-last_story_completed: 12-0-epic-11-deferred-cleanup
-last_story_reviewed: 12-0-epic-11-deferred-cleanup
+last_story_completed: 12-1-jsruntime-sandbox-interface-and-none-backend
+last_story_reviewed: 12-1-jsruntime-sandbox-interface-and-none-backend
 project: iris-couch
 project_key: NOKEY
 tracking_system: file-system
@@ -148,7 +148,7 @@ development_status:
   # Epic 12: Pluggable JavaScript Runtime
   epic-12: in-progress
   12-0-epic-11-deferred-cleanup: done
-  12-1-jsruntime-sandbox-interface-and-none-backend: backlog
+  12-1-jsruntime-sandbox-interface-and-none-backend: done
   12-2-subprocess-jsruntime-map-reduce-views: backlog
   12-3-subprocess-jsruntime-validation-and-filter-functions: backlog
   12-4-python-jsruntime-backend: backlog

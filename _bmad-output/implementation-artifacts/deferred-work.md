@@ -102,6 +102,9 @@ _(none open)_
 - **[LOW] Story 11.4** AC #5 wording says "move the selected node"; impl moves focus -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
 - **[LOW] Story 11.4** No explicit "≥ 5 conflict branches" layout test -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
 - **[LOW] Story 11.5** AC #4 error message says `%IRISCouch_Admin` vs `IRISCouch_Admin` -- [full entry](#deferred-from-code-review-of-11-5-admin-ui-handler-and-security-2026-04-15)
+- **[LOW] Story 12.1** `Util.Error.Render501` `pSubsystem` parameter unused in response body -- [full entry](#deferred-from-code-review-of-12-1-jsruntime-sandbox-interface-and-none-backend-2026-04-17)
+- **[LOW] Story 12.1** `Factory.GetSandbox()` logs unrate-limited Warn on garbage config -- [full entry](#deferred-from-code-review-of-12-1-jsruntime-sandbox-interface-and-none-backend-2026-04-17)
+- **[LOW] Story 12.1** `iris_execute_tests` class-level discovery only reports 3/11 methods (individual runs all pass) -- [full entry](#deferred-from-code-review-of-12-1-jsruntime-sandbox-interface-and-none-backend-2026-04-17)
 
 ---
 
@@ -502,3 +505,11 @@ the initial entries.
 ## Deferred from: code review of 11-5-admin-ui-handler-and-security (2026-04-15)
 
 - **AC #4 error message says `%IRISCouch_Admin` but role is `IRISCouch_Admin`** [Story 11.5 AC #4] -- The role was renamed from `%IRISCouch_Admin` to `IRISCouch_Admin` during implementation because IRIS rejects `%`-prefixed custom roles (Error #887). The 403 error body and all code correctly reference `IRISCouch_Admin`, but the AC text still says `%IRISCouch_Admin`. Cosmetic documentation mismatch only. LOW -- update the AC wording in the next story or epic retro. -- **KEPT DEFERRED (2026-04-17, Story 12.0):** documentation-only mismatch; code is already correct. Revisit during the next epics.md / PRD-level edit when AC text is being touched for other reasons.
+
+## Deferred from: code review of 12-1-jsruntime-sandbox-interface-and-none-backend (2026-04-17)
+
+- **[LOW] `Util.Error.Render501` `pSubsystem` parameter is unused in the response body** [Story 12.1 Task 8] -- The method takes `(pSubsystem, pReason)` but only logs `pSubsystem` via `Util.Log.Info`; the HTTP body uses `pReason` only. Callers already embed the subsystem label in `pReason` via `BuildJSRuntimeNotImplementedReason(pSubsystem)`, so the separate `pSubsystem` argument is a redundant breadcrumb for structured-log consumers. Consider either (a) dropping `pSubsystem` and parsing it out of the log data, or (b) adding a dedicated `subsystem` field to the response body once Story 12.2 introduces richer error metadata. LOW — stylistic / informational only; no behavioural impact in 12.1.
+
+- **[LOW] `Factory.GetSandbox()` logs a Warn on every call when `JSRUNTIME` holds garbage** [Story 12.1 Task 4] -- A misconfigured server receiving 1000 req/sec will emit 1000 "Unrecognised JSRUNTIME value" warnings/sec with no deduplication. Consider gating via a process-private "already-warned this session" flag keyed on the current garbage value, or lifting the log to a once-per-config-change admin event. LOW — operational log hygiene; does not impact correctness and only fires under misconfiguration.
+
+- **[LOW] Test discovery inconsistency under `iris_execute_tests` class-level runs** [Story 12.1 Task 9] -- When `IRISCouch.Test.JSRuntimeHttpTest` is run at `level=class`, the MCP runner reports only 3 of the 11 test methods (`AbstractSandboxContract`, `BuiltinFiltersStillWorkWhenRuntimeIsNone`, `CustomFilterReturns501WhenRuntimeIsNone`); all 11 pass when invoked individually at `level=method`. Likely an `%UnitTest.Manager` caching / work-queue interaction in the MCP tool rather than a class-level issue (the class compiles clean and standalone `do ##class(%UnitTest.Manager).RunTest(...)` runs all 11). Revisit when Story 12.2 or the next ObjectScript story needs bulk test runs; if reproducible, file against the `iris-dev-mcp` server. LOW — does not affect correctness; individual runs confirm 11/11 pass.

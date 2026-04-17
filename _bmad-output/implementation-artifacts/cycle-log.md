@@ -808,3 +808,18 @@
 - **Code review** (cr-12-0): CLEAN — 0 HIGH/MEDIUM/CRITICAL, 0 patches required, 0 new deferrals; all 5 ACs explicitly verified; 683/683 specs pass
 - Files changed: login.component[.ts,.spec.ts], side-nav.component[.ts,.spec.ts], json-display.component.ts, revision-tree.component.ts, security-view.component.spec.ts, research-first.md, deferred-work.md, sprint-status.yaml, new 12-0 story file
 - Sprint-status: `12-0-epic-11-deferred-cleanup: done`; `last_story_completed/reviewed: 12-0-epic-11-deferred-cleanup`
+
+### 2026-04-17 — Phase 1 (Story 12.1): Story File Created
+- File: `_bmad-output/implementation-artifacts/12-1-jsruntime-sandbox-interface-and-none-backend.md`
+- Status: ready-for-dev
+- 7 ACs + 11 Tasks including explicit Task 0 backend-surface probe per the new research-first.md rule
+- Scope: abstract Sandbox interface, None concrete backend, Subprocess/Python placeholder stubs, Factory, ViewHandler (501 emitter), ChangesHandler custom-filter 501 branch, DocumentEngine validate_doc_update skeleton no-op, Util.Error.Render501 helper, JSRuntimeHttpTest suite, documentation/js-runtime.md stub
+- Reference reads codified: CouchDB views.js/validate.js/filter.js source + .claude/rules/iris-objectscript-basics.md abstract-method requirements
+
+### 2026-04-17 — Phase 1 (Story 12.1): Dev + Review
+- **Dev agent** (dev-12-1): implemented all 11 tasks; 11/11 JSRuntimeHttpTest pass, no regressions in DocumentTest/ChangesTest/ChangesFilterHttpTest/RouterTest/HttpIntegrationTest
+- **Code review** (cr-12-1): CLEAN — 0 CRITICAL/HIGH/MEDIUM, 3 LOW deferred (Render501 unused pSubsystem breadcrumb, Factory Warn-spam under misconfig, test-discovery inconsistency under iris_execute_tests class-level)
+- **Auto-resolve:** Audit/Emit.cls updated to register `view_attempt` event (reviewer catch)
+- New files: `src/IRISCouch/JSRuntime/{Sandbox,None,Subprocess,Python,Factory}.cls`, `src/IRISCouch/API/ViewHandler.cls`, `src/IRISCouch/Test/JSRuntimeHttpTest.cls`, `documentation/js-runtime.md`
+- Modified: Router.cls (+`_view` routes, local wrappers), ChangesHandler.cls (+custom filter 501), DocumentEngine.cls (+validate_doc_update skeleton no-op in all 4 Save* methods), Util/Error.cls (+Render501), Audit/Emit.cls (+view_attempt registration), Config.cls (+js-runtime.md pointer)
+- Sprint-status: `12-1-jsruntime-sandbox-interface-and-none-backend: done`

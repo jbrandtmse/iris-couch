@@ -31,6 +31,23 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Quit
         }
+        ; -------------------------------------------------------------------
+        ; validate_doc_update hook (Story 12.1 skeleton, Story 12.3 fills in).
+        ; When the active JSRuntime backend can execute JavaScript, Story 12.3
+        ; will: (a) iterate the target DB's design docs, (b) extract each
+        ; validate_doc_update function source, (c) call
+        ; IRISCouch.JSRuntime.Factory.GetSandbox().ExecuteValidateDocUpdate(...)
+        ; with (newDoc, oldDoc, userCtx, secObj), (d) translate a rejection
+        ; %Status into a 401/403 response. The hook MUST fire inside the
+        ; TSTART/TCOMMIT added below so a rejection rolls back cleanly.
+        ; Under Story 12.1 the only shipping backend reports IsAvailable()=0,
+        ; so this branch is a pure no-op -- design docs that contain a
+        ; validate_doc_update function can still be staged for migration
+        ; without any JS work (AC #3, AC #6).
+        If ##class(IRISCouch.JSRuntime.Factory).GetSandbox().IsAvailable() {
+            ; TODO Story 12.3: invoke validate_doc_update for each matching ddoc
+        }
+        ; -------------------------------------------------------------------
         ; Determine generation
         If pParentRev = "" {
             Set tGeneration = 1
@@ -376,6 +393,12 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Quit
         }
+        ; validate_doc_update hook (Story 12.1 skeleton -- see Save() for detail).
+        ; A deletion passes a tombstone body {_deleted:true} as newDoc to the
+        ; function; Story 12.3 wires the call. No-op under Story 12.1.
+        If ##class(IRISCouch.JSRuntime.Factory).GetSandbox().IsAvailable() {
+            ; TODO Story 12.3: invoke validate_doc_update with deletion body
+        }
         ; Determine generation from parent
         Set tGeneration = +$Piece(pParentRev, "-", 1) + 1
         ; Tombstone body
@@ -490,6 +513,12 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Set tSC = $$$ERROR($$$GeneralError, "Database does not exist")
             Quit
+        }
+        ; validate_doc_update hook (Story 12.1 skeleton -- see Save() for detail).
+        ; Replication writes (new_edits=false) still run validate_doc_update
+        ; in CouchDB; Story 12.3 will wire the call. No-op under Story 12.1.
+        If ##class(IRISCouch.JSRuntime.Factory).GetSandbox().IsAvailable() {
+            ; TODO Story 12.3: invoke validate_doc_update for replicated rev
         }
         ; Idempotency check: if rev already exists in tree, skip silently
         If ##class(IRISCouch.Storage.RevTree).RevExists(pDB, pDocId, pRev) {
@@ -644,6 +673,12 @@ ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %Str
         ; Validate database exists
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Quit
+        }
+        ; validate_doc_update hook (Story 12.1 skeleton -- see Save() for detail).
+        ; Writes that carry attachments still run validate_doc_update on the
+        ; body; Story 12.3 will wire the call. No-op under Story 12.1.
+        If ##class(IRISCouch.JSRuntime.Factory).GetSandbox().IsAvailable() {
+            ; TODO Story 12.3: invoke validate_doc_update before attachment write
         }
         ; Validate attachments object
         If '$IsObject(pAttachments) {

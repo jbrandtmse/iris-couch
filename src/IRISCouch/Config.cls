@@ -45,7 +45,9 @@
 Class IRISCouch.Config Extends %RegisteredObject
 {
 
-/// <p>JavaScript runtime backend. Valid values: "None", "Subprocess", "Python"</p>
+/// <p>JavaScript runtime backend. Valid values: "None", "Subprocess", "Python".
+/// See <code>documentation/js-runtime.md</code> for the per-backend behavior
+/// and the 501-on-missing-runtime contract (Epic 12).</p>
 Parameter JSRUNTIME = "None";
 
 /// <p>Path to the JavaScript subprocess executable</p>

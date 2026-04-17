@@ -121,9 +121,42 @@ ClassMethod HandleChanges(pDB As %String) As %Status
         If $Data(%request.Data("doc_ids", 1)) {
             Set tDocIdsParam = $Get(%request.Data("doc_ids", 1))
         }
-        ; Validate filter value
+        ; Validate filter value. Built-in filters pass through; a filter of
+        ; the form "ddoc/name" is a custom JavaScript filter (CouchDB spec)
+        ; and is routed to the JSRuntime sandbox below. Anything else is
+        ; a malformed filter name and returns 404 (CouchDB compat).
+        Set tIsCustomFilter = 0
         If (tFilter '= "") && (tFilter '= "_doc_ids") && (tFilter '= "_selector") && (tFilter '= "_design") {
-            Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "missing")
+            ; Custom filter shape: {ddoc}/{filtername} — exactly one slash,
+            ; no leading underscore on the first segment (that would be a
+            ; reserved built-in filter name).
+            If ($Length(tFilter, "/") = 2)
+                && ($Piece(tFilter, "/", 1) '= "")
+                && ($Piece(tFilter, "/", 2) '= "")
+                && ($Extract(tFilter, 1) '= "_") {
+                Set tIsCustomFilter = 1
+            } Else {
+                Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "missing")
+                Quit
+            }
+        }
+        ; Custom filter (Story 12.1): invoke JSRuntime sandbox; if the sandbox
+        ; cannot execute JS (JSRUNTIME=None or stubs), return 501 Not Implemented
+        ; with a reason naming "custom filter functions". Built-in filters
+        ; (_doc_ids, _selector, _design) continue to work unchanged — they
+        ; never touch the JSRuntime.
+        If tIsCustomFilter {
+            Set tSandbox = ##class(IRISCouch.JSRuntime.Factory).GetSandbox()
+            If 'tSandbox.IsAvailable() {
+                Set tSubsystem = "custom filter functions"
+                Set tReason = ##class(IRISCouch.Util.Error).BuildJSRuntimeNotImplementedReason(tSubsystem)
+                Do ##class(IRISCouch.Util.Error).Render501(tSubsystem, tReason)
+                Quit
+            }
+            ; Story 12.2+ will invoke tSandbox.ExecuteFilter() per document.
+            ; Falling through under Story 12.1 is unreachable because the
+            ; only backend that reports IsAvailable()=1 does not yet exist.
+            Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "custom filter executor reached under Story 12.1 (unexpected)")
             Quit
         }
         ; Build doc_ids lookup array for _doc_ids filter

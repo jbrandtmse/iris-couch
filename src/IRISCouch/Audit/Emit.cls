@@ -72,7 +72,7 @@ ClassMethod EnsureEvents() As %Status
     Set tOrigNS = $Namespace
     Try {
         Set $Namespace = "%SYS"
-        Set tTypes = "DocWrite,DocDelete,AuthSuccess,AuthFailure,SecurityChange,UserWrite,ReplicationStart,ReplicationComplete"
+        Set tTypes = "DocWrite,DocDelete,AuthSuccess,AuthFailure,SecurityChange,UserWrite,ReplicationStart,ReplicationComplete,ViewAttempt"
         For tI = 1:1:$Length(tTypes, ",") {
             Set tType = $Piece(tTypes, ",", tI)
             If '##class(Security.Events).Exists("IRISCouch", tType, tType) {
@@ -179,6 +179,24 @@ ClassMethod ReplicationComplete(pSource As %String, pTarget As %String, pStats A
         Set tExtra.stats = pStats
     }
     Do ..Emit("ReplicationComplete", "", "", "", pUser, tExtra)
+}
+
+/// <p>Emit a ViewAttempt audit event when a client requests a design-doc
+/// view (Story 12.1). Fires on every call regardless of whether the
+/// JSRuntime can actually execute the view, so operators can see attempts
+/// even while <code>JSRUNTIME=None</code> is returning 501.</p>
+/// @param pDB The database name
+/// @param pDDocId The design document identifier (e.g., <code>_design/by_user</code>)
+/// @param pViewName The view name
+/// @param pStatus HTTP status code emitted (501 under Story 12.1 None backend;
+///                200 once Story 12.2 / 12.4 land)
+/// @param pUser The user who made the request (optional)
+ClassMethod ViewAttempt(pDB As %String, pDDocId As %String, pViewName As %String, pStatus As %Integer = 0, pUser As %String = "")
+{
+    Set tExtra = {}
+    Set tExtra.view = pViewName
+    Set tExtra.status = pStatus
+    Do ..Emit("ViewAttempt", pDB, pDDocId, "", pUser, tExtra)
 }
 
 }

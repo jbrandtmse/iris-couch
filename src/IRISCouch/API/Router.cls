@@ -62,6 +62,13 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db/_design/:ddocid" Method="PUT" Call="HandleDesignDocPut" />
   <Route Url="/:db/_design/:ddocid" Method="GET" Call="HandleDesignDocGet" />
   <Route Url="/:db/_design/:ddocid" Method="DELETE" Call="HandleDesignDocDelete" />
+  <!-- Design-document view execution (Story 12.1). MUST be registered BEFORE
+       the /_design/:ddocid/:attname attachment routes below, or the attachment
+       route will swallow requests with docid="_design" and attname="<view>".
+       Story 12.1 returns 501 for every request (JSRuntime=None); Stories
+       12.2/12.4 plug real execution into the same handler. -->
+  <Route Url="/:db/_design/:ddocid/_view/:viewname" Method="GET" Call="HandleView" />
+  <Route Url="/:db/_design/:ddocid/_view/:viewname" Method="POST" Call="HandleView" />
   <!-- Design document attachments — explicit 4-segment routes ahead of the generic
        :docid/:attname route so the design-doc id (composite "_design/<name>") is
        reassembled correctly before dispatch (Story 11.3 Task 0) -->
@@ -207,6 +214,20 @@ ClassMethod HandleDesignDocGet(pDB As %String, pDDocId As %String) As %Status
 ClassMethod HandleDesignDocDelete(pDB As %String, pDDocId As %String) As %Status
 {
     Set tSC = ##class(IRISCouch.API.DocumentHandler).HandleDelete(pDB, "_design/" _ pDDocId)
+    Do ..RecordRequestMetrics()
+    Quit tSC
+}
+
+/// <p>Dispatch GET/POST /:db/_design/:ddocid/_view/:viewname to ViewHandler (Story 12.1).</p>
+/// <p>Reassembles the composite id "_design/&lt;ddoc&gt;" before delegating so
+/// the view handler and underlying Storage.Document lookups see the full
+/// id CouchDB clients expect. Under Story 12.1 every call returns 501 because
+/// <class>IRISCouch.JSRuntime.None</class> is the default backend; Stories
+/// 12.2/12.4 replace the 501 branch with real execution without changing the
+/// wire contract of this wrapper.</p>
+ClassMethod HandleView(pDB As %String, pDDocId As %String, pViewName As %String) As %Status
+{
+    Set tSC = ##class(IRISCouch.API.ViewHandler).HandleView(pDB, "_design/" _ pDDocId, pViewName)
     Do ..RecordRequestMetrics()
     Quit tSC
 }
