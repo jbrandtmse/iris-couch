@@ -1,5 +1,5 @@
 # generated: 2026-04-12
-# last_updated: 2026-04-17 (Story 12.2 review → done after code review)
+# last_updated: 2026-04-17 (Story 12.3 → review)
 # project: iris-couch
 # project_key: NOKEY
 # tracking_system: file-system
@@ -36,8 +36,8 @@
 
 generated: 2026-04-12
 last_updated: 2026-04-17
-last_story_completed: 12-2-subprocess-jsruntime-map-reduce-views
-last_story_reviewed: 12-2-subprocess-jsruntime-map-reduce-views
+last_story_completed: 12-3-subprocess-jsruntime-validation-and-filter-functions
+last_story_reviewed: 12-3-subprocess-jsruntime-validation-and-filter-functions
 project: iris-couch
 project_key: NOKEY
 tracking_system: file-system
@@ -150,7 +150,7 @@ development_status:
   12-0-epic-11-deferred-cleanup: done
   12-1-jsruntime-sandbox-interface-and-none-backend: done
   12-2-subprocess-jsruntime-map-reduce-views: done
-  12-3-subprocess-jsruntime-validation-and-filter-functions: backlog
+  12-3-subprocess-jsruntime-validation-and-filter-functions: done
   12-4-python-jsruntime-backend: backlog
   12-5-incremental-view-indexing-caching-and-sandbox-safety: backlog
   epic-12-retrospective: optional

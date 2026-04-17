@@ -68,12 +68,17 @@ ClassMethod HandlePost(pDB As %String) As %Status
         If tBody.%IsDefined("_deleted") Do tBody.%Remove("_deleted")
         If tBody.%IsDefined("_attachments") Do tBody.%Remove("_attachments")
         ; Save document — with or without inline attachments
+        Set tValidateError = ""
         If tHasInlineAtts && $IsObject(tAttachments) {
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, tDocId, tBody.%ToJSON(), "", tAttachments)
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, tDocId, tBody.%ToJSON(), "", tAttachments, .tValidateError)
         } Else {
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tBody.%ToJSON())
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tBody.%ToJSON(), "", .tValidateError)
         }
         If tNewRev = "" {
+            If tValidateError '= "" {
+                Do ..RenderValidate(tValidateError)
+                Quit
+            }
             Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: save error")
             Quit
         }
@@ -207,8 +212,13 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
             If tBody.%IsDefined("_deleted") Do tBody.%Remove("_deleted")
             If tBody.%IsDefined("_attachments") Do tBody.%Remove("_attachments")
             ; Save with attachments
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, pDocId, tBody.%ToJSON(), tRev, tAttachments)
+            Set tValidateError = ""
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, pDocId, tBody.%ToJSON(), tRev, tAttachments, .tValidateError)
             If tNewRev = "" {
+                If tValidateError '= "" {
+                    Do ..RenderValidate(tValidateError)
+                    Quit
+                }
                 Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: multipart save error")
                 Quit
             }
@@ -278,8 +288,13 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
                 Quit
             }
             ; Delete via PUT with _deleted:true
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, pDocId, tRev)
+            Set tValidateError = ""
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, pDocId, tRev, .tValidateError)
             If tNewRev = "" {
+                If tValidateError '= "" {
+                    Do ..RenderValidate(tValidateError)
+                    Quit
+                }
                 Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: delete via put error")
                 Quit
             }
@@ -313,12 +328,17 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
         If tBody.%IsDefined("_deleted") Do tBody.%Remove("_deleted")
         If tBody.%IsDefined("_attachments") Do tBody.%Remove("_attachments")
         ; Save document — with or without inline attachments
+        Set tValidateError = ""
         If tHasInlineAtts && $IsObject(tAttachments) {
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, pDocId, tBody.%ToJSON(), tRev, tAttachments)
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, pDocId, tBody.%ToJSON(), tRev, tAttachments, .tValidateError)
         } Else {
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, pDocId, tBody.%ToJSON(), tRev)
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, pDocId, tBody.%ToJSON(), tRev, .tValidateError)
         }
         If tNewRev = "" {
+            If tValidateError '= "" {
+                Do ..RenderValidate(tValidateError)
+                Quit
+            }
             Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: save error")
             Quit
         }
@@ -373,8 +393,13 @@ ClassMethod HandleDelete(pDB As %String, pDocId As %String) As %Status
             Quit
         }
         ; Create tombstone
-        Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, pDocId, tRev)
+        Set tValidateError = ""
+        Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, pDocId, tRev, .tValidateError)
         If tNewRev = "" {
+            If tValidateError '= "" {
+                Do ..RenderValidate(tValidateError)
+                Quit
+            }
             Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: delete error")
             Quit
         }
@@ -681,6 +706,36 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
         Quit
     }
     Quit $$$OK
+}
+
+/// <p>Render a validate_doc_update rejection, dispatching 401 / 403 / 501 / 500
+/// based on the error-prefix emitted by
+/// <method>IRISCouch.Core.DocumentEngine.RunValidateHook</method> (Story 12.3).</p>
+/// <p>Separates the "AC #4 501" path (runtime=None but validate fn present)
+/// from the normal sandbox rejection paths so the handler keeps the envelope
+/// crisp. The raw <var>pValidateError</var> is the string returned by
+/// <code>$System.Status.GetErrorText</code> — already prefixed with the
+/// ObjectScript <code>ERROR #NNNN:</code> framing.</p>
+/// @param pValidateError The validate-error text from DocumentEngine
+ClassMethod RenderValidate(pValidateError As %String)
+{
+    ; Peel the IRIS ERROR framing once so the Util.Error helpers get a clean
+    ; "forbidden:..." / "unauthorized:..." / "not_implemented:..." string.
+    Set tMsg = pValidateError
+    Set tColon = $Find(tMsg, ": ")
+    If tColon > 0 {
+        Set tTail = $Extract(tMsg, tColon, *)
+        If tTail '= "" Set tMsg = tTail
+    }
+    If $Extract(tMsg, 1, 17) = "not_implemented: " {
+        ; AC #4 path: runtime=None AND validate ddoc present.
+        Do ##class(IRISCouch.Util.Error).RenderValidate501()
+        Quit
+    }
+    ; All other shapes (forbidden / unauthorized / validate_error) go through
+    ; the shared validate-error envelope helper.
+    Do ##class(IRISCouch.Util.Error).RenderValidateError(tMsg)
+    Quit
 }
 
 /// <p>Validate that a document body contains no disallowed underscore-prefixed fields.</p>

@@ -14,10 +14,17 @@
 /// closes. Story 12.5 will add a persistent pool on top of the same Pipe
 /// API without changing caller code.</p>
 ///
-/// <h3>Story 12.3 scope (not yet implemented here)</h3>
+/// <h3>Story 12.3 (validate_doc_update + custom filters)</h3>
 /// <p><method>ExecuteValidateDocUpdate</method> and
-/// <method>ExecuteFilter</method> remain as <code>not_yet_implemented</code>
-/// throwers. Story 12.3 will fill them using the same Pipe abstraction.</p>
+/// <method>ExecuteFilter</method> are implemented using the same
+/// process-per-call Pipe model. They follow the couchjs <code>ddoc</code>
+/// dispatcher protocol (<code>["ddoc","new",id,body]</code> to register
+/// then <code>["ddoc",id,funPath,funArgs]</code> to invoke) per
+/// <code>sources/couchdb/share/server/loop.js::DDoc</code>. Every call opens
+/// its own Pipe, issues the full command stream, reads the response lines,
+/// and closes — mirroring ExecuteMap/ExecuteReduce. The entry script
+/// <code>documentation/couchjs/couchjs-entry.js</code> handles both ddoc
+/// registration and the validate/filters dispatch branches.</p>
 Class IRISCouch.JSRuntime.Subprocess Extends IRISCouch.JSRuntime.Sandbox
 {
 
@@ -179,18 +186,239 @@ Method ExecuteReduce(pReduceFn As %String, pKeys As %DynamicArray, pValues As %D
     Quit tResult
 }
 
-/// <p>Story 12.3 scope — throws <code>not_yet_implemented</code>.</p>
+/// <p>Execute a <code>validate_doc_update</code> function (Story 12.3).</p>
+/// <p>Spawns a subprocess, sends <code>reset</code>, registers a synthetic
+/// ddoc that carries only the function under
+/// <code>_design/__iriscouch_validate__</code>, then invokes via
+/// <code>["ddoc", id, ["validate_doc_update"], [newDoc, oldDoc, userCtx, secObj]]</code>.
+/// Approval returns <code>$$$OK</code>; rejection returns an error
+/// <class>%Status</class> whose message is prefixed <code>forbidden: </code>,
+/// <code>unauthorized: </code>, or <code>validate_error: </code>. Callers
+/// (<method>Util.Error.RenderValidateError</method>) parse the prefix to map to
+/// HTTP 401 / 403 / 500.</p>
+/// <p>See <code>sources/couchdb/share/server/validate.js</code> for the thrown-
+/// value → response mapping; <code>sources/couchdb/share/server/loop.js::DDoc</code>
+/// for the <code>ddoc</code> registration + invocation protocol.</p>
+/// @param pValidateFn The JavaScript function source
+/// @param pNewDoc The document being written
+/// @param pOldDoc The prior revision's body, or <code>$$$NULLOREF</code> on create
+/// @param pUserCtx The user context <code>{name, roles}</code>
+/// @param pSecObj The database <code>_security</code> object
+/// @return %Status
 Method ExecuteValidateDocUpdate(pValidateFn As %String, pNewDoc As %DynamicObject, pOldDoc As %DynamicObject, pUserCtx As %DynamicObject, pSecObj As %DynamicObject) As %Status
 {
-    Do ..ThrowNotYetImplemented("validate_doc_update hooks")
-    Quit $$$OK
+    Set tSC = $$$OK
+    Set tPipe = ""
+    Try {
+        Set tPipe = ..StartPipe()
+        ; 1. reset
+        Do tPipe.WriteLine("[""reset""]")
+        ; 2. register a minimal ddoc body that exposes only the named fn.
+        ;    The full ddoc is not required -- the couchjs protocol only reads
+        ;    the field addressed by funPath. Use a synthetic id so we do not
+        ;    collide with real ddocs.
+        Set tDDocId = "_design/__iriscouch_validate__"
+        Set tDDocBody = {}
+        Do tDDocBody.%Set("validate_doc_update", pValidateFn)
+        Do tPipe.WriteLine(..EncodeDDocRegister(tDDocId, tDDocBody))
+        ; 3. invocation: ["ddoc", id, ["validate_doc_update"],
+        ;                 [newDoc, oldDoc, userCtx, secObj]]
+        Do tPipe.WriteLine(..EncodeValidateInvoke(tDDocId, pNewDoc, pOldDoc, pUserCtx, pSecObj))
+        Set tFlushSC = tPipe.Flush()
+        If $$$ISERR(tFlushSC) {
+            Do ..ThrowSubprocessError(tPipe, tFlushSC)
+        }
+        ; Drain the three response lines: reset ack, new-ddoc ack, invoke result
+        Do tPipe.ReadLine(.tResetAck)
+        Do tPipe.ReadLine(.tNewDDocAck)
+        Do tPipe.ReadLine(.tResult)
+        While ($Extract(tResult, 1, 6) = "[""log""") && '(tPipe.AtEnd()) {
+            Do tPipe.ReadLine(.tResult)
+        }
+        If tResult = "" {
+            Do ..ThrowSubprocessError(tPipe, $$$ERROR($$$GeneralError, "validate_doc_update returned empty response"))
+        }
+        ; Interpret response:
+        ;   "1" or "true" -> approved
+        ;   {"forbidden":"..."} / {"unauthorized":"..."} -> rejection envelopes
+        ;   ["error", <name>, <reason>] -> hard failure (compilation / runtime)
+        ;   anything else -> pass through as "validate_error: <raw>"
+        Set tTrimmed = $ZStrip(tResult, "<>WC")
+        If (tTrimmed = "1") || (tTrimmed = "true") {
+            Quit
+        }
+        Set tFirst = $Extract(tTrimmed, 1)
+        If tFirst = "[" {
+            ; Error line from the entry script
+            Set tArr = [].%FromJSON(tTrimmed)
+            If tArr.%Size() >= 3 {
+                Set tSC = $$$ERROR($$$GeneralError, "validate_error: " _ tArr.%Get(2))
+            } Else {
+                Set tSC = $$$ERROR($$$GeneralError, "validate_error: " _ tTrimmed)
+            }
+            Quit
+        }
+        If tFirst = "{" {
+            Set tObj = {}.%FromJSON(tTrimmed)
+            If tObj.%IsDefined("forbidden") {
+                Set tReason = tObj.%Get("forbidden")
+                If '$IsObject(tReason), tReason = "" Set tReason = "rejected"
+                Set tSC = $$$ERROR($$$GeneralError, "forbidden: " _ tReason)
+                Quit
+            }
+            If tObj.%IsDefined("unauthorized") {
+                Set tReason = tObj.%Get("unauthorized")
+                If '$IsObject(tReason), tReason = "" Set tReason = "unauthorized"
+                Set tSC = $$$ERROR($$$GeneralError, "unauthorized: " _ tReason)
+                Quit
+            }
+        }
+        ; Fall-through: unknown response shape -- surface as generic validate_error
+        Set tSC = $$$ERROR($$$GeneralError, "validate_error: " _ tTrimmed)
+    }
+    Catch ex {
+        ; Preserve the exception's status so callers can introspect. The Pipe
+        ; is closed once in the common-exit path below; Pipe.Close is
+        ; idempotent but we still avoid the redundant second call for clarity.
+        Set tSC = ex.AsStatus()
+        Quit
+    }
+    If $IsObject(tPipe) Do tPipe.Close()
+    Quit tSC
 }
 
-/// <p>Story 12.3 scope — throws <code>not_yet_implemented</code>.</p>
+/// <p>Execute a custom changes-feed filter (Story 12.3).</p>
+/// <p>Spawns a subprocess, registers a synthetic ddoc with the single filter
+/// function under the <code>filters.fn</code> property, then invokes via
+/// <code>["ddoc", id, ["filters","fn"], [[doc], req]]</code>. Returns the
+/// boolean from <code>[true, [bool]]</code>.</p>
+/// <p>See <code>sources/couchdb/share/server/filter.js</code> for per-doc
+/// invocation semantics. One-call-per-doc is acceptable for Story 12.3;
+/// batching is deferred to Story 12.5 (persistent pool).</p>
+/// @param pFilterFn The JavaScript filter function source
+/// @param pDoc The candidate document
+/// @param pReq The HTTP request object (method, path, query, headers)
+/// @return %Boolean 1 to include, 0 to exclude
 Method ExecuteFilter(pFilterFn As %String, pDoc As %DynamicObject, pReq As %DynamicObject) As %Boolean
 {
-    Do ..ThrowNotYetImplemented("custom filter functions")
-    Quit 0
+    Set tInclude = 0
+    Set tPipe = ""
+    Try {
+        Set tPipe = ..StartPipe()
+        Do tPipe.WriteLine("[""reset""]")
+        Set tDDocId = "_design/__iriscouch_filter__"
+        Set tDDocBody = {}
+        Set tFilters = {}
+        Do tFilters.%Set("fn", pFilterFn)
+        Do tDDocBody.%Set("filters", tFilters)
+        Do tPipe.WriteLine(..EncodeDDocRegister(tDDocId, tDDocBody))
+        Do tPipe.WriteLine(..EncodeFilterInvoke(tDDocId, pDoc, pReq))
+        Set tFlushSC = tPipe.Flush()
+        If $$$ISERR(tFlushSC) {
+            Do ..ThrowSubprocessError(tPipe, tFlushSC)
+        }
+        Do tPipe.ReadLine(.tResetAck)
+        Do tPipe.ReadLine(.tNewDDocAck)
+        Do tPipe.ReadLine(.tResult)
+        While ($Extract(tResult, 1, 6) = "[""log""") && '(tPipe.AtEnd()) {
+            Do tPipe.ReadLine(.tResult)
+        }
+        If tResult = "" {
+            Do ..ThrowSubprocessError(tPipe, $$$ERROR($$$GeneralError, "filters returned empty response"))
+        }
+        Set tTrimmed = $ZStrip(tResult, "<>WC")
+        ; Expected shape: [true, [<bool>]]. Error shape: ["error",...]. Treat
+        ; error shape as "exclude" with a log -- failing a filter fn on a doc
+        ; should not poison the entire feed. Matches CouchDB behaviour where
+        ; the filter returning falsy excludes the doc.
+        If $Extract(tTrimmed, 1) '= "[" {
+            Set tInclude = 0
+            Quit
+        }
+        Set tArr = [].%FromJSON(tTrimmed)
+        If tArr.%Size() = 0 {
+            Set tInclude = 0
+            Quit
+        }
+        If tArr.%Get(0) = "error" {
+            Set tInclude = 0
+            Quit
+        }
+        Set tInner = tArr.%Get(1)
+        If '$IsObject(tInner) || (tInner.%Size() = 0) {
+            Set tInclude = 0
+            Quit
+        }
+        Set tBool = tInner.%Get(0)
+        Set tInclude = $Select(tBool: 1, 1: 0)
+    }
+    Catch ex {
+        If $IsObject(tPipe) Do tPipe.Close()
+        Throw ex
+    }
+    If $IsObject(tPipe) Do tPipe.Close()
+    Quit tInclude
+}
+
+/// <p>Build a <code>["ddoc","new",&lt;id&gt;,&lt;body&gt;]</code> line.</p>
+ClassMethod EncodeDDocRegister(pDDocId As %String, pDDocBody As %DynamicObject) As %String [ Internal ]
+{
+    Set tArr = []
+    Do tArr.%Push("ddoc")
+    Do tArr.%Push("new")
+    Do tArr.%Push(pDDocId)
+    Do tArr.%Push(pDDocBody)
+    Quit tArr.%ToJSON()
+}
+
+/// <p>Build a <code>["ddoc",&lt;id&gt;,["validate_doc_update"],[newDoc,oldDoc,userCtx,secObj]]</code>
+/// line. Emits JSON <code>null</code> (not the string <code>"null"</code>) for
+/// a missing <var>pOldDoc</var> per
+/// <code>.claude/rules/iris-objectscript-basics.md::feedback_json_null_pattern</code>.</p>
+ClassMethod EncodeValidateInvoke(pDDocId As %String, pNewDoc As %DynamicObject, pOldDoc As %DynamicObject, pUserCtx As %DynamicObject, pSecObj As %DynamicObject) As %String [ Internal ]
+{
+    Set tArr = []
+    Do tArr.%Push("ddoc")
+    Do tArr.%Push(pDDocId)
+    Set tFunPath = []
+    Do tFunPath.%Push("validate_doc_update")
+    Do tArr.%Push(tFunPath)
+    Set tFunArgs = []
+    Do tFunArgs.%Push(pNewDoc)
+    If $IsObject(pOldDoc) {
+        Do tFunArgs.%Push(pOldDoc)
+    } Else {
+        ; Emit JSON null for a creation (no prior rev). The literal string
+        ; "null" would be a 4-char JSON string, not a JSON null token.
+        Do tFunArgs.%Set(tFunArgs.%Size(), "", "null")
+    }
+    Do tFunArgs.%Push(pUserCtx)
+    Do tFunArgs.%Push(pSecObj)
+    Do tArr.%Push(tFunArgs)
+    Quit tArr.%ToJSON()
+}
+
+/// <p>Build a <code>["ddoc",&lt;id&gt;,["filters","fn"],[[doc],req]]</code> line.</p>
+ClassMethod EncodeFilterInvoke(pDDocId As %String, pDoc As %DynamicObject, pReq As %DynamicObject) As %String [ Internal ]
+{
+    Set tArr = []
+    Do tArr.%Push("ddoc")
+    Do tArr.%Push(pDDocId)
+    Set tFunPath = []
+    Do tFunPath.%Push("filters")
+    Do tFunPath.%Push("fn")
+    Do tArr.%Push(tFunPath)
+    Set tFunArgs = []
+    Set tDocsArr = []
+    Do tDocsArr.%Push(pDoc)
+    Do tFunArgs.%Push(tDocsArr)
+    If $IsObject(pReq) {
+        Do tFunArgs.%Push(pReq)
+    } Else {
+        Do tFunArgs.%Set(tFunArgs.%Size(), "", "null")
+    }
+    Do tArr.%Push(tFunArgs)
+    Quit tArr.%ToJSON()
 }
 
 /// <p>Allocate and open a new Pipe instance pointing at the configured

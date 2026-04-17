@@ -87,6 +87,61 @@ ClassMethod RenderInternal(pSlug As %String, pReason As %String, pException As %
     Quit
 }
 
+/// <p>Render the Story 12.3 AC #4 "validate present but runtime is None" 501.</p>
+/// <p>Story 12.1's "migration-friendly no-op" semantics let a database stage
+/// design docs that declare <code>validate_doc_update</code> while no JS
+/// runtime is installed. Story 12.3 tightens the rule: once a validate is
+/// actually present and <em>would</em> fire on the write, the write is blocked
+/// with 501 instead of silently committing. Writes against databases with no
+/// validate-defining ddoc continue to pass under <code>JSRUNTIME=None</code>
+/// (the <em>exemption</em> path in AC #4).</p>
+/// <p>The reason literal is codified by AC #4 and tested verbatim.</p>
+ClassMethod RenderValidate501()
+{
+    Do ..Render501("validate_doc_update hooks", "validate_doc_update hooks require a JSRuntime backend; set ^IRISCouch.Config(""JSRUNTIME"") to Subprocess or Python. See documentation/js-runtime.md.")
+    Quit
+}
+
+/// <p>Render a <code>validate_doc_update</code> rejection per the prefix in
+/// <var>pValidateErrorMessage</var> (Story 12.3).</p>
+/// <p>The prefix conventions are set by
+/// <method>IRISCouch.JSRuntime.Subprocess.ExecuteValidateDocUpdate</method> and
+/// must stay in sync:</p>
+/// <ul>
+/// <li><code>"forbidden: &lt;reason&gt;"</code> → HTTP 403 with the canonical
+///     CouchDB envelope <code>{"error":"forbidden","reason":"&lt;reason&gt;"}</code></li>
+/// <li><code>"unauthorized: &lt;reason&gt;"</code> → HTTP 401 with
+///     <code>{"error":"unauthorized","reason":"&lt;reason&gt;"}</code></li>
+/// <li>Anything else → HTTP 500 via <method>RenderInternal</method> with the
+///     raw message logged (never leaked to the client)</li>
+/// </ul>
+/// <p>See <code>sources/couchdb/share/server/validate.js</code> for the
+/// upstream mapping.</p>
+/// @param pValidateErrorMessage The full error text returned by the JSRuntime
+ClassMethod RenderValidateError(pValidateErrorMessage As %String)
+{
+    ; Callers are expected to pass an already-peeled message (i.e., without
+    ; the locale-specific "ERROR #5001: " / "خطأ #5001: " prefix that
+    ; $System.Status.GetErrorText prepends). The shared peel helper lives on
+    ; each caller's side so we don't re-peel into our own payload.
+    Set tMsg = pValidateErrorMessage
+    If $Extract(tMsg, 1, 11) = "forbidden: " {
+        Set tReason = $Extract(tMsg, 12, *)
+        If tReason = "" Set tReason = "rejected by validate_doc_update"
+        Do ..Render(403, ..#FORBIDDEN, tReason)
+        Quit
+    }
+    If $Extract(tMsg, 1, 14) = "unauthorized: " {
+        Set tReason = $Extract(tMsg, 15, *)
+        If tReason = "" Set tReason = "authentication required by validate_doc_update"
+        Do ..Render(401, ..#UNAUTHORIZED, tReason)
+        Quit
+    }
+    ; Other shapes (runtime error, missing ddoc, compilation error) fold to 500
+    Do ..RenderInternal(..#SERVERERROR, "validate_doc_update failure: " _ tMsg)
+    Quit
+}
+
 /// <p>Render a 501 Not Implemented response for a blocked JSRuntime subsystem.</p>
 /// <p>Centralises the JSRuntime 501 envelope used by
 /// <class>IRISCouch.API.ViewHandler</class>,

@@ -841,3 +841,12 @@
 - New files: Subprocess/Pipe.cls, View/{QueryEngine,BuiltinReduce}.cls, Test/{BuiltinReduceTest,JSRuntimeSubprocessHttpTest,SubprocessTestRunner,SubprocessTestRunner/ProbeManager}.cls, documentation/couchjs/{couchjs-entry.js, README.md, loop.js, views.js, util.js, state.js, validate.js, filter.js}
 - Modified: JSRuntime/Subprocess.cls (stub → implementation), API/ViewHandler.cls (route to QueryEngine when IsAvailable()=1), Audit/Emit.cls (view_execute, view_error events), Storage/Document.cls (+ListLiveDocIds iterator)
 - Sprint-status: `12-2-subprocess-jsruntime-map-reduce-views: done`; last_story_completed/reviewed updated
+
+### 2026-04-17 — Phase 1 (Story 12.3): Dev + Review
+- **Dev agent** (dev-12-3): 10 tasks delivered; 699/699 assertions pass, 0 regressions; all 7 ACs covered
+- **Code review** (cr-12-3): 0 CRIT/0 HIGH/3 MED auto-resolved + 2 MED deferred/6 LOW deferred; Pattern Replication Completeness verified across Save/SaveDeleted/SaveWithHistory/SaveWithAttachments (identical hook call, TROLLBACK, pValidateError propagation)
+- **Auto-resolved (reviewer):** dead code in BuildFilterReq, eager Factory.GetSandbox() on no-validate DBs, double-close on Pipe exception path
+- **Deferred MEDs:** ListValidateFunctions O(N) iteration on large DBs (→ Story 12.5 pool + cached ddoc registry), per-change filter spawn cost (→ Story 12.5 batching)
+- New files: Core/DesignDocs.cls, Test/{DesignDocsTest,JSRuntimeValidateHttpTest,JSRuntimeFilterHttpTest,UserCtxTest,SubprocessValidateProbe}.cls
+- Modified: JSRuntime/Subprocess.cls (ExecuteValidateDocUpdate + ExecuteFilter filled in), Core/DocumentEngine.cls (validate hook at all 4 save sites + pValidateError Output param), API/{ChangesHandler,DocumentHandler,BulkHandler}.cls, Auth/Session.cls (+BuildUserCtx), Util/Error.cls (+RenderValidateError), Audit/Emit.cls (+validate_reject/validate_approve/filter_execute), documentation/{js-runtime.md, couchjs/couchjs-entry.js}
+- Sprint-status: `12-3-subprocess-jsruntime-validation-and-filter-functions: done`

@@ -153,9 +153,14 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
                     Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
                     Continue
                 }
-                Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, tDocId, tRev)
+                Set tValidateError = ""
+                Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveDeleted(pDB, tDocId, tRev, .tValidateError)
                 If tNewRev = "" {
-                    Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
+                    If tValidateError '= "" {
+                        Do tResults.%Push(..BuildValidateErrorEntry(tDocId, tValidateError))
+                    } Else {
+                        Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
+                    }
                     Continue
                 }
                 Set tEntry = {}
@@ -184,9 +189,14 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
             If tDoc.%IsDefined("_rev") Do tDoc.%Remove("_rev")
             If tDoc.%IsDefined("_deleted") Do tDoc.%Remove("_deleted")
             ; Save document
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tDoc.%ToJSON(), tRev)
+            Set tValidateError = ""
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tDoc.%ToJSON(), tRev, .tValidateError)
             If tNewRev = "" {
-                Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
+                If tValidateError '= "" {
+                    Do tResults.%Push(..BuildValidateErrorEntry(tDocId, tValidateError))
+                } Else {
+                    Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
+                }
                 Continue
             }
             Set tEntry = {}
@@ -389,6 +399,36 @@ ClassMethod BuildErrorEntry(pDocId As %String, pError As %String, pReason As %St
     Do tEntry.%Set("error", pError)
     Do tEntry.%Set("reason", pReason)
     Quit tEntry
+}
+
+/// <p>Build a validate-error entry for bulk docs response (Story 12.3).</p>
+/// <p>Maps the prefixed validate error to CouchDB's per-doc result envelope
+/// — <code>{id, error:"forbidden"|"unauthorized"|"not_implemented"|"validate_error", reason}</code>
+/// — so callers of <code>_bulk_docs</code> see the same shape as a single
+/// PUT would return, just inline in the results array.</p>
+/// @param pDocId The document identifier
+/// @param pValidateError The engine's prefixed error string (e.g.
+///        <code>ERROR #5001: forbidden: nope</code>)
+/// @return %DynamicObject The error entry
+ClassMethod BuildValidateErrorEntry(pDocId As %String, pValidateError As %String) As %DynamicObject
+{
+    ; Peel the IRIS ERROR #NNNN: framing
+    Set tMsg = pValidateError
+    Set tColon = $Find(tMsg, ": ")
+    If tColon > 0 {
+        Set tTail = $Extract(tMsg, tColon, *)
+        If tTail '= "" Set tMsg = tTail
+    }
+    If $Extract(tMsg, 1, 11) = "forbidden: " {
+        Quit ..BuildErrorEntry(pDocId, "forbidden", $Extract(tMsg, 12, *))
+    }
+    If $Extract(tMsg, 1, 14) = "unauthorized: " {
+        Quit ..BuildErrorEntry(pDocId, "unauthorized", $Extract(tMsg, 15, *))
+    }
+    If $Extract(tMsg, 1, 17) = "not_implemented: " {
+        Quit ..BuildErrorEntry(pDocId, "not_implemented", $Extract(tMsg, 18, *))
+    }
+    Quit ..BuildErrorEntry(pDocId, "validate_error", tMsg)
 }
 
 }

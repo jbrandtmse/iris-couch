@@ -7,6 +7,122 @@
 Class IRISCouch.Core.DocumentEngine Extends %RegisteredObject
 {
 
+/// <p>Run every <code>validate_doc_update</code> function defined in the DB's
+/// live design docs (Story 12.3).</p>
+/// <p>Called from every Save* method (Pattern Replication Completeness). The
+/// hook fires <b>inside</b> the caller's TSTART/TCOMMIT so a rejection maps
+/// cleanly to TROLLBACK. Iteration is fail-fast: the first rejection wins and
+/// no subsequent functions run. Matches CouchDB's
+/// <code>couch_db.erl::validate_doc_update_int</code>.</p>
+/// <h4>Return semantics</h4>
+/// <ul>
+/// <li>Returns <code>$$$OK</code> if every validate approves, or if the DB has
+///     no validate-defining design docs, or if the active JSRuntime reports
+///     <code>IsAvailable()=0</code> AND no validate-defining ddoc is present
+///     (the AC #4 exemption).</li>
+/// <li>Returns <code>$$$ERROR</code> whose text is either:
+///     <ul>
+///     <li><code>"forbidden: &lt;reason&gt;"</code> — callers render 403</li>
+///     <li><code>"unauthorized: &lt;reason&gt;"</code> — callers render 401</li>
+///     <li><code>"not_implemented: &lt;reason&gt;"</code> — runtime=None AND a
+///         validate ddoc exists (AC #4). Callers render 501.</li>
+///     <li><code>"validate_error: &lt;raw&gt;"</code> — runtime failure; callers
+///         render 500 via <method>Util.Error.RenderInternal</method>.</li>
+///     </ul></li>
+/// </ul>
+/// <p>Caller contract: if this returns an error, roll back the transaction
+/// and propagate the error text through the <code>Output pValidateError</code>
+/// parameter on <method>Save</method> / <method>SaveDeleted</method> /
+/// <method>SaveWithHistory</method> / <method>SaveWithAttachments</method>.</p>
+/// @param pDB The database name
+/// @param pDocId The target document id
+/// @param pNewBody The new body JSON string (or tombstone body for deletions)
+/// @param pParentRev The parent revision string (empty for creates)
+/// @param pDeleted Whether this write is a tombstone (affects the newDoc
+///        envelope — CouchDB passes <code>{_deleted:true,...}</code>)
+/// @return %Status
+ClassMethod RunValidateHook(pDB As %String, pDocId As %String, pNewBody As %String, pParentRev As %String = "", pDeleted As %Boolean = 0) As %Status
+{
+    Set tSC = $$$OK
+    Try {
+        ; _local/* documents bypass validate (CouchDB semantics per couch_db.erl
+        ; line 969: validate_doc_update(_Db, #doc{id = <<"_local/",...>>}, _) -> ok).
+        If $Extract(pDocId, 1, 7) = "_local/" Quit
+        ; _design/* writes also bypass the user validate loop and instead go
+        ; through the ddoc-structure validator. CouchDB's couch_db.erl line 959:
+        ; validate_doc_update(#db{}, #doc{id = <<"_design/",...>>}, ...) ->
+        ;   case check_is_admin(Db) of ok -> validate_ddoc(...) end
+        ; Admin-check is performed elsewhere (per-DB security); here we just
+        ; exempt the doc from the user hook so a buggy validate cannot lock
+        ; operators out of repairing their design docs.
+        If $Extract(pDocId, 1, 8) = "_design/" Quit
+        Set tValidates = ##class(IRISCouch.Core.DesignDocs).ListValidateFunctions(pDB, .tVList)
+        If tValidates = 0 {
+            ; No validate-defining ddoc -- pass (AC #4 exemption path).
+            ; Skip the Factory.GetSandbox() allocation on the hot no-validate path.
+            Quit
+        }
+        Set tSandbox = ##class(IRISCouch.JSRuntime.Factory).GetSandbox()
+        If 'tSandbox.IsAvailable() {
+            ; validate present but no runtime -- AC #4 says 501.
+            Set tSC = $$$ERROR($$$GeneralError, "not_implemented: validate_doc_update hooks require a JSRuntime backend; set ^IRISCouch.Config(""JSRUNTIME"") to Subprocess or Python. See documentation/js-runtime.md.")
+            Quit
+        }
+        ; Build newDoc with _id/_rev/_deleted envelope. Mirrors the shape
+        ; CouchDB hands to the JS callback via json_user_ctx / with_ejson_body.
+        Set tNewDoc = ##class(%DynamicObject).%FromJSON(pNewBody)
+        Do tNewDoc.%Set("_id", pDocId)
+        If pDeleted {
+            Do tNewDoc.%Set("_deleted", 1, "boolean")
+        }
+        ; Load oldDoc from the parent revision. Returns $$$NULLOREF on creates
+        ; so the encoder emits JSON null.
+        Set tOldDoc = $$$NULLOREF
+        If pParentRev '= "" {
+            Set tOldBody = ##class(IRISCouch.Storage.Document).Read(pDB, pDocId, pParentRev)
+            If tOldBody '= "" {
+                Try {
+                    Set tOldDoc = ##class(%DynamicObject).%FromJSON(tOldBody)
+                    Do tOldDoc.%Set("_id", pDocId)
+                    Do tOldDoc.%Set("_rev", pParentRev)
+                } Catch {
+                    Set tOldDoc = $$$NULLOREF
+                }
+            }
+        }
+        Set tUserCtx = ##class(IRISCouch.Auth.Session).BuildUserCtx()
+        Set tSecObj = ##class(IRISCouch.Auth.Security).Get(pDB)
+        Set tStart = $ZHorolog
+        ; Fail-fast iteration: first rejection short-circuits.
+        For tI = 1:1:tValidates {
+            Set tSource = $Get(tVList(tI, "source"))
+            Set tDDocId = $Get(tVList(tI, "ddocId"))
+            Set tVSC = tSandbox.ExecuteValidateDocUpdate(tSource, tNewDoc, tOldDoc, tUserCtx, tSecObj)
+            If $$$ISERR(tVSC) {
+                ; Classify rejection for audit. The sandbox already formatted
+                ; the message with "forbidden: " / "unauthorized: " / "validate_error: "
+                ; prefixes -- peel the first matching one from GetErrorText.
+                Set tMsg = $System.Status.GetErrorText(tVSC)
+                Set tStatusCode = 500
+                If tMsg [ "forbidden: " Set tStatusCode = 403
+                If tMsg [ "unauthorized: " Set tStatusCode = 401
+                Do ##class(IRISCouch.Audit.Emit).ValidateReject(pDB, tDDocId, pDocId, tStatusCode, tMsg, $Get(%IRISCouchUser))
+                Set tSC = tVSC
+                Quit
+            }
+        }
+        If $$$ISOK(tSC) {
+            Set tDuration = ($ZHorolog - tStart) * 1000
+            Do ##class(IRISCouch.Audit.Emit).ValidateApprove(pDB, pDocId, tDuration, $Get(%IRISCouchUser))
+        }
+    }
+    Catch ex {
+        ; Any unhandled exception becomes a 500; callers render via RenderInternal.
+        Set tSC = $$$ERROR($$$GeneralError, "validate_error: " _ ex.DisplayString())
+    }
+    Quit tSC
+}
+
 /// <p>Save a document to the database — the single write orchestrator.</p>
 /// <p>Wraps all subsystem calls in a <code>TSTART</code>/<code>TCOMMIT</code>
 /// transaction to ensure atomicity. On error, performs <code>TROLLBACK</code>.</p>
@@ -21,9 +137,15 @@ Class IRISCouch.Core.DocumentEngine Extends %RegisteredObject
 /// @param pDocId The document identifier
 /// @param pBody The raw JSON body string
 /// @param pParentRev The parent revision string (empty for new documents)
+/// @param pValidateError Output: when a <code>validate_doc_update</code> hook
+///        rejects, the prefixed error message (e.g.
+///        <code>"forbidden: &lt;reason&gt;"</code>). Callers MUST check this
+///        when <code>tNewRev = ""</code> to distinguish a validate rejection
+///        (401/403/501) from a generic server error (500).
 /// @return %String The new revision string on success, empty string on failure
-ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev As %String = "") As %String
+ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev As %String = "", Output pValidateError As %String = "") As %String
 {
+    Set pValidateError = ""
     Set tNewRev = ""
     Set tInTrans = 0
     Try {
@@ -31,23 +153,6 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Quit
         }
-        ; -------------------------------------------------------------------
-        ; validate_doc_update hook (Story 12.1 skeleton, Story 12.3 fills in).
-        ; When the active JSRuntime backend can execute JavaScript, Story 12.3
-        ; will: (a) iterate the target DB's design docs, (b) extract each
-        ; validate_doc_update function source, (c) call
-        ; IRISCouch.JSRuntime.Factory.GetSandbox().ExecuteValidateDocUpdate(...)
-        ; with (newDoc, oldDoc, userCtx, secObj), (d) translate a rejection
-        ; %Status into a 401/403 response. The hook MUST fire inside the
-        ; TSTART/TCOMMIT added below so a rejection rolls back cleanly.
-        ; Under Story 12.1 the only shipping backend reports IsAvailable()=0,
-        ; so this branch is a pure no-op -- design docs that contain a
-        ; validate_doc_update function can still be staged for migration
-        ; without any JS work (AC #3, AC #6).
-        If ##class(IRISCouch.JSRuntime.Factory).GetSandbox().IsAvailable() {
-            ; TODO Story 12.3: invoke validate_doc_update for each matching ddoc
-        }
-        ; -------------------------------------------------------------------
         ; Determine generation
         If pParentRev = "" {
             Set tGeneration = 1
@@ -60,6 +165,15 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
         ; Begin transaction
         TSTART
         Set tInTrans = 1
+        ; validate_doc_update hook (Story 12.3) — fires INSIDE the transaction so
+        ; a rejection rolls back cleanly. First rejection wins (fail-fast).
+        Set tVSC = ..RunValidateHook(pDB, pDocId, pBody, pParentRev, 0)
+        If $$$ISERR(tVSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set pValidateError = $System.Status.GetErrorText(tVSC)
+            Set tNewRev = ""
+            Quit
+        }
         ; 1. Write document body
         Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, tNewRev, pBody)
         If $$$ISERR(tSC) {
@@ -383,21 +497,17 @@ ClassMethod DeleteAttachment(pDB As %String, pDocId As %String, pParentRev As %S
 /// @param pDB The database name
 /// @param pDocId The document identifier
 /// @param pParentRev The parent revision string (must be the current winner)
+/// @param pValidateError Output: see <method>Save</method>
 /// @return %String The new tombstone revision string on success, empty string on failure
-ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String) As %String
+ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String, Output pValidateError As %String = "") As %String
 {
+    Set pValidateError = ""
     Set tNewRev = ""
     Set tInTrans = 0
     Try {
         ; Validate database exists
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Quit
-        }
-        ; validate_doc_update hook (Story 12.1 skeleton -- see Save() for detail).
-        ; A deletion passes a tombstone body {_deleted:true} as newDoc to the
-        ; function; Story 12.3 wires the call. No-op under Story 12.1.
-        If ##class(IRISCouch.JSRuntime.Factory).GetSandbox().IsAvailable() {
-            ; TODO Story 12.3: invoke validate_doc_update with deletion body
         }
         ; Determine generation from parent
         Set tGeneration = +$Piece(pParentRev, "-", 1) + 1
@@ -409,6 +519,15 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         ; Begin transaction
         TSTART
         Set tInTrans = 1
+        ; validate_doc_update hook (Story 12.3) — deletions still call validate,
+        ; passing {_deleted:true} as the newDoc envelope (matches CouchDB).
+        Set tVSC = ..RunValidateHook(pDB, pDocId, tTombstoneBody, pParentRev, 1)
+        If $$$ISERR(tVSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set pValidateError = $System.Status.GetErrorText(tVSC)
+            Set tNewRev = ""
+            Quit
+        }
         ; 1. Write tombstone body
         Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, tNewRev, tTombstoneBody)
         If $$$ISERR(tSC) {
@@ -503,9 +622,12 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
 /// @param pRev The exact revision string to store (not minted by server)
 /// @param pRevisions The _revisions object: {"start":N,"ids":["hash1","hash2",...]}
 /// @param pDeleted Whether this is a deletion tombstone
+/// @param pValidateError Output: see <method>Save</method>. Set when a
+///        validate_doc_update rejection caused the write to roll back.
 /// @return %Status
-ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String, pRev As %String, pRevisions As %DynamicObject = "", pDeleted As %Boolean = 0) As %Status
+ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String, pRev As %String, pRevisions As %DynamicObject = "", pDeleted As %Boolean = 0, Output pValidateError As %String = "") As %Status
 {
+    Set pValidateError = ""
     Set tSC = $$$OK
     Set tInTrans = 0
     Try {
@@ -513,12 +635,6 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Set tSC = $$$ERROR($$$GeneralError, "Database does not exist")
             Quit
-        }
-        ; validate_doc_update hook (Story 12.1 skeleton -- see Save() for detail).
-        ; Replication writes (new_edits=false) still run validate_doc_update
-        ; in CouchDB; Story 12.3 will wire the call. No-op under Story 12.1.
-        If ##class(IRISCouch.JSRuntime.Factory).GetSandbox().IsAvailable() {
-            ; TODO Story 12.3: invoke validate_doc_update for replicated rev
         }
         ; Idempotency check: if rev already exists in tree, skip silently
         If ##class(IRISCouch.Storage.RevTree).RevExists(pDB, pDocId, pRev) {
@@ -542,9 +658,26 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
         }
         ; Check if this is a genuinely new document (no prior tree existed)
         Set tIsNewDoc = '##class(IRISCouch.Storage.RevTree).TreeExists(pDB, pDocId)
+        ; Determine parent rev for validate_doc_update lookup.
+        ; For a replicated rev the "parent" from the perspective of validation
+        ; is the current winning local rev before the graft (same semantics as
+        ; AC #7 requires): oldDoc comes from what is currently on disk.
+        Set tPriorWinner = ""
+        If 'tIsNewDoc {
+            Set tPriorWinner = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, pDocId)
+        }
         ; Begin transaction
         TSTART
         Set tInTrans = 1
+        ; validate_doc_update hook (Story 12.3, AC #7) — replication writes are
+        ; NOT exempt. Deferred via pDeleted so the envelope gets _deleted:true.
+        Set tVSC = ..RunValidateHook(pDB, pDocId, pBody, tPriorWinner, pDeleted)
+        If $$$ISERR(tVSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set pValidateError = $System.Status.GetErrorText(tVSC)
+            Set tSC = tVSC
+            Quit
+        }
         ; 1. Write document body for the leaf rev
         Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, pRev, pBody)
         If $$$ISERR(tSC) {
@@ -664,21 +797,17 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
 /// @param pBody The raw JSON body string (without _attachments data)
 /// @param pParentRev The parent revision string (empty for new documents)
 /// @param pAttachments The _attachments %DynamicObject with data and/or stub entries
+/// @param pValidateError Output: see <method>Save</method>
 /// @return %String The new revision string on success, empty string on failure
-ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %String, pParentRev As %String = "", pAttachments As %DynamicObject = "") As %String
+ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %String, pParentRev As %String = "", pAttachments As %DynamicObject = "", Output pValidateError As %String = "") As %String
 {
+    Set pValidateError = ""
     Set tNewRev = ""
     Set tInTrans = 0
     Try {
         ; Validate database exists
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Quit
-        }
-        ; validate_doc_update hook (Story 12.1 skeleton -- see Save() for detail).
-        ; Writes that carry attachments still run validate_doc_update on the
-        ; body; Story 12.3 will wire the call. No-op under Story 12.1.
-        If ##class(IRISCouch.JSRuntime.Factory).GetSandbox().IsAvailable() {
-            ; TODO Story 12.3: invoke validate_doc_update before attachment write
         }
         ; Validate attachments object
         If '$IsObject(pAttachments) {
@@ -696,6 +825,16 @@ ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %Str
         ; Begin transaction
         TSTART
         Set tInTrans = 1
+        ; validate_doc_update hook (Story 12.3) — attachment-bearing writes
+        ; still validate on the body (attachments are stored separately, but
+        ; the JS callback sees the body envelope).
+        Set tVSC = ..RunValidateHook(pDB, pDocId, pBody, pParentRev, 0)
+        If $$$ISERR(tVSC) {
+            TROLLBACK  Set tInTrans = 0
+            Set pValidateError = $System.Status.GetErrorText(tVSC)
+            Set tNewRev = ""
+            Quit
+        }
         ; 1. Write document body (without _attachments data fields)
         Set tSC = ##class(IRISCouch.Storage.Document).Write(pDB, pDocId, tNewRev, pBody)
         If $$$ISERR(tSC) {

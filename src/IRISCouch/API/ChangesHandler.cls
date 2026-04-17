@@ -140,24 +140,38 @@ ClassMethod HandleChanges(pDB As %String) As %Status
                 Quit
             }
         }
-        ; Custom filter (Story 12.1): invoke JSRuntime sandbox; if the sandbox
-        ; cannot execute JS (JSRUNTIME=None or stubs), return 501 Not Implemented
-        ; with a reason naming "custom filter functions". Built-in filters
-        ; (_doc_ids, _selector, _design) continue to work unchanged — they
-        ; never touch the JSRuntime.
+        ; Custom filter (Story 12.1 → Story 12.3): invoke JSRuntime sandbox.
+        ; If the sandbox cannot execute JS (JSRUNTIME=None or stubs), 501
+        ; Not Implemented with a reason naming "custom filter functions".
+        ; Built-in filters (_doc_ids, _selector, _design) continue to work
+        ; unchanged — they never touch the JSRuntime.
+        Set tCustomFilterSource = ""
+        Set tCustomDDocShort = ""
+        Set tCustomFilterName = ""
+        Set tCustomFilterReq = $$$NULLOREF
+        Set tCustomSandbox = $$$NULLOREF
         If tIsCustomFilter {
-            Set tSandbox = ##class(IRISCouch.JSRuntime.Factory).GetSandbox()
-            If 'tSandbox.IsAvailable() {
+            Set tCustomDDocShort = $Piece(tFilter, "/", 1)
+            Set tCustomFilterName = $Piece(tFilter, "/", 2)
+            ; Resolve the filter source from the referenced ddoc BEFORE touching
+            ; the sandbox so a missing ddoc/filter produces 404 (CouchDB
+            ; compatibility) irrespective of the runtime state.
+            Set tLookupSC = ##class(IRISCouch.Core.DesignDocs).ListFilterFunctions(pDB, tCustomDDocShort, tCustomFilterName, .tCustomFilterSource)
+            If $$$ISERR(tLookupSC) || (tCustomFilterSource = "") {
+                Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "missing " _ tCustomDDocShort _ "/" _ tCustomFilterName)
+                Quit
+            }
+            Set tCustomSandbox = ##class(IRISCouch.JSRuntime.Factory).GetSandbox()
+            If 'tCustomSandbox.IsAvailable() {
                 Set tSubsystem = "custom filter functions"
                 Set tReason = ##class(IRISCouch.Util.Error).BuildJSRuntimeNotImplementedReason(tSubsystem)
                 Do ##class(IRISCouch.Util.Error).Render501(tSubsystem, tReason)
                 Quit
             }
-            ; Story 12.2+ will invoke tSandbox.ExecuteFilter() per document.
-            ; Falling through under Story 12.1 is unreachable because the
-            ; only backend that reports IsAvailable()=1 does not yet exist.
-            Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "custom filter executor reached under Story 12.1 (unexpected)")
-            Quit
+            ; Build the req object once and reuse across docs. Per
+            ; chttpd_changes:handle_changes/3, the request surface includes
+            ; method, path, and the parsed query object.
+            Set tCustomFilterReq = ..BuildFilterReq(pDB)
         }
         ; Build doc_ids lookup array for _doc_ids filter
         If tFilter = "_doc_ids" {
@@ -247,6 +261,10 @@ ClassMethod HandleChanges(pDB As %String) As %Status
         ; Get raw changes from storage
         Set tRaw = ##class(IRISCouch.Storage.Changes).ListChanges(pDB, tSince, tLimit, tDescending)
         Set tRawResults = tRaw.%Get("results")
+        ; Audit counters for the custom-filter path
+        Set tCustomFilterIn = 0
+        Set tCustomFilterOut = 0
+        Set tCustomFilterStart = $ZHorolog
         ; Post-process each result entry
         Set tFinalResults = []
         Set tI = 0
@@ -276,6 +294,33 @@ ClassMethod HandleChanges(pDB As %String) As %Status
                     Continue
                 }
                 If '..MatchesSelector(tSelectorObj, tSelectorDocObj) Continue
+            } ElseIf tIsCustomFilter {
+                ; Story 12.3: custom filter function. Read the doc body (or
+                ; an _id/_rev/_deleted envelope for tombstones) and call
+                ; ExecuteFilter. Truthy includes, falsy skips.
+                Set tCustomFilterIn = tCustomFilterIn + 1
+                Set tIsDeletedForCustomFilter = ##class(IRISCouch.Storage.RevTree).IsDeleted(pDB, tDocId, tRev)
+                If tIsDeletedForCustomFilter {
+                    Set tCustomDocObj = {}
+                    Do tCustomDocObj.%Set("_id", tDocId)
+                    Do tCustomDocObj.%Set("_rev", tRev)
+                    Do tCustomDocObj.%Set("_deleted", 1, "boolean")
+                } Else {
+                    Set tCustomBodyStr = ##class(IRISCouch.Storage.Document).Read(pDB, tDocId, tRev)
+                    If tCustomBodyStr = "" Continue
+                    Try {
+                        Set tCustomDocObj = ##class(%DynamicObject).%FromJSON(tCustomBodyStr)
+                    } Catch tCustomParseEx {
+                        Continue
+                    }
+                    Do tCustomDocObj.%Set("_id", tDocId)
+                    Do tCustomDocObj.%Set("_rev", tRev)
+                }
+                ; Preserve the doc object for potential include_docs reuse.
+                Set tSelectorDocObj = tCustomDocObj
+                Set tInclude = tCustomSandbox.ExecuteFilter(tCustomFilterSource, tCustomDocObj, tCustomFilterReq)
+                If 'tInclude Continue
+                Set tCustomFilterOut = tCustomFilterOut + 1
             }
             ; Build the result entry
             Set tResultEntry = {}
@@ -345,6 +390,12 @@ ClassMethod HandleChanges(pDB As %String) As %Status
             }
             Do tFinalResults.%Push(tResultEntry)
         }
+        ; Audit: FilterExecute counts changes-in and changes-out for the custom
+        ; filter path only (built-in filters stay silent per story scope).
+        If tIsCustomFilter {
+            Set tDuration = ($ZHorolog - tCustomFilterStart) * 1000
+            Do ##class(IRISCouch.Audit.Emit).FilterExecute(pDB, "_design/" _ tCustomDDocShort, tCustomFilterName, tCustomFilterIn, tCustomFilterOut, tDuration, $Get(%IRISCouchUser))
+        }
         ; Build response
         Set tResp = {}
         Do tResp.%Set("results", tFinalResults)
@@ -358,6 +409,44 @@ ClassMethod HandleChanges(pDB As %String) As %Status
         Quit
     }
     Quit $$$OK
+}
+
+/// <p>Build the CouchDB-compatible <code>req</code> object handed to filter
+/// functions (Story 12.3).</p>
+/// <p>Mirrors the shape returned by <code>chttpd_changes:handle_changes/3</code>
+/// in the CouchDB Erlang implementation: at minimum
+/// <code>method</code>, <code>path</code>, <code>query</code>, and a trimmed
+/// <code>headers</code> view. Filter authors cannot depend on per-connection
+/// state like peer IP, so we omit those (CouchDB exposes them but also
+/// warns against relying on them).</p>
+/// @param pDB The target database name
+/// @return %DynamicObject
+ClassMethod BuildFilterReq(pDB As %String) As %DynamicObject
+{
+    Set tReq = {}
+    Do tReq.%Set("method", %request.Method)
+    Do tReq.%Set("path", ["_changes"])
+    Do tReq.%Set("info", {"db_name":(pDB)})
+    Do tReq.%Set("body", "undefined")
+    ; Query string parameters -- %request.Data entries are arrays; expose
+    ; only the first value per key to match CouchDB's common-case shape.
+    Set tQuery = {}
+    Set tKey = ""
+    For {
+        Set tKey = $Order(%request.Data(tKey))
+        Quit:tKey=""
+        Set tVal = $Get(%request.Data(tKey, 1), "")
+        Do tQuery.%Set(tKey, tVal)
+    }
+    Do tReq.%Set("query", tQuery)
+    ; Headers -- only the safe metadata ones. User-Agent and Content-Type are
+    ; the two CouchDB filters most commonly reference.
+    Set tHdr = {}
+    Do tHdr.%Set("User-Agent", %request.GetCgiEnv("HTTP_USER_AGENT", ""))
+    Do tHdr.%Set("Content-Type", %request.GetCgiEnv("CONTENT_TYPE", ""))
+    Do tReq.%Set("headers", tHdr)
+    Do tReq.%Set("userCtx", ##class(IRISCouch.Auth.Session).BuildUserCtx())
+    Quit tReq
 }
 
 /// <p>Match a document against a Mango selector (simple subset).</p>

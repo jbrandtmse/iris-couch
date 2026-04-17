@@ -109,6 +109,41 @@ ClassMethod GetSecret() As %String
     Quit tResult
 }
 
+/// <p>Build a CouchDB-compatible user context object for JS callbacks (Story 12.3).</p>
+/// <p>Returns <code>{"name": &lt;username&gt;, "roles": [&lt;role&gt;...]}</code> read
+/// from the Router-populated process-private variables <code>%IRISCouchUser</code>
+/// and <code>%IRISCouchRoles</code>. If no auth context is active (e.g. an
+/// unauthenticated request reaching a disabled-auth deployment), emits
+/// <code>{"name": null, "roles": ["_admin"]}</code> — CouchDB's
+/// "admin-party" default (trusted-admin deployment per
+/// <code>documentation/js-runtime.md</code>).</p>
+/// <p>The <code>name</code> field is emitted as JSON <code>null</code> when the
+/// user is anonymous (following
+/// <code>.claude/rules/iris-objectscript-basics.md::feedback_json_null_pattern</code>).</p>
+/// @return %DynamicObject with <code>name</code> (string or null) and
+///         <code>roles</code> (%DynamicArray of strings)
+ClassMethod BuildUserCtx() As %DynamicObject
+{
+    Set tCtx = {}
+    Set tUser = $Get(%IRISCouchUser, "")
+    Set tRoles = $Get(%IRISCouchRoles, "")
+    If tUser = "" {
+        ; Anonymous — admin-party default.
+        Do tCtx.%Set("name", "", "null")
+        Set tDefault = []
+        Do tDefault.%Push("_admin")
+        Do tCtx.%Set("roles", tDefault)
+        Quit tCtx
+    }
+    Do tCtx.%Set("name", tUser)
+    If $IsObject(tRoles) {
+        Do tCtx.%Set("roles", tRoles)
+    } Else {
+        Do tCtx.%Set("roles", [])
+    }
+    Quit tCtx
+}
+
 /// <p>Convert a decimal integer to a lowercase hexadecimal string.</p>
 /// @param pDec The decimal integer value
 /// @return Lowercase hexadecimal string representation

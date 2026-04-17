@@ -4,19 +4,28 @@
 //
 //   http://www.apache.org/licenses/LICENSE-2.0
 //
-// IRISCouch couchjs-compatible dispatcher entry-point (Story 12.2).
+// IRISCouch couchjs-compatible dispatcher entry-point (Story 12.2 + 12.3).
 //
 // Reads newline-terminated JSON command arrays from stdin and emits
 // newline-terminated JSON responses on stdout. Supports the subset of the
-// CouchDB couchjs protocol required by Story 12.2:
+// CouchDB couchjs protocol required by Stories 12.2 / 12.3:
 //   ["reset", <config?>]
 //   ["add_fun", <source>]
 //   ["map_doc", <doc>]
 //   ["reduce", [<fn-src>...], <kv-pairs>]
 //   ["rereduce", [<fn-src>...], <values>]
+//   ["ddoc", "new", "_design/<name>", <ddoc-body>]           -- register (Story 12.3)
+//   ["ddoc", "_design/<name>", <funPath>, <funArgs>]         -- invoke   (Story 12.3)
 //
-// Intentionally does NOT implement: add_lib, ddoc, shows, lists, filters,
-// updates, rewrites, validate_doc_update (Story 12.3 / Epic 13 scope).
+// The `ddoc` dispatcher matches sources/couchdb/share/server/loop.js::DDoc and
+// supports the funPath entries required by IRISCouch today:
+//   ["validate_doc_update"] -> Validate.validate (sources/.../validate.js)
+//   ["filters","<name>"]    -> Filter.filter     (sources/.../filter.js)
+// Other entries (shows/lists/updates/rewrites/views) remain out of scope;
+// invoking them responds with an ["error","not_implemented", ...] line.
+//
+// Intentionally does NOT implement: add_lib, show/list/update/rewrite
+// functions, view-filter (filter_view).
 //
 // The canonical CouchDB loop (sources/couchdb/share/server/loop.js) relies on
 // SpiderMonkey-only primitives (evalcx, gc, print, readline, deepFreeze on
@@ -35,6 +44,11 @@ const State = {
   lib: null,
   query_config: {},
 };
+
+// Registered design docs keyed by ddoc id (Story 12.3). Values are the raw
+// ddoc bodies as handed to us by IRIS in the `["ddoc","new",id,body]` command.
+// Mirrors the `ddocs = {}` map in share/server/loop.js::DDoc.
+const ddocs = Object.create(null);
 
 // --- protocol helpers -----------------------------------------------------
 
@@ -156,6 +170,82 @@ const dispatch = {
   },
   rereduce: function (reduceFuns, values) {
     runReduce(reduceFuns, null, values, true);
+  },
+  // ddoc dispatcher (Story 12.3). Protocol matches share/server/loop.js::DDoc:
+  //   ["ddoc", "new", "_design/<name>", <body>]
+  //     -> register body under the given id, respond "true"
+  //   ["ddoc", "_design/<name>", [<cmd>, ...], <funArgs>]
+  //     -> invoke <cmd> on the registered ddoc with funArgs, respond result
+  ddoc: function () {
+    const args = Array.prototype.slice.call(arguments);
+    const first = args.shift();
+    if (first === 'new') {
+      const ddocId = args.shift();
+      const body = args.shift();
+      ddocs[ddocId] = body || {};
+      respondRaw('true');
+      return;
+    }
+    // Invocation branch
+    const ddocId = first;
+    const funPath = args.shift() || [];
+    const funArgs = args.shift() || [];
+    const ddoc = ddocs[ddocId];
+    if (!ddoc) {
+      throw ['fatal', 'query_protocol_error', 'uncached design doc: ' + ddocId];
+    }
+    const cmd = funPath[0];
+    if (cmd === 'validate_doc_update') {
+      // Validate.validate(fun, ddoc, args) per share/server/validate.js
+      const source = ddoc.validate_doc_update;
+      const sandbox = makeSandbox();
+      const fn = compileFunction(source, sandbox);
+      try {
+        fn.apply(ddoc, funArgs);
+        respondRaw('1');
+      } catch (err) {
+        if (err && err.name && err.stack) {
+          // Real Error — re-throw so the outer dispatcher returns ["error",...]
+          throw err;
+        }
+        // Thrown plain value (e.g. {forbidden:"..."} or {unauthorized:"..."})
+        // is the response, per validate.js
+        respond(err);
+      }
+      return;
+    }
+    if (cmd === 'filters') {
+      // Filter.filter(fun, ddoc, args) per share/server/filter.js. funPath is
+      // ["filters","<name>"]. funArgs is [[<doc>,...], <req>].
+      const fname = funPath[1];
+      const filters = ddoc.filters || {};
+      const source = filters[fname];
+      if (typeof source !== 'string' || source.length === 0) {
+        throw ['error', 'not_found',
+          'missing filters function ' + fname + ' on design doc ' + ddocId];
+      }
+      const sandbox = makeSandbox();
+      const fn = compileFunction(source, sandbox);
+      const docs = funArgs[0] || [];
+      const req = funArgs[1];
+      const results = [];
+      for (let i = 0; i < docs.length; i++) {
+        let out;
+        try {
+          out = fn.apply(ddoc, [docs[i], req]);
+        } catch (err) {
+          // Per share/server/filter.js the filter propagates its own
+          // exceptions; map to a structured error so IRIS logs the reason.
+          throw ['error', 'filter_runtime_error', errstr(err)];
+        }
+        results.push((out && true) || false);
+      }
+      respond([true, results]);
+      return;
+    }
+    // Unhandled ddoc subcommand. Views/shows/lists/updates/rewrites are not
+    // supported by Story 12.3 scope — callers must not request them yet.
+    throw ['error', 'not_implemented', 'ddoc subcommand not supported: ' + cmd];
   },
 };
 

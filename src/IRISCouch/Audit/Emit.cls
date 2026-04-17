@@ -72,7 +72,7 @@ ClassMethod EnsureEvents() As %Status
     Set tOrigNS = $Namespace
     Try {
         Set $Namespace = "%SYS"
-        Set tTypes = "DocWrite,DocDelete,AuthSuccess,AuthFailure,SecurityChange,UserWrite,ReplicationStart,ReplicationComplete,ViewAttempt,ViewExecute,ViewError"
+        Set tTypes = "DocWrite,DocDelete,AuthSuccess,AuthFailure,SecurityChange,UserWrite,ReplicationStart,ReplicationComplete,ViewAttempt,ViewExecute,ViewError,ValidateReject,ValidateApprove,FilterExecute"
         For tI = 1:1:$Length(tTypes, ",") {
             Set tType = $Piece(tTypes, ",", tI)
             If '##class(Security.Events).Exists("IRISCouch", tType, tType) {
@@ -216,6 +216,64 @@ ClassMethod ViewExecute(pDB As %String, pDDocId As %String, pViewName As %String
     Set tExtra.rows = pRows
     Set tExtra.durationMs = pDurationMs
     Do ..Emit("ViewExecute", pDB, pDDocId, "", pUser, tExtra)
+}
+
+/// <p>Emit a ValidateReject audit event when a <code>validate_doc_update</code>
+/// function rejects a write (Story 12.3).</p>
+/// <p>Operators can grep the audit log to correlate 401/403 responses with
+/// the specific design doc and reason.</p>
+/// @param pDB The database name
+/// @param pDDocId The design document id whose validate_doc_update rejected
+/// @param pDocId The document id that was rejected
+/// @param pStatusCode The HTTP status code emitted (401 or 403)
+/// @param pReason The rejection reason from the thrown envelope
+/// @param pUser The user identity (optional)
+ClassMethod ValidateReject(pDB As %String, pDDocId As %String, pDocId As %String, pStatusCode As %Integer = 0, pReason As %String = "", pUser As %String = "")
+{
+    Set tExtra = {}
+    Set tExtra.ddoc = pDDocId
+    Set tExtra.status = pStatusCode
+    Set tExtra.reason = $Extract(pReason, 1, 256)
+    Do ..Emit("ValidateReject", pDB, pDocId, "", pUser, tExtra)
+}
+
+/// <p>Emit a ValidateApprove audit event when all <code>validate_doc_update</code>
+/// functions approve a write (Story 12.3).</p>
+/// <p>Coarse-grained: one event per successful write irrespective of the
+/// number of design docs that approved. The <code>durationMs</code> covers
+/// the total wall-clock of the validate loop (not the full Save).</p>
+/// @param pDB The database name
+/// @param pDocId The document id that was approved
+/// @param pDurationMs Wall-clock duration of the validate loop in milliseconds
+/// @param pUser The user identity (optional)
+ClassMethod ValidateApprove(pDB As %String, pDocId As %String, pDurationMs As %Numeric = 0, pUser As %String = "")
+{
+    Set tExtra = {}
+    Set tExtra.durationMs = pDurationMs
+    Do ..Emit("ValidateApprove", pDB, pDocId, "", pUser, tExtra)
+}
+
+/// <p>Emit a FilterExecute audit event when a custom changes filter runs
+/// (Story 12.3).</p>
+/// <p>Emitted once per <code>_changes</code> request (not per doc) so high-
+/// fan-out feeds do not flood the audit log. The <code>changesOut / changesIn</code>
+/// ratio lets operators spot suspiciously-permissive or overly-restrictive
+/// filters.</p>
+/// @param pDB The database name
+/// @param pDDocId The design document id (e.g. <code>_design/val</code>)
+/// @param pFilterName The filter function name within <code>filters</code>
+/// @param pChangesIn Number of candidate changes evaluated
+/// @param pChangesOut Number of changes the filter approved
+/// @param pDurationMs Wall-clock duration of the filter loop in milliseconds
+/// @param pUser The user identity (optional)
+ClassMethod FilterExecute(pDB As %String, pDDocId As %String, pFilterName As %String, pChangesIn As %Integer = 0, pChangesOut As %Integer = 0, pDurationMs As %Numeric = 0, pUser As %String = "")
+{
+    Set tExtra = {}
+    Set tExtra.filter = pFilterName
+    Set tExtra.changesIn = pChangesIn
+    Set tExtra.changesOut = pChangesOut
+    Set tExtra.durationMs = pDurationMs
+    Do ..Emit("FilterExecute", pDB, pDDocId, "", pUser, tExtra)
 }
 
 /// <p>Emit a ViewError audit event on view execution failure (Story 12.2).</p>
