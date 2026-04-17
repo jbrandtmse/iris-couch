@@ -530,6 +530,25 @@ ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue A
         ; On error, remain anonymous — don't block the request
         Quit
     }
+    ; --- Admin UI dispatch (Story 11.5) ---
+    ; Intercept /_utils/ URLs before UrlMap dispatch since the SPA has
+    ; multi-segment deep-link paths that UrlMap single-segment :param cannot match.
+    ; Extract the full path from pUrl and dispatch to AdminUIHandler.
+    If ($Extract(pUrl, 1, 7) = "/_utils") {
+        Set pContinue = 0
+        ; Extract the relative path after /_utils/
+        Set tUtilsPath = $Extract(pUrl, 8, *)
+        ; Strip leading slash
+        If $Extract(tUtilsPath, 1) = "/" Set tUtilsPath = $Extract(tUtilsPath, 2, *)
+        ; Default to index.html
+        If tUtilsPath = "" Set tUtilsPath = "index.html"
+        ; Metrics: record request start time
+        Set %IRISCouchRequestStart = $ZHorolog
+        Set %IRISCouchEndpoint = "admin_ui"
+        Do ##class(IRISCouch.API.AdminUIHandler).HandleRequest(tUtilsPath)
+        Do ..RecordRequestMetrics()
+        Quit $$$OK
+    }
     ; --- Per-database security enforcement (Story 7.4) ---
     ; Must execute AFTER auth context is established but BEFORE dispatch
     ; Parse database name from URL (pUrl is relative: /{db}/... or /_session etc.)

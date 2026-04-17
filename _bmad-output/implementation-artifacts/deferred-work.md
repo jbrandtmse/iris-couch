@@ -375,3 +375,7 @@ the initial entries.
   no client action is needed. Revisit if strict CouchDB wire compatibility
   becomes an NFR; otherwise leave as-is since the IRISCouch shape is strictly
   more useful to clients.
+
+## Deferred from: code review of 11-5-admin-ui-handler-and-security (2026-04-15)
+
+- **AC #4 error message says `%IRISCouch_Admin` but role is `IRISCouch_Admin`** [Story 11.5 AC #4] -- The role was renamed from `%IRISCouch_Admin` to `IRISCouch_Admin` during implementation because IRIS rejects `%`-prefixed custom roles (Error #887). The 403 error body and all code correctly reference `IRISCouch_Admin`, but the AC text still says `%IRISCouch_Admin`. Cosmetic documentation mismatch only. LOW -- update the AC wording in the next story or epic retro.

@@ -39,7 +39,7 @@ last_story_completed: 8-3-replication-ready-bulk-get
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-15
+last_updated: 2026-04-15 (Story 11.5 code review)
 last_story_in_progress: 11-4-revision-history-view
 last_story_completed: 10-7-error-handling-accessibility-and-cross-browser-verification
 last_story_reviewed: 10-7-error-handling-accessibility-and-cross-browser-verification
@@ -156,7 +156,7 @@ development_status:
   11-2-security-configuration-view: done
   11-3-design-document-and-security-editing: done
   11-4-revision-history-view: done
-  11-5-admin-ui-handler-and-security: in-progress
+  11-5-admin-ui-handler-and-security: done
   epic-11-retrospective: done
 
   # Epic 12: Pluggable JavaScript Runtime

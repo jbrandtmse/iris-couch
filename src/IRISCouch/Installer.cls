@@ -45,12 +45,17 @@ Parameter DISPATCHCLASS = "IRISCouch.API.Router";
 /// <p>Default authentication mode (64 = Password).</p>
 Parameter DEFAULTAUTHEENABLED = 64;
 
+/// <p>Name of the Admin UI access role (Story 11.5).</p>
+Parameter ADMINROLE = "IRISCouch_Admin";
+
 /// <p>Install the IRISCouch web application.</p>
 /// <p>Creates a CSP web application entry pointing to <class>IRISCouch.API.Router</class>
 /// as the dispatch class. Requires access to the <code>Security.Applications</code> API
 /// in the <code>%SYS</code> namespace.</p>
+/// <p>Also creates the <code>IRISCouch_Admin</code> role for Admin UI access and
+/// grants it to the installing user and <code>_SYSTEM</code> (Story 11.5).</p>
 /// <p>If the web application already exists, the method returns <code>$$$OK</code>
-/// without modifying the existing configuration.</p>
+/// without modifying the existing configuration (but still ensures role exists).</p>
 /// @param pNamespace Target namespace where IRISCouch classes are installed. Defaults to current namespace.
 /// @param pWebAppPath URL path for the web application. Defaults to "/iris-couch/".
 /// @return %Status indicating success or failure
@@ -66,7 +71,8 @@ ClassMethod Install(pNamespace As %String = "", pWebAppPath As %String = "/iris-
 
         ; Check if webapp already exists
         If ##class(Security.Applications).Exists(pWebAppPath) {
-            ; Webapp exists but ensure audit events are registered (upgrade path)
+            ; Webapp exists — ensure role and audit events on upgrade path
+            Do ..EnsureAdminRole()
             Set $NAMESPACE = tOrigNS
             Do ##class(IRISCouch.Audit.Emit).EnsureEvents()
             Quit
@@ -82,6 +88,9 @@ ClassMethod Install(pNamespace As %String = "", pWebAppPath As %String = "/iris-
 
         Set tSC = ##class(Security.Applications).Create(pWebAppPath, .tProps)
 
+        ; Create IRISCouch_Admin role and grant to installing user (Story 11.5)
+        Do ..EnsureAdminRole()
+
         ; Register audit event types in Security.Events (Story 9.2)
         ; Must happen in %SYS with %Admin_Secure privilege (Installer runs as _SYSTEM)
         Set $NAMESPACE = tOrigNS
@@ -92,6 +101,64 @@ ClassMethod Install(pNamespace As %String = "", pWebAppPath As %String = "/iris-
         Set tSC = ex.AsStatus()
     }
     Quit tSC
+}
+
+/// <p>Ensure the <code>IRISCouch_Admin</code> role exists and is granted
+/// to the installing user and <code>_SYSTEM</code> (Story 11.5).</p>
+/// <p>Must be called while in the <code>%SYS</code> namespace.</p>
+ClassMethod EnsureAdminRole() [ Private ]
+{
+    Try {
+        ; Create role if it doesn't exist
+        If '##class(Security.Roles).Exists(..#ADMINROLE) {
+            Set tSC = ##class(Security.Roles).Create(..#ADMINROLE, "IRISCouch Admin UI access", "")
+            ; Continue even if creation fails (e.g., insufficient privileges)
+        }
+
+        ; Grant to the installing user
+        Set tUsername = $Username
+        If tUsername '= "" {
+            Do ..GrantAdminRole(tUsername)
+        }
+
+        ; Also grant to _SYSTEM if the installing user is not _SYSTEM
+        If tUsername '= "_SYSTEM" {
+            Do ..GrantAdminRole("_SYSTEM")
+        }
+    }
+    Catch ex {
+        ; Role creation is best-effort — do not fail the install
+    }
+    Quit
+}
+
+/// <p>Grant the <code>IRISCouch_Admin</code> role to a user if not already assigned.</p>
+/// <p>Must be called while in the <code>%SYS</code> namespace.</p>
+/// @param pUsername The username to grant the role to
+ClassMethod GrantAdminRole(pUsername As %String) [ Private ]
+{
+    Try {
+        If ##class(Security.Users).Exists(pUsername) {
+            ; Get current roles
+            Set tSC = ##class(Security.Users).Get(pUsername, .tProps)
+            If $$$ISERR(tSC) Quit
+            Set tCurrentRoles = $Get(tProps("Roles"), "")
+            ; Check if role already assigned
+            If $Find("," _ tCurrentRoles _ ",", "," _ ..#ADMINROLE _ ",") > 0 Quit
+            ; Add the role
+            If tCurrentRoles = "" {
+                Set tNewRoles = ..#ADMINROLE
+            } Else {
+                Set tNewRoles = tCurrentRoles _ "," _ ..#ADMINROLE
+            }
+            Set tModProps("Roles") = tNewRoles
+            Set tSC = ##class(Security.Users).Modify(pUsername, .tModProps)
+        }
+    }
+    Catch ex {
+        ; Best-effort — do not fail
+    }
+    Quit
 }
 
 /// <p>Uninstall the IRISCouch web application.</p>

@@ -5,6 +5,9 @@
 ### 2026-04-17T00:00:00Z — Story 11.5: Admin UI Static Hosting & Access Control
 - **Create Story:** Story file pre-created via sprint change proposal at `11-5-admin-ui-handler-and-security.md`. Status: ready-for-dev.
 - **Sprint status:** 11-5 added via correct-course, epic-11 reopened (in-progress)
+- **Development:** Built Angular production bundle (main-I7CDCDFR.js 540KB, styles-KO5L73LS.css 3KB, ~135KB gzipped). New AdminUIHandler.cls (~200 lines): static file serving via %Stream.FileBinary.LinkToFile with 32KB chunked output, SPA fallback to index.html for deep links, 14-type MIME mapping, hashed-asset immutable caching, path traversal security. OnPreDispatch intercept in Router.cls for wildcard /_utils/* URL handling. IRISCouch_Admin role (without % prefix — IRIS reserves it) created idempotently in Installer.Install(). 10 ObjectScript HTTP integration tests. 2 Chrome DevTools screenshots. Manual curl verification of all endpoints.
+- **Code Review:** 1 HIGH auto-resolved (argumented Quit in For loop — IsHashedAsset), 1 MEDIUM auto-resolved (unchecked StreamFile error status), 1 LOW deferred (AC text says %IRISCouch_Admin but role is IRISCouch_Admin). All ObjectScript classes compile clean.
+- **Status:** review → done
 
 ### 2026-04-16T00:00:00Z — Epic 11 Retrospective
 - **Retrospective saved:** `epic-11-retro-2026-04-16.md` (document-form, not party-mode dialogue since cycle was automated end-to-end)
