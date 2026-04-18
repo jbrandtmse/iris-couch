@@ -35,10 +35,9 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-18 (Story 13.3 review)
-last_story_completed: 13-2-deviation-log-migration-playbook-and-troubleshooting-runbook
-last_story_reviewed: 13-2-deviation-log-migration-playbook-and-troubleshooting-runbook
-last_story_submitted_for_review: 13-3-working-code-examples
+last_updated: 2026-04-18 (Epic 13 retrospective complete)
+last_story_completed: 13-3-working-code-examples
+last_story_reviewed: 13-3-working-code-examples
 project: iris-couch
 project_key: NOKEY
 tracking_system: file-system
@@ -161,8 +160,8 @@ development_status:
   13-0-epic-12-deferred-cleanup: done
   13-1-getting-started-guide-and-compatibility-matrix: done
   13-2-deviation-log-migration-playbook-and-troubleshooting-runbook: done
-  13-3-working-code-examples: review
-  epic-13-retrospective: optional
+  13-3-working-code-examples: done
+  epic-13-retrospective: done
 
   # Epic 14: Gamma - Streaming Feeds & ECP Clustering
   epic-14: backlog
