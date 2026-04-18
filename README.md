@@ -113,7 +113,20 @@ IRISCouch ships with three pluggable `JSRuntime` backends — `None`, `Subproces
 - Prometheus/OTEL metrics and audit events
 - Design documents themselves — they **store and replicate** regardless of the JSRuntime setting, so migration staging (importing design docs into a runtime-less target before enabling execution) is supported
 
-**Why Python is deferred:** the Python backend requires IRIS to be built against a Python runtime library (`PythonRuntimeLibrary` CPF field) with a compatible Python version (3.11 or 3.12 recommended; 3.13 is known problematic). Many IRIS images — including several InterSystems-packaged ones — ship without Python enabled by default. Rather than gate the α/β public release on a runtime re-build, we ship Subprocess as the single supported JS path and track Python re-enablement as a follow-up story.
+**Why Python is deferred:** the Python backend requires IRIS to be built against a Python runtime library (`PythonRuntimeLibrary` CPF field) with a compatible Python version (3.11 or 3.12 recommended; 3.13 is known problematic). Many IRIS images — including several InterSystems-packaged ones — ship without Python enabled by default. Rather than gate the α/β public release on a runtime re-build, we ship Subprocess as the single supported JS path and track Python re-enablement as a follow-up story. When it resumes, Story 12.4 must ship zero `[Language = python]` methods in any IRISCouch `.cls` file (compile-time Python dependency would break installation on Python-less IRIS) — all Python interaction goes through `%SYS.Python.Import()` at runtime against a file-copy Python bridge.
+
+**View query parameters not yet supported (Story 12.2a follow-up):** view execution via `Subprocess` currently supports `reduce` and `include_docs` query parameters. The following CouchDB 3.x view-query parameters are **not yet implemented** and are deferred to Story 12.2a:
+
+- `group=true` / `group_level=N` — grouped reduce results (single-group reduce works; per-key grouping does not)
+- `startkey=<json>` / `endkey=<json>` / `inclusive_end=false` — range filtering on emitted keys
+- `limit=N` / `skip=N` — pagination
+
+Clients that submit these parameters today will receive the full, ungrouped, unfiltered result set. Pagination and range filtering must be done client-side until 12.2a lands. The compatibility matrix in Epic 13 will mark these rows `supported with caveat — 12.2a pending`.
+
+**Other known deviations from CouchDB 3.x (Story 12.2):**
+
+- **View-key collation:** emitted keys are sorted via lexicographic JSON string compare. CouchDB's `couch_ejson_compare` has richer cross-type collation semantics (e.g., numeric `10` sorts after numeric `2`, not before like lexicographic would). For mixed-type keys the two orderings can differ.
+- **`_approx_count_distinct`:** native implementation returns an exact distinct count (simple `$Order`-based). CouchDB uses HyperLogLog for large-cardinality estimation. Results are byte-identical for small cardinality; for very large result sets the IRISCouch value is more accurate but computed differently.
 
 ## Installation
 

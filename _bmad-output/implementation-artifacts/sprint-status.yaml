@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-17 (Story 12.5 review)
+last_updated: 2026-04-17 (Epic 12 retrospective complete)
 last_story_completed: 12-5-incremental-view-indexing-caching-and-sandbox-safety
 last_story_reviewed: 12-5-incremental-view-indexing-caching-and-sandbox-safety
 project: iris-couch
@@ -153,7 +153,7 @@ development_status:
   12-3-subprocess-jsruntime-validation-and-filter-functions: done
   12-4-python-jsruntime-backend: deferred  # Deferred 2026-04-17 — IRIS embedded Python unavailable on dev host; README updated naming Subprocess/Node as the single supported JS path at α/β. Revisit when a Python-enabled IRIS image is available.
   12-5-incremental-view-indexing-caching-and-sandbox-safety: done
-  epic-12-retrospective: optional
+  epic-12-retrospective: done
 
   # Epic 13: Documentation & Working Examples
   epic-13: backlog

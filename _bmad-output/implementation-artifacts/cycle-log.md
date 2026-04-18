@@ -876,3 +876,12 @@
 - Modified (11): Subprocess.cls (+Pool wiring), Subprocess/Pipe.cls (+timeout +sandbox +path validation), DocumentEngine.cls (ViewIndexUpdater hook × 4 save methods + body-rewrite re-run), View/QueryEngine.cls (index-based), API/ViewHandler.cls (ETag/304), Config.cls (+3 Parameters), Audit/Emit.cls (+3 events), Storage/Database.cls (+cascade DropForDatabase), couchjs/couchjs-entry.js (self-kill timeout), js-runtime.md (Security Model + Pool)
 - Sprint-status: `12-5-incremental-view-indexing-caching-and-sandbox-safety: done`; `last_story_completed/reviewed: 12-5`
 - **Epic 12 status:** 5 of 6 stories done (12.0, 12.1, 12.2, 12.3, 12.5) + 12.4 explicitly deferred. Roadmap table: `3/5 + 12.4 deferred` (Epic-12 excludes 12.0 cleanup)
+
+### 2026-04-17 — Epic 12 Retrospective (interactive, with Josh)
+- Retrospective document: `_bmad-output/implementation-artifacts/epic-12-retro-2026-04-17.md`
+- Sprint-status: `epic-12-retrospective: done`
+- 10 action items captured across Process (2), Epic-13 technical (3), Story-12.4-resumption technical (4), PRD/NFR (1)
+- **Highest-value insight (surfaced by Josh):** compile-time Python distribution risk — if Story 12.4 had succeeded on a Python-enabled dev host, `[Language = python]` methods would break ZPM install on Python-less IRIS. Produced four architectural rules (Action Items #6-#9) + one new NFR candidate (#10) for when 12.4 resumes.
+- README updated during retro to document Story 12.2 view-query-parameter scope cut (previously invisible to operators) + Epic 12 deviations (lexicographic JSON collation, `_approx_count_distinct` exact count vs HLL).
+- 12 consecutive epics with full action-item completion before next epic begins
+- Zero regressions across all 5 delivered Epic 12 stories
