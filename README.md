@@ -55,10 +55,10 @@ See the [PRD § Project Scoping & Phased Development Strategy](_bmad-output/plan
 | 9 | Observability & Audit Trail | 4/4 | 497 | — | Done |
 | 10 | Admin UI — Core Experience | 8/8 | 497 | 422 | Done |
 | 11 | Admin UI — Design Docs, Security & Hosting | 6/6 | 507 | 678 | Done |
-| 12 | Pluggable JavaScript Runtime | 0/5 | — | — | Backlog |
+| 12 | Pluggable JavaScript Runtime | 3/5 + 12.4 deferred | 699 | — | In Progress |
 | 13 | Documentation & Working Examples | 0/3 | — | — | Backlog |
 
-**Progress:** 11/13 epics complete — 507 backend ObjectScript tests + 678 Angular UI specs passing, 0 failures, 0 regressions across 11 consecutive epics.
+**Progress:** 11/13 epics complete + Epic 12 at 60% — 699 backend ObjectScript assertions + 678 Angular UI specs passing, 0 failures, 0 regressions across 11+ consecutive epics. Story 12.4 (Python JSRuntime backend) is deferred to a future milestone pending a Python-enabled IRIS image; see [JavaScript Runtime Requirements](#javascript-runtime-requirements) for the operator-facing implication.
 
 ### Milestone Beta — Customer Zero Complete
 
@@ -82,6 +82,38 @@ InterSystems' own IRIS DocDB feature exposes a proprietary `/api/docdb/v1` REST 
 - **Target package manager:** ZPM / IPM (`zpm "install iris-couch"`) — planned for α
 - **Compatibility anchor:** Apache CouchDB 3.3.3 through β; CouchDB 3.5.x added at γ
 - **Smoke-tested clients (planned):** PouchDB 9.x, Apache CouchDB replicator, `nano` 10.x, `@cloudant/cloudant` 5.x, Fauxton
+
+## JavaScript Runtime Requirements
+
+**For Alpha and Beta milestones, Node is the only supported JavaScript runtime for design-document execution.**
+
+IRISCouch ships with three pluggable `JSRuntime` backends — `None`, `Subprocess`, and `Python` — but only `None` and `Subprocess` are production-ready at α/β:
+
+| Backend | α/β Status | What it runs | Install requirement |
+|---------|-----------|--------------|---------------------|
+| `None` (default) | ✅ Ships | Nothing — returns `501 not_implemented` for every JS-dependent path | None |
+| `Subprocess` | ✅ Ships | Node, Bun, Deno, or any JS interpreter that can execute the vendored `documentation/couchjs/couchjs-entry.js` | **Node 18+ (or Bun 1+, Deno 1.40+) installed on the IRIS host**; path configured via `^IRISCouch.Config("JSRUNTIMESUBPROCESSPATH")` |
+| `Python` | ⏳ Deferred | JS via IRIS embedded Python + `quickjs` / `py_mini_racer` | Requires a Python-enabled IRIS build with `irispip install quickjs`. **Not shipping at α/β** — see Story 12.4 |
+
+**Operators who cannot install a Node-compatible JS runtime must use `JSRUNTIME=None` and will lose these CouchDB features until γ or later:**
+
+- 🚫 **Map/reduce view queries** — `GET /{db}/_design/{ddoc}/_view/{view}` returns `501 not_implemented`. Built-in reduces (`_sum`, `_count`, `_stats`, `_approx_count_distinct`) are native ObjectScript and still work once a runtime is present, but user-supplied map functions require JS execution.
+- 🚫 **`validate_doc_update` enforcement** — Document writes against a database whose design docs define `validate_doc_update` return `501 not_implemented`. Databases without validate functions still accept writes normally; this restriction is per-database, not server-wide.
+- 🚫 **Custom changes-feed filters** — `GET /{db}/_changes?filter={ddoc}/{filtername}` returns `501 not_implemented`. **Built-in filters (`_doc_ids`, `_selector`, `_design`) are native and work unchanged** — the restriction only affects user-supplied filter functions referenced by `{ddoc}/{name}`.
+
+**What still works under `JSRUNTIME=None`:**
+
+- All document CRUD (`PUT`/`GET`/`DELETE` including `_bulk_docs`, `_bulk_get`, `_all_docs`)
+- Attachments (`PUT`/`GET`/`DELETE` including inline, multipart, and standalone)
+- `_changes` feed (normal + longpoll) with built-in filters
+- Mango `_find`, `_index`, `_explain` (native ObjectScript, does not use JS)
+- Authentication (session, basic, JWT, proxy)
+- Bidirectional replication against Apache CouchDB peers
+- Admin UI at `/_utils/`
+- Prometheus/OTEL metrics and audit events
+- Design documents themselves — they **store and replicate** regardless of the JSRuntime setting, so migration staging (importing design docs into a runtime-less target before enabling execution) is supported
+
+**Why Python is deferred:** the Python backend requires IRIS to be built against a Python runtime library (`PythonRuntimeLibrary` CPF field) with a compatible Python version (3.11 or 3.12 recommended; 3.13 is known problematic). Many IRIS images — including several InterSystems-packaged ones — ship without Python enabled by default. Rather than gate the α/β public release on a runtime re-build, we ship Subprocess as the single supported JS path and track Python re-enablement as a follow-up story.
 
 ## Installation
 

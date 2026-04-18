@@ -1,5 +1,5 @@
 # generated: 2026-04-12
-# last_updated: 2026-04-17 (Story 12.3 → review)
+# last_updated: 2026-04-17 (Story 12.4 blocked — embedded Python unavailable)
 # project: iris-couch
 # project_key: NOKEY
 # tracking_system: file-system
@@ -151,7 +151,7 @@ development_status:
   12-1-jsruntime-sandbox-interface-and-none-backend: done
   12-2-subprocess-jsruntime-map-reduce-views: done
   12-3-subprocess-jsruntime-validation-and-filter-functions: done
-  12-4-python-jsruntime-backend: backlog
+  12-4-python-jsruntime-backend: deferred  # Deferred 2026-04-17 — IRIS embedded Python unavailable on dev host; README updated naming Subprocess/Node as the single supported JS path at α/β. Revisit when a Python-enabled IRIS image is available.
   12-5-incremental-view-indexing-caching-and-sandbox-safety: backlog
   epic-12-retrospective: optional
 

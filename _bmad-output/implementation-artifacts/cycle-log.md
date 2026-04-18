@@ -850,3 +850,10 @@
 - New files: Core/DesignDocs.cls, Test/{DesignDocsTest,JSRuntimeValidateHttpTest,JSRuntimeFilterHttpTest,UserCtxTest,SubprocessValidateProbe}.cls
 - Modified: JSRuntime/Subprocess.cls (ExecuteValidateDocUpdate + ExecuteFilter filled in), Core/DocumentEngine.cls (validate hook at all 4 save sites + pValidateError Output param), API/{ChangesHandler,DocumentHandler,BulkHandler}.cls, Auth/Session.cls (+BuildUserCtx), Util/Error.cls (+RenderValidateError), Audit/Emit.cls (+validate_reject/validate_approve/filter_execute), documentation/{js-runtime.md, couchjs/couchjs-entry.js}
 - Sprint-status: `12-3-subprocess-jsruntime-validation-and-filter-functions: done`
+
+### 2026-04-17 — Story 12.4 DEFERRED (not blocked — explicit scope cut)
+- **Dev blocker:** IRIS embedded Python unavailable on this host. CPF PythonRuntimeLibrary / PythonRuntimeLibraryVersion fields blank; only installed Python is 3.13 (DLLs lack VERSIONINFO that IRIS requires). No code was written; working tree clean aside from metadata.
+- **Decision (lead + user):** Skip Story 12.4 for α/β. Subprocess/Node is the single supported JS runtime for Alpha and Beta. Python backend becomes a post-β deliverable pending a Python-enabled IRIS image or customer requirement.
+- **README updated:** new `## JavaScript Runtime Requirements` section explicitly states Node-only stance for α/β and lists what operators lose without Node (view queries, validate_doc_update, custom filters — all return 501) vs what still works (document CRUD, attachments, Mango, replication, changes built-in filters, admin UI, metrics, audit). Epic 12 roadmap row updated to "3/5 + 12.4 deferred".
+- **Sprint-status:** `12-4-python-jsruntime-backend: deferred` with rationale. Story file header flipped to `deferred`.
+- **What this unblocks:** Story 12.5 (incremental indexing + Subprocess pooling + sandbox safety) can proceed immediately; Subprocess is the primary target anyway.
