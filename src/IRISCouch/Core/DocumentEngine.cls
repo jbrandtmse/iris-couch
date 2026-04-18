@@ -209,6 +209,14 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
             Set tBodyObj = ##class(%DynamicObject).%FromJSON(pBody)
             Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
         }
+        ; 6b. Update view indexes incrementally (Story 12.5 AC #1 — Save path)
+        Set tViewBodyObj = ##class(%DynamicObject).%FromJSON(pBody)
+        Set tVISC = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, tViewBodyObj, tNewRev)
+        If $$$ISERR(tVISC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
         ; 7. _users database sync (Story 7.3)
         ; If this is a _users write, process password hashing and IRIS user sync
         If ##class(IRISCouch.Auth.Users).IsUsersDB(pDB) {
@@ -231,6 +239,16 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
                 If tIndexDefs2.%Size() > 0 {
                     Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tModified, tIndexDefs2)
                 }
+                ; Re-run view-index update with the modified body (Story 12.5).
+                ; Rationale: step 6b indexed the original (pre-hash) body; the
+                ; rewritten body is what's persisted, so the view index must
+                ; reflect it. Matches the MangoIndex re-index pattern above.
+                Set tVISC2 = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, tModified, tNewRev)
+                If $$$ISERR(tVISC2) {
+                    TROLLBACK  Set tInTrans = 0
+                    Set tNewRev = ""
+                    Quit
+                }
             }
         }
         ; 8. _replicator database sync (Story 8.5)
@@ -250,6 +268,14 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
                     }
                     ; Update Winners projection with the modified body
                     Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, tModifiedRepJSON, 0)
+                    ; Re-run view-index update with the modified body (Story 12.5).
+                    ; Mirrors the _users rewrite handling above.
+                    Set tVISC3 = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, tModifiedRep, tNewRev)
+                    If $$$ISERR(tVISC3) {
+                        TROLLBACK  Set tInTrans = 0
+                        Set tNewRev = ""
+                        Quit
+                    }
                 }
                 ; Save reference for post-commit job launch
                 Set tRepBodyObj = tModifiedRep
@@ -572,6 +598,14 @@ ClassMethod SaveDeleted(pDB As %String, pDocId As %String, pParentRev As %String
         Do ##class(IRISCouch.Projection.Winners).Upsert(pDB, pDocId, tNewRev, "", 1)
         ; 9. Remove from all MangoIndex rows (Story 6.1)
         Do ##class(IRISCouch.Projection.MangoIndex).DeleteForDocument(pDB, pDocId)
+        ; 9b. Remove from view indexes (Story 12.5 AC #1 — SaveDeleted path).
+        ; Tombstones pass a null body so every prior emission is purged.
+        Set tVISC = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, "", tNewRev)
+        If $$$ISERR(tVISC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
+        }
         ; Audit event — within transaction (Story 9.2, NFR-O6)
         Do ##class(IRISCouch.Audit.Emit).DocDelete(pDB, pDocId, tNewRev, $Get(%IRISCouchUser))
         ; _users audit: emit UserWrite for _users database deletions (AC #4)
@@ -716,6 +750,29 @@ ClassMethod SaveWithHistory(pDB As %String, pDocId As %String, pBody As %String,
                     Set tBodyObj = ##class(%DynamicObject).%FromJSON(tWinBody)
                     Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
                 }
+            }
+        }
+        ; 6b. Update view indexes incrementally (Story 12.5 AC #1 — SaveWithHistory path).
+        ; Mirror the winner-derivation above: if the graft introduced a new
+        ; winner (common case), the index must be updated to reflect that
+        ; winner's body. Deletions propagate as a null body.
+        Set tViewVictor = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, pDocId)
+        If tViewVictor '= "" {
+            If pDeleted && (tViewVictor = pRev) {
+                Set tVISC = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, "", pRev)
+            } Else {
+                Set tViewBody = ##class(IRISCouch.Storage.Document).Read(pDB, pDocId, tViewVictor)
+                If tViewBody = "" {
+                    Set tVISC = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, "", tViewVictor)
+                } Else {
+                    Set tViewBodyObj = ##class(%DynamicObject).%FromJSON(tViewBody)
+                    Set tVISC = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, tViewBodyObj, tViewVictor)
+                }
+            }
+            If $$$ISERR(tVISC) {
+                TROLLBACK  Set tInTrans = 0
+                Set tSC = tVISC
+                Quit
             }
         }
         ; 7. _users database sync (Story 7.3 / Story 8.0)
@@ -942,6 +999,14 @@ ClassMethod SaveWithAttachments(pDB As %String, pDocId As %String, pBody As %Str
         If tIndexDefs.%Size() > 0 {
             Set tBodyObj = ##class(%DynamicObject).%FromJSON(pBody)
             Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
+        }
+        ; 8b. Update view indexes incrementally (Story 12.5 AC #1 — SaveWithAttachments path)
+        Set tViewBodyObj = ##class(%DynamicObject).%FromJSON(pBody)
+        Set tVISC = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, tViewBodyObj, tNewRev)
+        If $$$ISERR(tVISC) {
+            TROLLBACK  Set tInTrans = 0
+            Set tNewRev = ""
+            Quit
         }
         ; Audit event — within transaction (Story 9.2, NFR-O6)
         Do ##class(IRISCouch.Audit.Emit).DocWrite(pDB, pDocId, tNewRev, $Get(%IRISCouchUser))

@@ -80,12 +80,6 @@ ClassMethod Query(pDB As %String, pDDocId As %String, pViewName As %String, pPar
             If (tVal = "false") || (tVal = 0) {
                 Set tReduceRequested = 0
             } ElseIf (tVal = "true") || (tVal = 1) {
-                ; Explicit ?reduce=true is only valid if the view defines a
-                ; reduce function. CouchDB returns 400 query_parse_error when
-                ; a client asks for reduction on a map-only view; mirror that
-                ; here so clients get a useful error instead of silent map
-                ; rows. Signalled via the "query_parse_error" exception code
-                ; which ViewHandler can map to 400.
                 If tReduceSource = "" {
                     Throw ##class(%Exception.General).%New("view execution", "query_parse_error", "", "reduce=true requested but view has no reduce function")
                 }
@@ -93,7 +87,114 @@ ClassMethod Query(pDB As %String, pDDocId As %String, pViewName As %String, pPar
             }
         }
     }
-    ; 3. Iterate live docs and accumulate map emissions.
+    ; 3. Story 12.5: if a live view index exists with a matching definition
+    ;    hash, serve from it rather than re-running the map function per query.
+    Set tExpectedHash = ##class(IRISCouch.Storage.ViewIndex).ViewDefinitionHash(tMapFn, tReduceSource)
+    Set tStoredHash = ##class(IRISCouch.Storage.ViewIndex).GetViewDefinitionHash(pDB, pDDocId, pViewName)
+    If tStoredHash = "" {
+        ; Cold cache or legacy DB without incremental indexing -- trigger a
+        ; one-time rebuild, then serve from the index. The rebuild is
+        ; idempotent: subsequent queries skip this branch entirely.
+        Do ##class(IRISCouch.Storage.ViewIndex).Rebuild(pDB, pDDocId, pViewName, pSandbox)
+    } ElseIf tStoredHash '= tExpectedHash {
+        ; View definition changed (ddoc revision) -- ViewIndexUpdater already
+        ; invalidated the index; rebuild before serving.
+        Do ##class(IRISCouch.Storage.ViewIndex).Rebuild(pDB, pDDocId, pViewName, pSandbox)
+    }
+    ; Read rows from the index.
+    Set tIndexSC = ##class(IRISCouch.Storage.ViewIndex).QueryRange(pDB, pDDocId, pViewName, .tRows)
+    If $$$ISERR(tIndexSC) {
+        Throw ##class(%Exception.General).%New("view execution", "index_read_error", "", $System.Status.GetErrorText(tIndexSC))
+    }
+    ; Optionally inject doc bodies when include_docs=true. Keep separate from
+    ; the index layout so the index stays compact.
+    If tIncludeDocs && ($IsObject(tRows)) {
+        Set tI = 0
+        Set tRN = tRows.%Size()
+        While tI < tRN {
+            Set tRow = tRows.%Get(tI)
+            Set tI = tI + 1
+            Set tDocId = tRow.%Get("id")
+            Set tDocWin = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, tDocId)
+            If tDocWin = "" Continue
+            Set tDocBody = ##class(IRISCouch.Storage.Document).Read(pDB, tDocId, tDocWin)
+            If tDocBody = "" Continue
+            Set tDocObj = ##class(%DynamicObject).%FromJSON(tDocBody)
+            Do tDocObj.%Set("_id", tDocId)
+            Do tDocObj.%Set("_rev", tDocWin)
+            Do tRow.%Set("doc", tDocObj)
+        }
+    }
+    ; 4. Reduce if requested. Re-use the Story 12.2 builtin/JS dispatcher on
+    ;    the rows we just pulled from the index.
+    If tReduceRequested {
+        Set tValues = []
+        Set tKeys = []
+        Set tI = 0
+        Set tN = tRows.%Size()
+        While tI < tN {
+            Set tRow = tRows.%Get(tI)
+            Do tKeys.%Push(tRow.%Get("key"))
+            Do tValues.%Push(tRow.%Get("value"))
+            Set tI = tI + 1
+        }
+        Set tReducedValue = ""
+        If ##class(IRISCouch.View.BuiltinReduce).IsBuiltin(tReduceSource) {
+            Set tReducedValue = ##class(IRISCouch.View.BuiltinReduce).Apply(tReduceSource, tValues)
+        } Else {
+            Set tReduceResp = pSandbox.ExecuteReduce(tReduceSource, tKeys, tValues, 0)
+            If $IsObject(tReduceResp) {
+                Set tReducedValue = tReduceResp.%Get("value")
+            }
+        }
+        Set tRow = {}
+        Do tRow.%Set("key", "", "null")
+        Do tRow.%Set("value", tReducedValue)
+        Set tReducedRows = []
+        Do tReducedRows.%Push(tRow)
+        Set tResp = {}
+        Do tResp.%Set("rows", tReducedRows)
+        Quit tResp
+    }
+    ; 5. Map-only response envelope. Rows are already sorted by key from
+    ;    the forward-index walk, no additional sort pass needed.
+    Set tResp = {}
+    Do tResp.%Set("total_rows", tRows.%Size(), "number")
+    Do tResp.%Set("offset", 0, "number")
+    Do tResp.%Set("rows", tRows)
+    Quit tResp
+}
+
+/// <p>Legacy per-query map execution path, preserved for reference and to
+/// ease the unit-test regression for Story 12.2 behaviour. Not used by the
+/// default code path after Story 12.5 — <method>Query</method> now delegates
+/// to <class>IRISCouch.Storage.ViewIndex</class>. Retained here so a future
+/// <code>?stale=ok</code> / <code>?update=false</code> parameter (scope cut
+/// to Story 12.2a) can reuse it.</p>
+ClassMethod QueryLegacyNoIndex(pDB As %String, pDDocId As %String, pViewName As %String, pParams As %DynamicObject, pSandbox As IRISCouch.JSRuntime.Sandbox) As %DynamicObject [ Internal ]
+{
+    Set tWin = ##class(IRISCouch.Storage.RevTree).GetWinner(pDB, pDDocId)
+    If tWin = "" {
+        Throw ##class(%Exception.General).%New("view execution", "not_found", "", "design doc missing: " _ pDDocId)
+    }
+    Set tBody = ##class(IRISCouch.Storage.Document).Read(pDB, pDDocId, tWin)
+    Set tDDoc = ##class(%DynamicObject).%FromJSON(tBody)
+    Set tViews = tDDoc.%Get("views")
+    Set tViewDef = tViews.%Get(pViewName)
+    Set tMapFn = tViewDef.%Get("map")
+    Set tReduceSource = ""
+    If tViewDef.%IsDefined("reduce") Set tReduceSource = tViewDef.%Get("reduce")
+    Set tIncludeDocs = 0
+    Set tReduceRequested = (tReduceSource '= "")
+    If $IsObject(pParams) {
+        If pParams.%IsDefined("include_docs") {
+            Set tIncludeDocs = (pParams.%Get("include_docs") = "true") || (pParams.%Get("include_docs") = 1)
+        }
+        If pParams.%IsDefined("reduce") {
+            Set tVal = pParams.%Get("reduce")
+            If (tVal = "false") || (tVal = 0) Set tReduceRequested = 0
+        }
+    }
     Set tRows = []
     Set tDocIds = ##class(IRISCouch.Storage.Document).ListLiveDocIds(pDB)
     Set tN = tDocIds.%Size()

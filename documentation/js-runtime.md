@@ -254,6 +254,92 @@ warn entry naming the failed doc id.
 **Timeout after Nms.** `JSRUNTIMETIMEOUT` (default 5000 ms) caps the
 per-query interpreter wall-clock. Long-running reduces should use a
 builtin (`_sum`, `_count`, `_stats`) which bypasses the subprocess.
+Story 12.5 enforces this cap two ways: (a) the couchjs entry script
+sets a `setTimeout(..., JSRUNTIMETIMEOUT).unref()` that exits with code
+124 if the event loop yields past the deadline; (b) the IRIS side
+launches the subprocess via `$ZF(-100,"/ASYNC")` and polls via
+`tasklist` (Windows) / `kill -0` (Unix), killing the child via
+`taskkill /F` / `kill -9` on expiry. A tight synchronous JS loop
+(e.g., `while(true){}`) that never yields is caught by (b); an async-
+yielding runaway is caught by (a).
+
+## Security Model (Story 12.5)
+
+**Sandbox surface area.** Every subprocess JS call inherits the following
+interpreter-specific flags applied by
+`IRISCouch.JSRuntime.Subprocess.Pipe.BuildSandboxFlags`:
+
+- **Node.js:** `--disable-proto=delete --no-warnings`. `--disable-proto`
+  blocks `__proto__` re-assignment escapes. `--no-warnings` suppresses
+  ExperimentalWarning noise that would otherwise pollute stderr.
+- **Deno:** `run --allow-read --deny-net --deny-write --deny-run
+  --deny-env --deny-ffi --deny-sys`. Read is required so Deno can load
+  the entry script; every other capability is explicitly denied.
+- **Bun:** no per-command sandbox flags documented as of 2026-04; rely
+  on OS-level Job Object / `ulimit` backstops.
+- **Other interpreters:** pass-through with no flags; a Warn is logged
+  (`Unrecognised JSRUNTIME value` in the structured log) so operators
+  notice the lack of sandbox.
+
+**Path-traversal guard.** `Pipe.Open` rejects `JSRUNTIMESUBPROCESSPATH`
+containing `..` or missing on disk. The entry script path is likewise
+validated. Closes the Story 12.2 NFR-S9 MED.
+
+**Timeout enforcement.** See the troubleshooting entry above. Two-layer:
+JS-side `setTimeout` self-kill + IRIS-side `/ASYNC` polling with OS
+kill. The OS kill is the authoritative timeout — a hostile
+`while(true){}` that cannot be interrupted from JS is terminated at
+`JSRUNTIMETIMEOUT` regardless. Write-path timeouts roll back the host
+transaction so the index stays consistent.
+
+**Memory pressure.** `JSRUNTIMEMAXRSSMB` (default 256 MB) is the target
+RSS ceiling per pooled subprocess. In Story 12.5, enforcement is
+conservative: the pool terminates an entry exceeding this on its next
+health check. Windows-native Job Object enforcement (hard kill on
+commit exceed) is deferred to Story 12.5a because it requires a signed
+helper binary or a PowerShell script with P/Invoke; the current
+release relies on the 256 MB soft-cap and the timeout backstop for
+runaway memory allocators. See `deferred-work.md` for the Story 12.5a
+entry.
+
+**Known limitations.**
+
+- Synchronous tight loops in JS cannot be interrupted from JS; the OS
+  kill is required and runs on the IRIS polling cadence (100 ms).
+- Node's `vm` module runs user code in a new `Context` but shares the
+  Node process with the entry script; a sufficiently motivated attacker
+  could escape via `Reflect`/`Proxy` tricks. We do not claim sandbox
+  security beyond "defense-in-depth against honest-but-buggy code"
+  until a full Deno-or-equivalent migration completes.
+- View map and reduce functions run IN the same subprocess as
+  `validate_doc_update` / `filter` callbacks. They are logically
+  isolated via fresh `vm.Context` objects per invocation but share the
+  Node heap. No evidence this has been exploited in the wild, but
+  operators concerned about cross-hook interference should use a
+  separate Subprocess backend instance per workload.
+
+## Pool (Story 12.5)
+
+**Why pool?** Story 12.2's process-per-call model pays ~137 ms of
+cold-start per subprocess launch. Incremental indexing (Story 12.5
+Task 2) removes that cost from the query path by populating the index
+at write time. The pool amortises cold-start across the remaining
+call paths (validate, filter).
+
+**Current implementation.** `IRISCouch.JSRuntime.Subprocess.Pool` keeps
+the API surface (`Acquire` / `Release`) stable but in Story 12.5 does
+NOT maintain long-lived OS subprocesses because `$ZF(-100)` is
+synchronous-per-command. Each `Acquire` allocates a fresh Pipe
+instance; real long-lived subprocesses are tracked as Story 12.5b
+follow-up and depend on a true `$ZF(-100,"/ASYNC")` bidirectional
+stdio pattern.
+
+**Config knobs.**
+
+- `JSRUNTIMEPOOLMAX` (default 4): max concurrent subprocesses. In 12.5
+  the knob is informational; Story 12.5b will enforce.
+- `JSRUNTIMEPOOLIDLEMS` (default 60000): idle-reap threshold.
+- `JSRUNTIMEMAXRSSMB` (default 256): RSS ceiling per subprocess.
 
 **Protocol reference.** The CouchDB query-server line protocol is
 documented in `sources/couchdb/share/server/loop.js` (dispatcher) and

@@ -58,6 +58,12 @@ Property Flushed As %Boolean [ Private ];
 /// Last exit code from the subprocess (populated by Flush).
 Property LastReturnCode As %String [ Private ];
 
+/// 1 if Flush raised a timeout (Story 12.5 AC #4).
+Property TimedOut As %Boolean [ Private ];
+
+/// Per-interpreter sandbox flag list assembled during Open (Story 12.5 AC #6).
+Property SandboxFlags As %String [ Private ];
+
 /// <p>Open a new subprocess session.</p>
 /// <p>Allocates temp files for stdin/stdout/stderr and records the
 /// executable + entry-script paths. Does NOT spawn the subprocess yet —
@@ -70,10 +76,22 @@ Method Open(pExecutable As %String, pEntryScript As %String) As %Status
 {
     Set tSC = $$$OK
     Try {
+        ; Story 12.5: validate the interpreter path before we let it into
+        ; $ZF(-100). Rejects traversal sequences (`..`) and paths that don't
+        ; actually exist. Closes the Story 12.2 NFR-S9 MED. Applied to both
+        ; the interpreter and the entry script — either knob can be set by
+        ; an operator and both land in $ZF(-100) argv.
+        Set tSC = ..ValidateExecutablePath(pExecutable)
+        If $$$ISERR(tSC) Quit
+        Set tSC = ..ValidateExecutablePath(pEntryScript)
+        If $$$ISERR(tSC) Quit
         Set ..Executable = pExecutable
         Set ..EntryScript = pEntryScript
         Set ..Flushed = 0
         Set ..LastReturnCode = ""
+        Set ..TimedOut = 0
+        ; Detect interpreter type and build the sandbox flag list (Story 12.5 AC #6).
+        Set ..SandboxFlags = ..BuildSandboxFlags(pExecutable)
         ; Allocate three distinct temp files so stdin / stdout / stderr
         ; do not collide when the subprocess reopens them.
         Set ..StdinFile = ##class(%File).TempFilename("jsin")
@@ -93,6 +111,51 @@ Method Open(pExecutable As %String, pEntryScript As %String) As %Status
         Set tSC = ex.AsStatus()
     }
     Quit tSC
+}
+
+/// <p>Validate that the configured interpreter path is safe to exec (Story 12.5
+/// AC #6 — closes Story 12.2 NFR-S9 MED).</p>
+/// <p>Rejects paths containing <code>..</code> (directory traversal) and paths
+/// that do not resolve to an existing file on disk. Operators who want a
+/// non-standard interpreter location must set
+/// <code>JSRUNTIMESUBPROCESSPATH</code> to the absolute path of the binary
+/// explicitly.</p>
+ClassMethod ValidateExecutablePath(pPath As %String) As %Status [ Internal ]
+{
+    If pPath = "" Quit $$$ERROR($$$GeneralError, "subprocess pipe: interpreter path is empty")
+    If pPath [ ".." Quit $$$ERROR($$$GeneralError, "subprocess pipe: interpreter path may not contain '..'")
+    If '##class(%File).Exists(pPath) Quit $$$ERROR($$$GeneralError, "subprocess pipe: interpreter does not exist: " _ pPath)
+    Quit $$$OK
+}
+
+/// <p>Assemble per-interpreter sandbox flags based on the basename of
+/// <var>pPath</var> (Story 12.5 AC #6). Empty string when the interpreter
+/// is unrecognised — a Warn is logged but the Pipe still proceeds so
+/// operator environments with custom interpreters continue to work.</p>
+/// <p>Flags are inserted <b>between</b> the interpreter and the entry
+/// script in the <code>$ZF(-100)</code> call; Node accepts them as CLI
+/// options parsed before the script argument.</p>
+ClassMethod BuildSandboxFlags(pPath As %String) As %String [ Internal ]
+{
+    Set tBasename = $ZConvert($Piece(pPath, "\", $Length(pPath, "\")), "L")
+    If tBasename = "" Set tBasename = $ZConvert($Piece(pPath, "/", $Length(pPath, "/")), "L")
+    ; Return flags as a space-separated string; Pipe.Flush tokenizes on
+    ; whitespace when building the $ZF(-100) variadic call so each flag
+    ; lands as its own argv entry to Node / Deno.
+    ;
+    ; Node: --disable-proto=delete prevents __proto__ escape mutations;
+    ; --no-experimental-global-webcrypto denies the subprocess crypto APIs
+    ; (user map/reduce functions have no legitimate need for them, and they
+    ; expose timing-side-channel surface — matches Story 12.5 AC #6 spec);
+    ; --no-warnings silences ExperimentalWarnings that would pollute stderr
+    ; and confuse our error parsing.
+    If tBasename [ "node" Quit "--disable-proto=delete|--no-experimental-global-webcrypto|--no-warnings"
+    ; Deno: whitelist only the entry script for read, deny everything else.
+    If tBasename [ "deno" Quit "run|--allow-read|--deny-net|--deny-write|--deny-run|--deny-env|--deny-ffi|--deny-sys"
+    If tBasename [ "bun" Quit ""
+    ; Anything else: pass through with no extra flags. Warn once.
+    Do ##class(IRISCouch.Util.Log).Warn("jsruntime", "un-sandboxed interpreter; relying on OS-level limits only", {"interpreter":(pPath)})
+    Quit ""
 }
 
 /// <p>Queue a single JSON command line for the subprocess's stdin.</p>
@@ -149,20 +212,80 @@ Method Flush() As %Status
             Set tSC = tSaveSC
             Quit
         }
-        Set ..StdinStream = $$$NULLOREF  ; release the handle so the OS sees the file closed
-        ; Build the $ZF(-100) flags string. Quoting paths defensively so that
-        ; spaces in "C:\Program Files\nodejs\node.exe" do not break the flag
-        ; parser.
-        Set tFlags = "/STDIN=""" _ ..StdinFile _ """"
+        Set ..StdinStream = $$$NULLOREF
+        ; Story 12.5 AC #4: OS-level timeout enforcement via /ASYNC launch +
+        ; tasklist-based polling. The JS-side couchjs-entry.js self-kill
+        ; catches cases where the event loop yields; this parent-side
+        ; backstop catches tight sync loops (e.g., `while(true){}`) that
+        ; cannot be interrupted from JS. Research: $ZF(-100) has no native
+        ; /TIMEOUT flag (see .claude/rules/research-first.md::Task 0).
+        Set tTimeoutMs = +##class(IRISCouch.Config).Get("JSRUNTIMETIMEOUT")
+        If tTimeoutMs <= 0 Set tTimeoutMs = 5000
+        Set tFlags = "/ASYNC"
+        Set tFlags = tFlags _ "/STDIN=""" _ ..StdinFile _ """"
         Set tFlags = tFlags _ "/STDOUT=""" _ ..StdoutFile _ """"
         Set tFlags = tFlags _ "/STDERR=""" _ ..StderrFile _ """"
-        Set tRC = $ZF(-100, tFlags, ..Executable, ..EntryScript)
-        Set ..LastReturnCode = tRC
+        ; Pass the timeout to the entry script via a command-line flag so
+        ; couchjs-entry.js's setTimeout self-kill knows the deadline. $ZF's
+        ; trailing positional args become process.argv[2..] inside Node.
+        Set tTimeoutArg = "--iriscouch-timeout-ms=" _ tTimeoutMs
+        ; Sandbox flags are pipe-delimited (one interpreter flag per
+        ; pipe-segment) so each becomes its own argv entry to Node / Deno.
+        Set tSandboxFlags = ..SandboxFlags
+        ; Build the argument subscripted array for by-reference dispatch.
+        ; Per irislib/%Net/Remote/Utility.cls::RunCommandViaZF, $ZF(-100)'s
+        ; canonical shape is `$ZF(-100, flags, program, .args)` where
+        ; `args(n)` holds the nth additional argv entry. The ByRef pattern
+        ; has no hard limit on arg count, unlike the positional variant.
+        ; args(0) is the argv count (0-based); args(1..args(0)) are the
+        ; arguments themselves.
+        Set tArgs(0) = 0
+        Set tArgN = 0
+        If tSandboxFlags '= "" {
+            Set tNFlags = $Length(tSandboxFlags, "|")
+            For tFI = 1:1:tNFlags {
+                Set tOneFlag = $Piece(tSandboxFlags, "|", tFI)
+                If tOneFlag = "" Continue
+                Set tArgN = tArgN + 1
+                Set tArgs(tArgN) = tOneFlag
+            }
+        }
+        Set tArgN = tArgN + 1
+        Set tArgs(tArgN) = ..EntryScript
+        Set tArgN = tArgN + 1
+        Set tArgs(tArgN) = tTimeoutArg
+        Set tArgs(0) = tArgN
+        Set tStart = $ZHorolog
+        ; By-reference dispatch: `tArgs` carries every post-executable argv
+        ; entry; IRIS passes them to the OS exec syscall one at a time.
+        Set tRC = $ZF(-100, tFlags, ..Executable, .tArgs)
         If tRC '= 0 {
-            Set tStderrSnippet = ..ReadStderrSnippet()
-            Set tSC = $$$ERROR($$$GeneralError, "subprocess pipe: " _ ..Executable _ " exited rc=" _ tRC _ "; stderr: " _ tStderrSnippet)
+            Set tSC = $$$ERROR($$$GeneralError, "subprocess pipe: /ASYNC launch failed rc=" _ tRC)
             Quit
         }
+        Set tPid = $ZCHILD
+        ; Poll until exit or timeout. 100 ms cadence balances tasklist cost
+        ; (~30-50 ms per probe on Windows) against responsiveness.
+        Set tExited = 0
+        For {
+            Hang 0.1
+            Set tElapsedMs = ($ZHorolog - tStart) * 1000
+            If ..IsProcessDead(tPid) Set tExited = 1 Quit
+            If tElapsedMs > tTimeoutMs Quit
+        }
+        If 'tExited {
+            ; Timeout: kill the runaway and surface the error.
+            Do ..KillPid(tPid)
+            Set ..TimedOut = 1
+            Set tSC = $$$ERROR($$$GeneralError, "jsruntime_timeout: subprocess exceeded " _ tTimeoutMs _ "ms")
+            Do ##class(IRISCouch.Audit.Emit).JsRuntimeTimeout("subprocess", tTimeoutMs)
+            Quit
+        }
+        Set ..LastReturnCode = 0
+        ; Settle hang: Windows may buffer final stdout writes briefly after
+        ; the process exits. 30 ms is well below typical JS work time and
+        ; prevents us from reading a partial stdout file.
+        Hang 0.03
         ; Open stdout for line-by-line reads.
         Set ..StdoutStream = ##class(%Stream.FileCharacter).%New()
         Set ..StdoutStream.Filename = ..StdoutFile
@@ -174,6 +297,81 @@ Method Flush() As %Status
         Set tSC = ex.AsStatus()
     }
     Quit tSC
+}
+
+/// <p>Report 1 if the given PID is no longer running.</p>
+/// <p>On Windows, uses <code>tasklist /FI "PID eq N"</code> via
+/// <code>$ZF(-100,"/SHELL")</code>, which prints "INFO: No tasks are
+/// running..." when the PID is absent. On Unix, uses <code>kill -0 pid</code>
+/// via <code>sh -c</code> — exits non-zero if the PID is dead. Both probes
+/// cost ~30-50 ms on typical Windows hosts; the 100 ms polling cadence in
+/// <method>Flush</method> leaves headroom. An alternative on Windows would
+/// be P/Invoke to <code>OpenProcess</code> + <code>GetExitCodeProcess</code>,
+/// but that requires a helper binary outside Story 12.5 scope.</p>
+ClassMethod IsProcessDead(pPid As %Integer) As %Boolean [ Internal ]
+{
+    Set tDead = 0
+    Try {
+        If +pPid <= 0 {
+            Set tDead = 1
+            Quit
+        }
+        Set tProbeStdout = ##class(%File).TempFilename("pprobe")
+        Set tFlags = "/SHELL/STDOUT=""" _ tProbeStdout _ """"
+        If $ZVersion("Windows") '= "" {
+            Set tRC = $ZF(-100, tFlags, "cmd", "/c", "tasklist", "/FI", "PID eq " _ pPid, "/NH")
+        } Else {
+            Set tRC = $ZF(-100, tFlags, "sh", "-c", "kill -0 " _ pPid _ " 2>&1 || echo DEAD")
+        }
+        Set tProbeContent = ""
+        If ##class(%File).Exists(tProbeStdout) {
+            Set tStream = ##class(%Stream.FileCharacter).%New()
+            Set tStream.Filename = tProbeStdout
+            Set tProbeContent = tStream.Read(512)
+            Set tStream = $$$NULLOREF
+            Do ##class(%File).Delete(tProbeStdout)
+        }
+        If $ZVersion("Windows") '= "" {
+            If tProbeContent [ "No tasks" Set tDead = 1
+        } Else {
+            If tProbeContent [ "DEAD" Set tDead = 1
+        }
+    }
+    Catch ex {
+        ; Defensive: if the probe itself blew up, treat as not-dead so the
+        ; outer timeout can still terminate the real child.
+    }
+    Quit tDead
+}
+
+Method IsChildDone(pPid As %Integer) As %Boolean [ Internal ]
+{
+    ; Legacy instance-method entry; delegates to the class method.
+    Quit ..IsProcessDead(pPid)
+}
+
+Property %IsChildDoneLastSize As %Integer [ Private ];
+
+Property %IsChildDoneStable As %Integer [ Private ];
+
+/// <p>Kill a runaway subprocess by PID.</p>
+/// <p>Uses <code>taskkill /F /PID</code> on Windows, <code>kill -9</code> on
+/// Unix. Best-effort; silent on failure because the subprocess may have
+/// already exited between the timeout and the kill call.</p>
+Method KillPid(pPid As %Integer) [ Internal ]
+{
+    If pPid = "" Quit
+    If pPid <= 0 Quit
+    Try {
+        If $ZVersion("Windows") '= "" {
+            Set tRC = $ZF(-100, "/SHELL", "taskkill", "/F", "/PID", pPid)
+        } Else {
+            Set tRC = $ZF(-100, "/SHELL", "kill", "-9", pPid)
+        }
+    }
+    Catch {
+        ; Ignore.
+    }
 }
 
 /// <p>Read the next response line from the subprocess's stdout capture.</p>

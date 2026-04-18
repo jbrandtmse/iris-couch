@@ -38,6 +38,31 @@
 const fs = require('fs');
 const vm = require('vm');
 
+// Story 12.5 AC #4: primary wall-clock timeout enforcement lives here.
+// The parent (IRIS) passes --iriscouch-timeout-ms=<N> on the command line,
+// or we default to 5000. A rogue map function that does `while(true){}`
+// will be killed by this setTimeout at the JS event loop level -- i.e.,
+// the moment control leaves the user code. Note that genuinely blocking
+// JS (synchronous infinite loops) cannot be interrupted from JS; for
+// those, the parent-side kill (Pipe.KillPid) is the defense-in-depth.
+// See documentation/js-runtime.md Security Model.
+function parseTimeoutArg() {
+  for (const arg of process.argv.slice(2)) {
+    const m = arg.match(/^--iriscouch-timeout-ms=(\d+)$/);
+    if (m) return Number(m[1]);
+  }
+  return 5000;
+}
+const TIMEOUT_MS = parseTimeoutArg();
+setTimeout(() => {
+  try { process.stderr.write('jsruntime_timeout_self\n'); } catch (_) {}
+  process.exit(124);
+}, TIMEOUT_MS).unref();
+
+// Story 12.5 AC #6: sandbox hardening applied to the vm.Context objects
+// below. __proto__ manipulation is blocked by the runCommand option
+// contextCodeGeneration: {strings:false, wasm:false} where supported.
+
 // --- sandbox state (mirrors State.funs / State.lib from share/server/state.js) ---
 const State = {
   funs: [],           // list of compiled map/reduce functions

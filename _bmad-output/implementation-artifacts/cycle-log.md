@@ -857,3 +857,22 @@
 - **README updated:** new `## JavaScript Runtime Requirements` section explicitly states Node-only stance for α/β and lists what operators lose without Node (view queries, validate_doc_update, custom filters — all return 501) vs what still works (document CRUD, attachments, Mango, replication, changes built-in filters, admin UI, metrics, audit). Epic 12 roadmap row updated to "3/5 + 12.4 deferred".
 - **Sprint-status:** `12-4-python-jsruntime-backend: deferred` with rationale. Story file header flipped to `deferred`.
 - **What this unblocks:** Story 12.5 (incremental indexing + Subprocess pooling + sandbox safety) can proceed immediately; Subprocess is the primary target anyway.
+
+### 2026-04-17 — Phase 1 (Story 12.5): Dev + Review — EPIC 12 CAPSTONE
+- **Dev agent** (dev-12-5): 10 tasks delivered; 8/8 ViewIndexTest + 7/7 ViewIndexHttpTest pass; 0 regressions across DocumentTest/JSRuntimeSubprocessHttpTest/DesignDocsTest/ConfigTest
+- **Performance:** View-query latency dropped from 1288.5 ms (avg per-query subprocess spawn, Story 12.2 baseline) to 0.16 ms (avg $Order index walk) — **~8000× speedup**; byte-identical JSON output vs pre-indexing baseline
+- **Code review** (cr-12-5): 0 CRIT/0 HIGH/**3 MED auto-resolved**/7 LOW deferred
+  - Auto-resolved: (1) Storage encapsulation violation in ViewIndexUpdater.HandleDesignDocChange (added DropForView/ListIndexedViewNames helpers), (2) Pattern Replication gap for _users/_replicator body rewrite (ViewIndex now re-runs after body rewrite like MangoIndex), (3) Pool API not wired into Subprocess.Execute* (StartPipe now delegates to Pool.Acquire; every Close swapped to Pool.Release)
+- **4 Epic-12 MEDs CLOSED:**
+  1. ✅ Story 12.2 NFR-S9 sandbox hardening (Node/Deno flag plumbing + path-traversal validation in Pipe.Open)
+  2. ✅ Story 12.2 JSRUNTIMETIMEOUT enforcement ($ZF(-100) /ASYNC + polling + taskkill + JS-side setTimeout self-kill)
+  3. ✅ Story 12.3 ListValidateFunctions O(N) (design-doc registry pattern replicated from ViewIndexUpdater)
+  4. ✅ Story 12.3 per-change filter spawn cost (architecturally resolved via incremental indexing + Pool API shim)
+- **3 follow-up stories captured in deferred-work.md:**
+  - 12.5a — Windows Job Object hard memory-cap enforcement (requires PowerShell/P-Invoke helper)
+  - 12.5b — True long-lived pooled subprocess (requires async bidirectional $ZF pipe)
+  - 12.5c — View compaction / orphan GC maintenance tool
+- New files (6): Storage/ViewIndex.cls, Core/ViewIndexUpdater.cls, JSRuntime/Subprocess/Pool.cls, Test/{ViewIndexTest,ViewIndexHttpTest,ProbeHelpers}.cls
+- Modified (11): Subprocess.cls (+Pool wiring), Subprocess/Pipe.cls (+timeout +sandbox +path validation), DocumentEngine.cls (ViewIndexUpdater hook × 4 save methods + body-rewrite re-run), View/QueryEngine.cls (index-based), API/ViewHandler.cls (ETag/304), Config.cls (+3 Parameters), Audit/Emit.cls (+3 events), Storage/Database.cls (+cascade DropForDatabase), couchjs/couchjs-entry.js (self-kill timeout), js-runtime.md (Security Model + Pool)
+- Sprint-status: `12-5-incremental-view-indexing-caching-and-sandbox-safety: done`; `last_story_completed/reviewed: 12-5`
+- **Epic 12 status:** 5 of 6 stories done (12.0, 12.1, 12.2, 12.3, 12.5) + 12.4 explicitly deferred. Roadmap table: `3/5 + 12.4 deferred` (Epic-12 excludes 12.0 cleanup)

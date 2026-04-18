@@ -72,7 +72,7 @@ ClassMethod EnsureEvents() As %Status
     Set tOrigNS = $Namespace
     Try {
         Set $Namespace = "%SYS"
-        Set tTypes = "DocWrite,DocDelete,AuthSuccess,AuthFailure,SecurityChange,UserWrite,ReplicationStart,ReplicationComplete,ViewAttempt,ViewExecute,ViewError,ValidateReject,ValidateApprove,FilterExecute"
+        Set tTypes = "DocWrite,DocDelete,AuthSuccess,AuthFailure,SecurityChange,UserWrite,ReplicationStart,ReplicationComplete,ViewAttempt,ViewExecute,ViewError,ValidateReject,ValidateApprove,FilterExecute,ViewIndexRebuild,JsRuntimeTimeout,SubprocessRestart"
         For tI = 1:1:$Length(tTypes, ",") {
             Set tType = $Piece(tTypes, ",", tI)
             If '##class(Security.Events).Exists("IRISCouch", tType, tType) {
@@ -274,6 +274,48 @@ ClassMethod FilterExecute(pDB As %String, pDDocId As %String, pFilterName As %St
     Set tExtra.changesOut = pChangesOut
     Set tExtra.durationMs = pDurationMs
     Do ..Emit("FilterExecute", pDB, pDDocId, "", pUser, tExtra)
+}
+
+/// <p>Emit a ViewIndexRebuild audit event when a view's index is rebuilt
+/// (Story 12.5). Fires on migration and on view-source-change invalidation.</p>
+/// @param pDB The database name
+/// @param pDDocId The design document id
+/// @param pViewName The view name
+/// @param pUser The user who triggered the rebuild (optional)
+ClassMethod ViewIndexRebuild(pDB As %String, pDDocId As %String, pViewName As %String, pUser As %String = "")
+{
+    Set tExtra = {}
+    Set tExtra.view = pViewName
+    Do ..Emit("ViewIndexRebuild", pDB, pDDocId, "", pUser, tExtra)
+}
+
+/// <p>Emit a JsRuntimeTimeout audit event when a user JS function is killed
+/// for exceeding <code>JSRUNTIMETIMEOUT</code> (Story 12.5 AC #4).</p>
+/// @param pSubsystem "map", "reduce", "validate_doc_update", "filter"
+/// @param pTimeoutMs The configured wall-clock cap that was exceeded
+/// @param pDB The database name (if known)
+/// @param pDDocId The design doc (if known)
+/// @param pUser The user identity (optional)
+ClassMethod JsRuntimeTimeout(pSubsystem As %String, pTimeoutMs As %Integer, pDB As %String = "", pDDocId As %String = "", pUser As %String = "")
+{
+    Set tExtra = {}
+    Set tExtra.subsystem = pSubsystem
+    Set tExtra.timeoutMs = pTimeoutMs
+    Do ..Emit("JsRuntimeTimeout", pDB, pDDocId, "", pUser, tExtra)
+}
+
+/// <p>Emit a SubprocessRestart audit event when a pooled JS subprocess is
+/// terminated due to memory pressure or health check failure (Story 12.5
+/// AC #5 / AC #7).</p>
+/// @param pReason "rss_exceeded", "health_check_failed", "idle_reap", "shutdown"
+/// @param pRssMb Observed RSS in MB at termination (0 if not measured)
+/// @param pUser The user identity (optional)
+ClassMethod SubprocessRestart(pReason As %String, pRssMb As %Integer = 0, pUser As %String = "")
+{
+    Set tExtra = {}
+    Set tExtra.reason = pReason
+    Set tExtra.rssMb = pRssMb
+    Do ..Emit("SubprocessRestart", "", "", "", pUser, tExtra)
 }
 
 /// <p>Emit a ViewError audit event on view execution failure (Story 12.2).</p>

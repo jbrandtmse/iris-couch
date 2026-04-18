@@ -90,6 +90,19 @@ ClassMethod HandleView(pDB As %String, pDDocId As %String, pViewName As %String)
             Do ##class(IRISCouch.Util.Error).Render501(tSubsystem, tReason)
             Quit
         }
+        ; 5b) Story 12.5: ETag / 304 short-circuit. Compute the current ETag
+        ;     from the view's last-updated seq + definition hash; if the
+        ;     client's If-None-Match matches, return 304 with no body.
+        Set tCurrentEtag = ..ComputeEtag(pDB, pDDocId, pViewName, tDDocObj)
+        Set tIfNoneMatch = ""
+        Try { Set tIfNoneMatch = %request.GetCgiEnv("HTTP_IF_NONE_MATCH") } Catch { Set tIfNoneMatch = "" }
+        If (tCurrentEtag '= "") && (tIfNoneMatch '= "") && (tIfNoneMatch = tCurrentEtag) {
+            Do ##class(IRISCouch.Audit.Emit).ViewAttempt(pDB, pDDocId, pViewName, 304)
+            Do %response.SetHeader("ETag", tCurrentEtag)
+            Do %response.SetHeader("Cache-Control", "must-revalidate")
+            Set %response.Status = "304 Not Modified"
+            Quit
+        }
         ; 6) Story 12.2: delegate to the QueryEngine for real map/reduce.
         Set tParams = ..ExtractQueryParams()
         Set tStartTicks = $ZHorolog
@@ -133,11 +146,14 @@ ClassMethod HandleView(pDB As %String, pDDocId As %String, pViewName As %String)
             }
             Do ##class(IRISCouch.Audit.Emit).ViewAttempt(pDB, pDDocId, pViewName, 200)
             Do ##class(IRISCouch.Audit.Emit).ViewExecute(pDB, pDDocId, pViewName, tRowCount, tDuration)
-            ; Reserve ETag / Last-Update-Seq header names so Story 12.5's
-            ; ETag-based 304 handling is a pure additive. Empty values are
-            ; intentional today.
-            Do %response.SetHeader("ETag", "")
-            Do %response.SetHeader("X-CouchDB-Last-Update-Seq", "")
+            ; Story 12.5: emit ETag + last-update-seq headers so clients can
+            ; conditional-GET on the next request. The ETag may have moved
+            ; during the Rebuild path (cold cache) -- recompute to reflect
+            ; the post-query state.
+            Set tPostEtag = ..ComputeEtag(pDB, pDDocId, pViewName, tDDocObj)
+            Do %response.SetHeader("ETag", tPostEtag)
+            Do %response.SetHeader("Cache-Control", "must-revalidate")
+            Do %response.SetHeader("X-CouchDB-Last-Update-Seq", ##class(IRISCouch.Storage.ViewIndex).GetLastUpdatedSeq(pDB, pDDocId, pViewName))
             Do ##class(IRISCouch.Util.Response).JSON(tResp)
         }
         Quit
@@ -147,6 +163,43 @@ ClassMethod HandleView(pDB As %String, pDDocId As %String, pViewName As %String)
         Quit
     }
     Quit $$$OK
+}
+
+/// <p>Compute the weak ETag for a view in its current state (Story 12.5).</p>
+/// <p>Shape: <code>W/"&lt;seq&gt;-&lt;hash-first-12&gt;"</code>. Both components
+/// come from <class>IRISCouch.Storage.ViewIndex</class>. On a cold cache
+/// (first query after install or after an invalidation), the cached hash
+/// is empty -- we fall back to the live-computed hash so the ETag is still
+/// meaningful. Returns an empty string if the view definition cannot be
+/// read (caller suppresses the header).</p>
+/// @param pDB Database name
+/// @param pDDocId Composite design doc id
+/// @param pViewName View name
+/// @param pDDocObj Parsed design-doc body (already loaded upstream)
+/// @return %String The W/"..." ETag, or empty on failure
+ClassMethod ComputeEtag(pDB As %String, pDDocId As %String, pViewName As %String, pDDocObj As %DynamicObject) As %String [ Internal ]
+{
+    Set tEtag = ""
+    Try {
+        Set tSeq = ##class(IRISCouch.Storage.ViewIndex).GetLastUpdatedSeq(pDB, pDDocId, pViewName)
+        Set tHash = ##class(IRISCouch.Storage.ViewIndex).GetViewDefinitionHash(pDB, pDDocId, pViewName)
+        If tHash = "" {
+            ; Cold cache -- compute live from the design doc.
+            Set tViews = pDDocObj.%Get("views")
+            If $IsObject(tViews) && tViews.%IsDefined(pViewName) {
+                Set tViewDef = tViews.%Get(pViewName)
+                Set tMap = tViewDef.%Get("map")
+                Set tReduce = $Select(tViewDef.%IsDefined("reduce"): tViewDef.%Get("reduce"), 1: "")
+                Set tHash = ##class(IRISCouch.Storage.ViewIndex).ViewDefinitionHash(tMap, tReduce)
+            }
+        }
+        If tHash = "" Quit
+        Set tEtag = "W/""" _ tSeq _ "-" _ $Extract(tHash, 1, 12) _ """"
+    }
+    Catch ex {
+        Set tEtag = ""
+    }
+    Quit tEtag
 }
 
 /// <p>Extract the query parameters supported by Story 12.2 into a

@@ -53,8 +53,24 @@ Parameter JSRUNTIME = "None";
 /// <p>Path to the JavaScript subprocess executable</p>
 Parameter JSRUNTIMESUBPROCESSPATH = "";
 
-/// <p>Timeout in milliseconds for JavaScript runtime execution</p>
+/// <p>Timeout in milliseconds for JavaScript runtime execution (AC #4).
+/// Enforced in-process by <code>couchjs-entry.js</code> via a setTimeout
+/// self-kill, with an OS-level taskkill backstop in
+/// <class>IRISCouch.JSRuntime.Subprocess.Pipe</class>.</p>
 Parameter JSRUNTIMETIMEOUT = 5000;
+
+/// <p>Max resident-set-size (MB) per pooled subprocess before restart
+/// (Story 12.5 AC #5).</p>
+Parameter JSRUNTIMEMAXRSSMB = 256;
+
+/// <p>Maximum concurrent pooled subprocesses (Story 12.5 AC #7). Subsequent
+/// callers wait on a per-pool <class>%SYSTEM.Event</class> until a slot is
+/// freed via <method>Pool.Release</method>.</p>
+Parameter JSRUNTIMEPOOLMAX = 4;
+
+/// <p>Idle-reap threshold (ms) for pooled subprocesses (Story 12.5 AC #7).
+/// A pool entry untouched for longer is closed on the next Acquire call.</p>
+Parameter JSRUNTIMEPOOLIDLEMS = 60000;
 
 /// <p>Whether metrics collection is enabled (1=yes, 0=no)</p>
 Parameter METRICSENABLED = 1;
@@ -132,6 +148,9 @@ ClassMethod GetAll() As %DynamicObject
     Set tResult.JSRUNTIME = ..Get("JSRUNTIME")
     Set tResult.JSRUNTIMESUBPROCESSPATH = ..Get("JSRUNTIMESUBPROCESSPATH")
     Set tResult.JSRUNTIMETIMEOUT = ..Get("JSRUNTIMETIMEOUT")
+    Set tResult.JSRUNTIMEMAXRSSMB = ..Get("JSRUNTIMEMAXRSSMB")
+    Set tResult.JSRUNTIMEPOOLMAX = ..Get("JSRUNTIMEPOOLMAX")
+    Set tResult.JSRUNTIMEPOOLIDLEMS = ..Get("JSRUNTIMEPOOLIDLEMS")
     Set tResult.METRICSENABLED = ..Get("METRICSENABLED")
     Set tResult.REVSLIMITDEFAULT = ..Get("REVSLIMITDEFAULT")
     Set tResult.WEBAPPPATH = ..Get("WEBAPPPATH")

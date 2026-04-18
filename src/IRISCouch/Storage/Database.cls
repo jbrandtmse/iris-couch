@@ -75,6 +75,9 @@ ClassMethod Delete(pName As %String) As %Status
         If $$$ISERR(tSC2) Set tErrors = tErrors _ "MangoIndex cleanup failed; "
         Set tSC2 = ##class(IRISCouch.Projection.MangoIndexDef).DeleteAll(pName)
         If $$$ISERR(tSC2) Set tErrors = tErrors _ "MangoIndexDef cleanup failed; "
+        ; Clean up view index data (Story 12.5)
+        Set tSC2 = ##class(IRISCouch.Storage.ViewIndex).DropForDatabase(pName)
+        If $$$ISERR(tSC2) Set tErrors = tErrors _ "ViewIndex cleanup failed; "
         ; Clean up security configuration (Story 7.4)
         ; Auth.Security.Delete has no return value (Kill global only), use Do
         Do ##class(IRISCouch.Auth.Security).Delete(pName)

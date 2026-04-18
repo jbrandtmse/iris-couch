@@ -123,10 +123,10 @@ Method ExecuteMap(pMapFn As %String, pDoc As %DynamicObject) As %DynamicArray
         }
     }
     Catch ex {
-        If $IsObject(tPipe) Do tPipe.Close()
+        If $IsObject(tPipe) Do ##class(IRISCouch.JSRuntime.Subprocess.Pool).Release(tPipe)
         Throw ex
     }
-    If $IsObject(tPipe) Do tPipe.Close()
+    If $IsObject(tPipe) Do ##class(IRISCouch.JSRuntime.Subprocess.Pool).Release(tPipe)
     Quit tResult
 }
 
@@ -179,10 +179,10 @@ Method ExecuteReduce(pReduceFn As %String, pKeys As %DynamicArray, pValues As %D
         Do tResult.%Set("value", tReduced)
     }
     Catch ex {
-        If $IsObject(tPipe) Do tPipe.Close()
+        If $IsObject(tPipe) Do ##class(IRISCouch.JSRuntime.Subprocess.Pool).Release(tPipe)
         Throw ex
     }
-    If $IsObject(tPipe) Do tPipe.Close()
+    If $IsObject(tPipe) Do ##class(IRISCouch.JSRuntime.Subprocess.Pool).Release(tPipe)
     Quit tResult
 }
 
@@ -283,7 +283,7 @@ Method ExecuteValidateDocUpdate(pValidateFn As %String, pNewDoc As %DynamicObjec
         Set tSC = ex.AsStatus()
         Quit
     }
-    If $IsObject(tPipe) Do tPipe.Close()
+    If $IsObject(tPipe) Do ##class(IRISCouch.JSRuntime.Subprocess.Pool).Release(tPipe)
     Quit tSC
 }
 
@@ -353,10 +353,10 @@ Method ExecuteFilter(pFilterFn As %String, pDoc As %DynamicObject, pReq As %Dyna
         Set tInclude = $Select(tBool: 1, 1: 0)
     }
     Catch ex {
-        If $IsObject(tPipe) Do tPipe.Close()
+        If $IsObject(tPipe) Do ##class(IRISCouch.JSRuntime.Subprocess.Pool).Release(tPipe)
         Throw ex
     }
-    If $IsObject(tPipe) Do tPipe.Close()
+    If $IsObject(tPipe) Do ##class(IRISCouch.JSRuntime.Subprocess.Pool).Release(tPipe)
     Quit tInclude
 }
 
@@ -423,6 +423,13 @@ ClassMethod EncodeFilterInvoke(pDDocId As %String, pDoc As %DynamicObject, pReq 
 
 /// <p>Allocate and open a new Pipe instance pointing at the configured
 /// interpreter and entry script.</p>
+/// <p>Story 12.5 AC #7: delegates to <method>IRISCouch.JSRuntime.Subprocess.Pool.Acquire</method>
+/// so every execute path goes through the pool. In the Story 12.5 scope
+/// the pool is a shim (fresh Pipe per Acquire), but a future Story 12.5b
+/// upgrade to long-lived pooled subprocesses becomes a drop-in replacement
+/// without touching Subprocess callers. Callers of this method still
+/// finish with <method>Pipe.Close</method>; a future upgrade will swap
+/// those sites for <method>Pool.Release</method>.</p>
 /// <p>Throws a subprocess error if the interpreter is not available.</p>
 Method StartPipe() As IRISCouch.JSRuntime.Subprocess.Pipe [ Internal ]
 {
@@ -431,12 +438,7 @@ Method StartPipe() As IRISCouch.JSRuntime.Subprocess.Pipe [ Internal ]
     If '..IsAvailable() {
         Throw ##class(%Exception.General).%New("view execution", "subprocess_error", "", "Subprocess JSRuntime unavailable: interpreter=" _ tPath _ " entry=" _ tEntry)
     }
-    Set tPipe = ##class(IRISCouch.JSRuntime.Subprocess.Pipe).%New()
-    Set tSC = tPipe.Open(tPath, tEntry)
-    If $$$ISERR(tSC) {
-        Throw ##class(%Exception.General).%New("view execution", "subprocess_error", "", "Pipe.Open failed: " _ $System.Status.GetErrorText(tSC))
-    }
-    Quit tPipe
+    Quit ##class(IRISCouch.JSRuntime.Subprocess.Pool).Acquire()
 }
 
 /// <p>Build an <code>["add_fun", "&lt;source&gt;"]</code> line.</p>
