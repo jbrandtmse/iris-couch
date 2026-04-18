@@ -37,7 +37,7 @@ ClassMethod HandlePost(pDB As %String) As %Status
             Set tBody = ##class(%DynamicObject).%FromJSON(tContent)
         } Catch tParseEx {
             Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
-            Quit
+            Return $$$OK
         }
         ; Validate underscore fields
         Set tValErr = ..ValidateFields(tBody)
@@ -244,7 +244,7 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
             Set tBody = ##class(%DynamicObject).%FromJSON(tContent)
         } Catch tParseEx {
             Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON")
-            Quit
+            Return $$$OK
         }
         ; Validate underscore fields
         Set tValErr = ..ValidateFields(tBody)
@@ -454,7 +454,7 @@ ClassMethod HandleGet(pDB As %String, pDocId As %String) As %Status
                     Set tRevArray = ##class(%DynamicArray).%FromJSON(tOpenRevs)
                 } Catch tParseEx {
                     Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid open_revs value")
-                    Quit
+                    Return $$$OK
                 }
             }
             ; Check if multipart/mixed response is requested

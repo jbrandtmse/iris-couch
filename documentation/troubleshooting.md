@@ -122,7 +122,7 @@ Based on where the bottleneck lives:
 
 ### Prevention
 
-- Capture a `_active_tasks` + `_metrics` baseline under expected load
+- Capture a `_active_tasks` + `_prometheus` baseline under expected load
   **before** cutting a production workload to IRISCouch. See the
   [Migration Playbook Phase 1](migration.md) for the baseline-capture
   recipe.

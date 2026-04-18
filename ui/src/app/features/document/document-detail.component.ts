@@ -436,7 +436,9 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
   getAttachmentUrl(name: string): string {
     // Use encodeDocId so `_design/<name>` composite IDs keep the literal `/`
     // that CouchDB expects on the wire. See Story 11.0 AC #3.
-    return `/${encodeURIComponent(this.dbName)}/${encodeDocId(this.docId)}/${encodeURIComponent(name)}`;
+    // Absolute path under the `/iris-couch/` REST API base (NOT under the
+    // SPA's `/iris-couch/_utils/` base href — that would hit AdminUIHandler).
+    return `/iris-couch/${encodeURIComponent(this.dbName)}/${encodeDocId(this.docId)}/${encodeURIComponent(name)}`;
   }
 
   private loadDocument(): void {

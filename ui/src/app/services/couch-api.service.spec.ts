@@ -30,7 +30,7 @@ describe('CouchApiService', () => {
     service.get<{ ok: boolean }>('_all_dbs').subscribe((res) => {
       expect(res).toBeTruthy();
     });
-    const req = httpMock.expectOne('_all_dbs');
+    const req = httpMock.expectOne('/iris-couch/_all_dbs');
     expect(req.request.method).toBe('GET');
     req.flush({ ok: true });
   });
@@ -40,7 +40,7 @@ describe('CouchApiService', () => {
     service.post<{ ok: boolean }>('_session', body).subscribe((res) => {
       expect(res.ok).toBeTrue();
     });
-    const req = httpMock.expectOne('_session');
+    const req = httpMock.expectOne('/iris-couch/_session');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual(body);
     req.flush({ ok: true });
@@ -49,7 +49,7 @@ describe('CouchApiService', () => {
   it('should send PUT requests with body', () => {
     const body = { _id: 'doc1', value: 42 };
     service.put<{ ok: boolean }>('mydb/doc1', body).subscribe();
-    const req = httpMock.expectOne('mydb/doc1');
+    const req = httpMock.expectOne('/iris-couch/mydb/doc1');
     expect(req.request.method).toBe('PUT');
     expect(req.request.body).toEqual(body);
     req.flush({ ok: true });
@@ -57,16 +57,24 @@ describe('CouchApiService', () => {
 
   it('should send DELETE requests', () => {
     service.delete<{ ok: boolean }>('_session').subscribe();
-    const req = httpMock.expectOne('_session');
+    const req = httpMock.expectOne('/iris-couch/_session');
     expect(req.request.method).toBe('DELETE');
     req.flush({ ok: true });
   });
 
-  it('should use relative paths (base URL is /)', () => {
+  it('should prepend /iris-couch/ REST API base to relative paths', () => {
     service.get('_session').subscribe();
-    const req = httpMock.expectOne('_session');
-    // URL should not have an absolute prefix like http://
-    expect(req.request.url).toBe('_session');
+    const req = httpMock.expectOne('/iris-couch/_session');
+    // Absolute path under the REST API root, NOT resolved against the
+    // SPA's <base href="/iris-couch/_utils/">.
+    expect(req.request.url).toBe('/iris-couch/_session');
+    req.flush({});
+  });
+
+  it('should pass absolute paths through unchanged', () => {
+    service.get('/custom/path').subscribe();
+    const req = httpMock.expectOne('/custom/path');
+    expect(req.request.url).toBe('/custom/path');
     req.flush({});
   });
 });

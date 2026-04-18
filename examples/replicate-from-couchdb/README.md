@@ -97,7 +97,9 @@ See [`expected-output.txt`](expected-output.txt). Tolerance placeholders:
   command above or set the env var. Not a failure.
 - **`doc_count mismatch`** — a doc failed to replicate. Check
   `/_active_tasks` during the run to see if the replicator reported errors;
-  check IRIS's `^IRISCouch.Log` global for subprocess crashes.
+  check the IRIS console log (`cconsole.log`) for structured
+  `[IRISCouch]` entries emitted by `IRISCouch.Util.Log` for subprocess
+  crashes.
 - **`401 Unauthorized`** on CouchDB side — CouchDB admin credentials don't
   match `$COUCHDB_USER` / `$COUCHDB_PASS`.
 - **`401 Unauthorized`** on IRISCouch side — IRIS credentials wrong; override

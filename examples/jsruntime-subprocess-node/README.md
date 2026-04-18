@@ -94,7 +94,7 @@ and re-check the matrix once Story 12.2a lands.
 
 ## Three documented Subprocess deviations from CouchDB
 
-Per [compatibility matrix § JSRuntime state rows](../../documentation/compatibility-matrix.md#designdesigndocsname_viewview-per-jsruntime-backend):
+Per [compatibility matrix § Design Documents — Views](../../documentation/compatibility-matrix.md#design-documents--views):
 
 1. **Mixed-type key collation** — IRISCouch sorts by JSON lexicographic
    string compare; CouchDB uses typed collation (`couch_ejson_compare`).
@@ -121,13 +121,15 @@ Per [compatibility matrix § JSRuntime state rows](../../documentation/compatibi
 - **`[SKIPPED]` with `FAIL: JSRUNTIME is set to None`** — the probe detected
   the default backend. Run the `IRISCouch.Config.Set` commands above.
 - **`subprocess_error` in view response** — the Node process spawned but
-  exited non-zero. Check `^IRISCouch.Log` for the `jsruntime` structured
-  log entry — it names the interpreter, the stderr tail, and the exit code.
+  exited non-zero. Check the IRIS console log (`cconsole.log`) for the
+  `[IRISCouch]` structured entry emitted by `IRISCouch.Util.Log` under
+  subsystem `jsruntime` — it names the interpreter, the stderr tail, and
+  the exit code.
 - **Timeout after Nms** — `JSRUNTIMETIMEOUT` (default 5000 ms) expired. A
   map function that runs longer than that will be killed. Usually indicates
   an infinite loop or an unterminated async await. Simplify the map; views
   should be pure functions with no I/O.
 - **Interpreter path wrong** — the Subprocess backend logs the probe error
-  to `^IRISCouch.Log`. On Windows, note that IRIS spawns from the service
+  to the IRIS console log (`cconsole.log`). On Windows, note that IRIS spawns from the service
   account, not your interactive shell; `where node` in cmd gives you the
   path your user sees, but IRIS may need a different absolute path.

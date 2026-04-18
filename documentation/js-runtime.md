@@ -269,9 +269,13 @@ yielding runaway is caught by (a).
 interpreter-specific flags applied by
 `IRISCouch.JSRuntime.Subprocess.Pipe.BuildSandboxFlags`:
 
-- **Node.js:** `--disable-proto=delete --no-warnings`. `--disable-proto`
-  blocks `__proto__` re-assignment escapes. `--no-warnings` suppresses
-  ExperimentalWarning noise that would otherwise pollute stderr.
+- **Node.js:** `--disable-proto=delete --no-experimental-global-webcrypto
+  --no-warnings`. `--disable-proto` blocks `__proto__` re-assignment
+  escapes. `--no-experimental-global-webcrypto` denies the subprocess
+  WebCrypto APIs (user map/reduce functions have no legitimate need for
+  them and they expose timing-side-channel surface). `--no-warnings`
+  suppresses ExperimentalWarning noise that would otherwise pollute
+  stderr.
 - **Deno:** `run --allow-read --deny-net --deny-write --deny-run
   --deny-env --deny-ffi --deny-sys`. Read is required so Deno can load
   the entry script; every other capability is explicitly denied.

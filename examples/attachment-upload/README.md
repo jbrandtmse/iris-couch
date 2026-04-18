@@ -89,7 +89,7 @@ fixture; update the expected SHA-256 in `expected-output.txt` to match.
   whatever the client sent.
 - **SHA mismatch** — would indicate attachment corruption; file an issue
   immediately, this is an NFR-R1 correctness class failure. Include the
-  IRIS version and the `^IRISCouch.Attachments` global dump for the
+  IRIS version and the `^IRISCouch.Atts` global dump for the
   affected doc.
 - **`413 Request Entity Too Large`** — CSP Gateway request-body limit.
   Increase via the IRIS Management Portal → CSP Gateway settings →

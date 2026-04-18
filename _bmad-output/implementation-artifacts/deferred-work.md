@@ -674,3 +674,113 @@ the initial entries.
 - **[LOW] Story 13.3** `examples/jsruntime-subprocess-node/setup.js` probe for `JSRUNTIME=Subprocess` is observable-only (issues a view query, detects 501 envelope) rather than reading `^IRISCouch.Config("JSRUNTIME")` directly. Reading the global requires a `/Config` HTTP endpoint which IRISCouch does not expose (and should not — configuration lives in globals, not HTTP). The observable probe is correct but has a one-query overhead per example run. Acceptable as-is. LOW -- cosmetic; the probe works and documents itself.
 
 - **[LOW] Story 13.3** `examples/attachment-upload/fixtures/test.png` is a 987-byte deterministic noise PNG (48×48 RGB, seeded LCG) rather than a 1-2 KB file as the story task suggested. Noise PNGs don't compress, so hitting exactly 1-2 KB requires a specific canvas size; 48×48 was the closest round-number that stays within the range without going over. Round-trip SHA-256 assertion works identically regardless of size. If a future story needs a 1-2 KB fixture specifically, regenerate the noise PNG at 56×56 (~1.4 KB). LOW -- cosmetic.
+
+## Deferred from: manual acceptance pass 2026-04-18 (backend Epics 1-3)
+
+- **[MED] Story 1.4 AC#6** POST/PUT/DELETE to server-level system endpoints (`/_uuids`, `/_all_dbs`) returns 404 with `"Database does not exist."` instead of 405 `method_not_allowed`. The UrlMap in `src/IRISCouch/API/Router.cls` declares `GET /_uuids` and `GET /_all_dbs` only; when `%CSP.REST` evaluates routes top-to-bottom and no method match exists on the literal route, it falls through to `POST /:db` (document create) or `PUT /:db` (database create), treating `_uuids`/`_all_dbs` as a database name. `HandleDocumentPost` / `HandleDatabaseCreate` then emit 404 (database doesn't exist) or 400 (illegal database name — `_` prefix is reserved). CouchDB 3.x returns 405 for these cases. **Fix path:** add explicit `<Route Url="/_uuids" Method="POST/PUT/DELETE" Call="HandleMethodNotAllowed405Uuids" />` entries (or a single catch-all wrapper) that call `Error.Render405("GET")` — or, better, override `%CSP.REST`'s method-matching so a URL literal match without method match emits 405. Affects Story 1.4 AC#6 for server-level system endpoints; database-level maintenance endpoints (`/:db/_revs_limit`, etc.) work correctly because their method-distinct routes all exist. Discovered during manual acceptance pass 2026-04-18. MED -- violates Story 1.4 AC#6 for system endpoints; PouchDB and nano will see 404 instead of 405 on method mismatch, which is a minor spec deviation but non-blocking for normal client operation.
+
+- **[RESOLVED in manual acceptance pass 2026-04-18] Story 3.1/3.6 bug** Invalid-JSON request bodies on `POST /{db}`, `PUT /{db}/{docid}`, `GET /{db}/{docid}?open_revs=<invalid-json>`, and `POST /{db}/_all_docs` wrote TWO error envelopes back-to-back — first the intended 400 `bad_request`, then a bogus 500 `server_error` from the outer Try/Catch. Root cause: argumentless `Quit` inside a nested Catch block exits the Catch but returns execution to the enclosing Try, where `tBody` is still undefined and the next line (`..ValidateFields(tBody)` or the ValidateFields-equivalent) throws `<UNDEFINED>`, caught by the outer Catch and emitting a second envelope. Two-character fix per site: replace the inner Catch's `Quit` with `Return $$$OK` (matches the pre-existing pattern in `BulkHandler.cls` and `ChangesHandler.cls`). Fixed 4 sites: `src/IRISCouch/API/DocumentHandler.cls:40,247,457` and `src/IRISCouch/API/AllDocsHandler.cls:191`. Verified via curl: single-envelope 400 bodies now returned. Classes compiled cleanly. Also noted but NOT fixed in this pass (Epic 3 scope only): `src/IRISCouch/API/DocumentHandler.cls:167` (multipart/related attach path — Epic 5) and `src/IRISCouch/API/ReplicationHandler.cls:82,169` (Epic 8). Those two locations likely exhibit the same double-envelope bug for invalid JSON bodies but are out of scope for this acceptance pass; log as separate MEDIUM items if a future Epic 5/8 acceptance pass confirms.
+
+- **[MED] Story 3.2 / 5.2 / 8.4** Same double-envelope bug pattern exists in `src/IRISCouch/API/DocumentHandler.cls:167` (multipart/related first-part invalid JSON — Epic 5) and `src/IRISCouch/API/ReplicationHandler.cls:82,169` (Epic 8 replication endpoints: `_revs_diff` invalid body, `_session` invalid body). These three sites use the same argumentless-`Quit` in an inner Catch after a nested `%FromJSON` try, with an outer Catch that will catch the subsequent UNDEFINED and emit a 500 envelope on top of the 400. Not verified by curl in this pass (out of Epic 1-3 scope) but identical pattern to the four fixed above. Fix path: same two-character swap — `Quit` → `Return $$$OK` — and compile. MED — silent double-write degrades the error-envelope guarantees in Epics 5 and 8; trivially fixable with the next Epic 5 or Epic 8 cleanup story.
+
+## Deferred from: manual acceptance pass 2026-04-18 (Epic 12 JSRuntime)
+
+- **[MED] Story 12.5** When an incremental view-index update times out during a document write (runaway map function fires `jsruntime_timeout` from `ViewIndexUpdater.UpdateForDoc`), the 500 response body is `{"error":"server_error","reason":"document: save error"}` rather than the `{"error":"timeout","reason":"..."}` shape required by Story 12.5 AC #4. Root cause: `DocumentEngine.Save` (and siblings) consume the `jsruntime_timeout` %Status by TROLLBACK-ing and setting `tNewRev=""`, but they do not propagate the timeout reason to the caller. `DocumentHandler.HandlePut/HandlePost` sees empty `tNewRev` with empty `tValidateError` and falls through to the generic `RenderInternal(SERVERERROR, "document: save error")` on line 82/342. TROLLBACK correctness is verified (the runaway doc does NOT persist — `GET` returns 404); only the surfaced error envelope is wrong. **Fix path:** add a `pIndexError As %String` output parameter to the four `DocumentEngine.Save*` methods paralleling `pValidateError`, populate it with the `jsruntime_timeout` reason when `ViewIndexUpdater.UpdateForDoc` returns an error, and have `DocumentHandler` + `BulkHandler` render `{"error":"timeout","reason":"<msg>"}` with HTTP 500 when the output is set. Estimated scope: ~40 LOC + one new test case in `JSRuntimeSubprocessHttpTest` or `ViewIndexHttpTest` asserting the canonical timeout envelope shape. Confirmed on dev host 2026-04-18 with `JSRUNTIMETIMEOUT=2000` and a `function(doc){while(true){}}` map — 500 body returned the generic `server_error` envelope. MED -- operator troubleshooting impact: without the explicit `timeout` classification, an operator investigating a stuck write sees `"document: save error"` and must grep IRIS server logs to find the root cause. Blocking for α/β is arguable; not blocking for β if the server-log surface is considered sufficient.
+
+## Deferred from: manual acceptance pass 2026-04-18 (docs audit)
+
+- **[LOW] Epic 13 docs audit** `compatibility-matrix.md` cited `/_metrics` as the Prometheus endpoint; the actual route registered in `src/IRISCouch/API/Router.cls` UrlMap is `/_prometheus` (Story 9.1). Same invented-endpoint class as the Story 13.2 `^IRISCouch.Audit` / `_node/_local/_config/jsruntime` bugs fixed during initial matrix authoring — a 4th case that had slipped through. **Fix shipped in same commit as this entry:** matrix row re-keyed to `/_prometheus`; `_node/{name}/_stats` caveat updated to point at `/_prometheus`; `troubleshooting.md` line 125 `_metrics` reference corrected to `_prometheus`. No matching code change needed — the Router already registers `/_prometheus` correctly. LOW -- docs-only drift; operators reading the matrix would have hit a 404 on `/iris-couch/_metrics`.
+
+- **[LOW] Epic 13 docs audit** Three `examples/*/README.md` citations of `^IRISCouch.Log` as a global to grep for subprocess-error diagnostics. That global does not exist — IRISCouch's structured logging (`IRISCouch.Util.Log`) writes to the IRIS console log (`cconsole.log`) via `$ZU(9, "", "[IRISCouch] " _ tEntry.%ToJSON())`. Same invented-state class as the Story 13.2 `^IRISCouch.Audit` bug. **Fix shipped in same commit:** `examples/replicate-from-couchdb/README.md` and `examples/jsruntime-subprocess-node/README.md` (two references) rewritten to say "IRIS console log (`cconsole.log`) for `[IRISCouch]` entries emitted by `IRISCouch.Util.Log`". LOW -- docs-only.
+
+- **[LOW] Epic 13 docs audit** `examples/attachment-upload/README.md` cited `^IRISCouch.Attachments` as the global holding attachment state; the actual global per `IRISCouch.Config.cls` inventory is `^IRISCouch.Atts` (storage class `Storage.Attachment`). Another invented-global class. **Fix shipped in same commit:** citation corrected to `^IRISCouch.Atts`. LOW.
+
+- **[LOW] Epic 13 docs audit** `documentation/js-runtime.md` § Security Model listed Node sandbox flags as `--disable-proto=delete --no-warnings`; the actual `IRISCouch.JSRuntime.Subprocess.Pipe.BuildSandboxFlags` emits `--disable-proto=delete|--no-experimental-global-webcrypto|--no-warnings` (the crypto-disable flag is required by Story 12.5 AC #6 and was added during the 12.5 code review — see this file's "Resolved during code review of 12.5" block). **Fix shipped in same commit:** js-runtime.md updated to list all three flags with the WebCrypto rationale. LOW -- the sandbox IS active, the doc was just stale.
+
+- **[LOW] Epic 13 docs audit** `examples/jsruntime-subprocess-node/README.md` linked to `compatibility-matrix.md#designdesigndocsname_viewview-per-jsruntime-backend` — an anchor that does not resolve (GFM would produce roughly `getpost-dbdesignddoc_viewview-per-jsruntime-backend` for the actual heading `### \`GET|POST /{db}/_design/{ddoc}/_view/{view}\` per JSRuntime backend`). **Fix shipped in same commit:** link retargeted at the enclosing `## Design Documents — Views` section (`#design-documents--views`), which is stable and resolves. LOW.
+
+- **[LOW] Epic 13 docs audit — reconcile test counts** README.md claims "~850 backend ObjectScript assertions + 678 Angular UI specs passing." The numbers were not re-verified during this audit (would require running `iris_execute_tests` across `src/IRISCouch/Test/*` and `ui/**/*.spec.ts`). Logged for a future release-readiness pass to re-run both suites and update the count if drift is found. LOW.
+
+## Deferred from: manual acceptance pass 2026-04-18 (UI Epics 10-11)
+
+Context: full Chrome-DevTools-MCP walkthrough of the production-bundled
+Admin UI served by IRIS at `/iris-couch/_utils/` (Story 11.5 AdminUIHandler)
+against a running IRISCouch backend. Login, database list CRUD, document
+list filter/pagination, document detail, design-doc list/detail/create/edit,
+security view + edit + discard-dialog, revision-tree view with linear
+chain + URL-deep-link selection, viewport-guard, `?`-overlay, 401 login
+error, 404 doc error, and keyboard-nav (Esc closes dialog + focus restore)
+all verified PASS against the ACs of Stories 10.1-10.7 and 11.1-11.5.
+Bugs found below; the first one was **auto-fixed** during the pass because
+it was the single-line change that unblocked the entire session.
+
+- ~~**[CRITICAL] Manual acceptance pass 2026-04-18** Admin UI was
+  completely broken on first open: every REST request resolved against
+  the SPA's `<base href="/iris-couch/_utils/">` and hit
+  `AdminUIHandler.HandleRequest` (which returned `index.html` with status
+  200) instead of the REST API at `/iris-couch/`. The login POST to
+  `_session` received index.html, JSON-parse threw
+  `SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON`,
+  and no user could sign in.~~ **RESOLVED in same acceptance pass
+  (2026-04-18):** patched `ui/src/app/services/couch-api.service.ts` to
+  prepend a static `/iris-couch/` API base before any caller-supplied
+  relative path (absolute paths and full URLs pass through unchanged).
+  Same fix applied to the one hand-built URL in
+  `features/document/document-detail.component.ts:getAttachmentUrl`
+  (which built `/{db}/{doc}/{att}` and would have 404'd against the SPA
+  root for the same reason). Production bundle rebuilt via
+  `cd ui && npx ng build --configuration=production`; IRIS picked up
+  the new `main-XXBCC7VQ.js` bundle and login + all subsequent flows
+  worked end-to-end. **Spec-suite follow-up (below) still pending.**
+
+- **[MED] Manual acceptance pass 2026-04-18** Spec suite needs updating
+  for the CouchApiService base-path fix. Every `HttpTestingController`
+  assertion in the UI specs uses `httpMock.expectOne('_session')`,
+  `.expectOne('mydb/_all_docs')`, etc. — the new behavior now
+  dispatches to `/iris-couch/_session`, `/iris-couch/mydb/_all_docs`.
+  `couch-api.service.spec.ts` was updated in the same commit as the
+  fix (it owns the expectation-pattern change most directly), but
+  `auth.service.spec.ts`, `database.service.spec.ts`,
+  `document.service.spec.ts`, `security.service.spec.ts`,
+  `revisions.service.spec.ts`, and all feature-component specs that
+  mock HTTP (login, database-list, database-detail, document-detail,
+  design-doc-list, design-doc-detail, security-view, revisions-view)
+  expect the bare path. Run `npm test` after the fix and update
+  every `httpMock.expectOne(...)` to the `/iris-couch/...` form; there
+  should be roughly 40-60 updates. The browser UI verifies end-to-end
+  via the acceptance pass, but the spec suite will be red until this
+  mechanical sweep completes. Trigger: before merging the base-path
+  fix to main; owner: next dev story or explicit spec-sweep cleanup.
+
+- **[HIGH] Manual acceptance pass 2026-04-18** Story 11.5 AC #4 RBAC
+  enforcement is effectively bypassed by the CSP unauthenticated user.
+  `curl http://localhost:52773/iris-couch/_utils/` (no Authorization
+  header, no cookie) returns **200 + index.html** despite the
+  `/iris-couch` webapp's `authEnabled=64` (Password-only) and
+  `AdminUIHandler.HasAdminRole()` checking `$Roles` for
+  `IRISCouch_Admin` or `%All`. Root cause appears to be the IRIS
+  system-level `%Service_CSP.DEFAULT_USER` being granted `%All` at
+  install time — so `HasAdminRole()` correctly observes `%All` in
+  `$Roles` and lets the request through, which is technically a
+  deployment-hardening concern rather than an AdminUIHandler bug, but
+  the net observable behavior violates AC #4. Two fixes to consider:
+  (a) harden `HasAdminRole()` to also require a non-empty
+  `$Username` that is not `UnknownUser` / `_PUBLIC`, so anonymous
+  `%All` contexts do not satisfy the check; or (b) document the
+  `%Service_CSP.DEFAULT_USER` requirement in the deployment guide and
+  fail the installer if the default user has `%All`. Preferred: (a)
+  as defense-in-depth; it costs one `$Username` equality check and
+  hardens every non-default deployment too. Trigger: before the β
+  release RBAC-hardening story.
+
+- **[LOW] Manual acceptance pass 2026-04-18** Chrome DevTools MCP
+  `press_key "Shift+/"` did not trigger the keyboard-shortcut overlay
+  (`ShortcutOverlayComponent`), whereas a direct
+  `dispatchEvent(new KeyboardEvent('keydown', {key:'?',shiftKey:true}))`
+  from `evaluate_script` does trigger it. The overlay itself works
+  correctly (verified by scripted dispatch + Esc to close); this is a
+  test-harness nuance for the acceptance-pass tooling, not a product
+  bug. If a future automation pass wants to exercise this AC via
+  `press_key`, prefer `press_key "Slash"` with the keyboard handler
+  also accepting `event.code === 'Slash' && event.shiftKey`, or use
+  `evaluate_script` to dispatch the synthetic event directly.

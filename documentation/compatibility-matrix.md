@@ -96,14 +96,14 @@ Source: `sources/couchdb/src/docs/src/api/server/`
 | `/_uuids` | GET | supported | `count=N` (default 1, max 100) returns N v4 UUIDs. | `UUIDTest.TestHandleUUIDsWithCount`, manual `curl /iris-couch/_uuids?count=3` |
 | `/_replicate` | POST | supported | Full single-shot replication against any CouchDB 3.x peer. | Epic 8 replicator-roundtrip harness; manual probe |
 | `/_active_tasks` | GET | supported with caveat | Returns only IRISCouch replicator tasks. IRIS-internal tasks (compaction, view indexing) are not exposed. Shape matches CouchDB's `{"type":"replication",...}` entries. | `ReplicatorManagerHttpTest.TestOneShotCompletion` (active-task shape assertions) |
-| `/_metrics` | GET | supported with caveat | Prometheus exposition format. Counter / gauge names are IRISCouch-prefixed (`iriscouch_*`) — not wire-compatible with stock CouchDB's Prometheus exporter. Cite: Epic 9 Story 9.1. | `MetricsHttpTest.TestPrometheusEndpoint`, `MetricsHttpTest.TestPrometheusContentType` |
+| `/_prometheus` | GET | supported with caveat | Prometheus exposition format. Counter / gauge names are IRISCouch-prefixed (`iriscouch_*`) — not wire-compatible with stock CouchDB's Prometheus exporter (which mounts at `/_node/<name>/_prometheus`). Cite: Epic 9 Story 9.1. | `MetricsHttpTest.TestPrometheusEndpoint`, `MetricsHttpTest.TestPrometheusContentType` |
 | `/_membership` | GET | out of scope with reason | Single-node architecture; no cluster membership to report. Returns `404`. Epic 14 plans ECP clustering but membership semantics differ from CouchDB's. | manual `curl /iris-couch/_membership` |
 | `/_cluster_setup` | GET, POST | out of scope with reason | Single-node; no cluster setup flow. Returns `404`. | manual probe |
 | `/_db_updates` | GET | 501 in default config | Streaming DB events are the same class of problem as streaming `_changes` — deferred to Epic 14 (standalone TCP listener). Normal feed may return supported before γ; check matrix update. | deferred to Epic 14 |
 | `/_utils/` | GET | supported | IRISCouch's built-in admin UI (Story 11.5). Wire-compatible substitute for Fauxton; requires `IRISCouch_Admin` role. | `AdminUIHandlerTest.TestIndexHtmlServed`, `AdminUIHandlerTest.TestSpaFallback` |
 | `/_utils/*` (static assets) | GET | supported | Angular bundle served from IRIS. | `AdminUIHandlerTest.TestJsAssetServed`, `AdminUIHandlerTest.TestCssAssetServed`, `AdminUIHandlerTest.TestFontAssetServed` |
 | `/_node/{name}/_config*` | * | out of scope with reason | CouchDB cluster-node configuration surface. IRISCouch config lives in `^IRISCouch.Config` globals; operators use `IRISCouch.Config.Get/Set`. Exposing as HTTP would require replicating CouchDB's full multi-node config model for a single-node server. | N/A |
-| `/_node/{name}/_stats` | GET | out of scope with reason | CouchDB per-node metrics; use `/_metrics` instead. | N/A |
+| `/_node/{name}/_stats` | GET | out of scope with reason | CouchDB per-node metrics; use `/_prometheus` instead. | N/A |
 | `/_node/{name}/_system` | GET | out of scope with reason | Same rationale. Adopters wanting host-level telemetry should scrape IRIS's own `SYS.History` or Prometheus `iris_*` metrics. | N/A |
 | `/_reshard` | * | out of scope with reason | No sharding in single-node IRISCouch. | N/A |
 | `/_scheduler/*` | GET | out of scope with reason | Replicator scheduler views; `/_active_tasks` covers most of the ask. May add in γ if adopters request. | N/A |
@@ -401,3 +401,10 @@ matrix row updated **in the same commit as the code change**. CI enforces.
   mechanically: 74 supported / 12 supported-with-caveat / 10 501-in-default-config
   / 27 out-of-scope-with-reason / 123 total (initial counts in the 13.1
   Dev Agent Record undercounted).
+- **2026-04-18 (manual acceptance pass — docs audit)** — Endpoint name
+  `/_metrics` corrected to `/_prometheus` (the route actually registered
+  in `src/IRISCouch/API/Router.cls` UrlMap per Story 9.1); the
+  `/_node/{name}/_stats` caveat pointer updated to reference `/_prometheus`
+  accordingly. No code change required — the Router already registered the
+  correct route; this was a docs-only invented-endpoint drift of the same
+  shape as the three caught in the Story 13.2 code review.
