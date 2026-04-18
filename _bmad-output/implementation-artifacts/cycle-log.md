@@ -68,6 +68,36 @@
 - **README edits:** Epic 12 row → `5/5 + 12.4 deferred | ~850 | — | Done`; Epic 13 row → `2/3 | — | — | In Progress`; new `## Documentation` section between Distribution and JS Runtime Requirements
 - **Status:** Story 13.1 review → spawn `cr-13-1` code review
 
+### 2026-04-18T02:30:00Z — Story 13.1 code review complete
+- **Agent:** `cr-13-1` (general-purpose, bypassPermissions); 757632ms; 116 tool uses
+- **Findings:** 0 CRITICAL, 0 HIGH, 2 MEDIUM auto-resolved, 2 LOW deferred
+- **MEDs auto-resolved:** (1) ~45 test-method citations in the compat matrix were stale — reconciled against actual `*HttpTest.cls` classes; (2) matrix missed 7 CouchDB 3.x endpoint families (`_dbs_info`, `_all_docs/queries`, `_design_docs/queries`, `_view/{view}/queries`, `_index/_bulk_delete`, `_auto_purge`, design-doc attachments) + COPY reclassified `supported` → `out of scope with reason` (no handler exists)
+- **Final matrix counts:** 74 supported / 12 supported-with-caveat / 10 501-default / 27 OOS — 123 rows total (up from dev's initial 98)
+- **LOW deferred:** (1) render endpoints (`_show`/`_list`/`_update`/`_rewrite`) matrix-listed as 501 but actually return 404 (no dispatcher); (2) `_scheduler/*` and `_node/*` families collapsed into single rows
+- **All 7 ACs verified.** Config-key correction (JSRUNTIME vs JSRUNTIMEBACKEND) confirmed against `Config.cls`. Probe output matches Dev Agent Record verbatim.
+
+### 2026-04-18T02:40:00Z — Story 13.1 committed
+- **Commit:** `0a849f8` — `feat(epic-13): Story 13.1 - Getting Started Guide & Compatibility Matrix`
+- **7 files, 1427 insertions, 8 deletions**
+- **Pushed:** `origin/main` (d745f94..0a849f8)
+- **Sprint status:** `13-1-getting-started-guide-and-compatibility-matrix: review → done`
+
+### 2026-04-18T02:45:00Z — Story 13.2 created
+- **Story file:** `_bmad-output/implementation-artifacts/13-2-deviation-log-migration-playbook-and-troubleshooting-runbook.md` (4 ACs, 5 tasks + Task 0 deviation-audit)
+- **Sprint status:** `13-2-deviation-log-migration-playbook-and-troubleshooting-runbook: ready-for-dev`
+- **Scope:** `documentation/deviations.md` + `documentation/migration.md` + `documentation/troubleshooting.md` + cross-reference updates to compatibility-matrix.md / getting-started.md / README.md. Epic 12 retro AI #4 (JSRuntime failure modes) operationalized as AC #4 with 5 sub-scenarios. Zero new code.
+- **Next:** spawn `dev-13-2` agent
+
+### 2026-04-18T04:00:00Z — Story 13.2 dev complete
+- **Agent:** `dev-13-2` (general-purpose, bypassPermissions); 972685ms; 60 tool uses
+- **Files created:** `documentation/deviations.md` (367 lines), `documentation/migration.md` (567 lines), `documentation/troubleshooting.md` (735 lines)
+- **Deviations logged:** 14 total (11 primary + 3 informational) — Epic 12 canonical 4 all present, 7 cross-epic deviations surfaced via Task 0 audit (server identity version, _security default object, continuous/eventsource OOS, validate_doc_update on replication writes, Windows Job Object memory-cap softness, render endpoints 404-not-501, /_utils Angular vs Fauxton)
+- **Task 0 audit:** ~70 bulleted entries with per-item source citations (Epic 12 retro, deferred-work.md, cross-epic retros, compatibility-matrix.md, CouchDB replication protocol.rst); inclusion/exclusion rationale per item pasted verbatim into Dev Agent Record
+- **No new deferred-work entries** — every candidate was already logged; no HIGH defects discovered during audit
+- **Size overruns intentional:** all three docs exceeded soft ceilings (367 vs 150-250, 567 vs 300-450, 735 vs 200-350); dev prioritized operator utility over line budget per story intent
+- **README edits:** Epic 13 Roadmap row → `3/3 | — | — | In Progress` (13.3 still pending); Documentation section expanded with 3 new entries
+- **Status:** Story 13.2 review → spawn `cr-13-2` code review
+
 ## Epic 11: Admin UI - Design Documents & Security Views
 
 ### 2026-04-17T00:00:00Z — Story 11.5: Admin UI Static Hosting & Access Control

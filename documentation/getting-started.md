@@ -587,12 +587,22 @@ not a feature gate.
   or `http://localhost:5984/_utils/` (reverse proxy). Database browsing,
   document CRUD, design-doc editing, security configuration, revision
   history.
+- **[Migration Playbook](migration.md)** — eight-phase playbook for
+  moving a production Apache CouchDB workload onto IRISCouch, with
+  per-step success/failure criteria and a symmetric rollback narrative.
+  Read this next if you are adopting IRISCouch to retire a standing
+  CouchDB deployment.
+- **[Deviations Log](deviations.md)** — every operator-observable
+  difference between IRISCouch and CouchDB 3.x with named rationale.
+  Read this if you are evaluating IRISCouch against a workload and
+  want to know in advance which CouchDB behaviors you cannot rely on.
+- **[Troubleshooting Runbook](troubleshooting.md)** — five canonical
+  incident classes (replication lag, checkpoint corruption, stuck
+  conflicts, attachment stream failures, JS sandbox errors) with
+  Symptoms / Diagnostic / Resolution / Prevention for each.
 - **Working code examples (Story 13.3 — coming soon).** Six ready-to-run
   integrations covering PouchDB browser/Node, the Apache CouchDB replicator,
   `nano`, `@cloudant/cloudant`, and Fauxton against IRISCouch.
-- **Deviation log + migration playbook (Story 13.2 — coming soon).**
-  Detailed CouchDB → IRISCouch behavioral differences and a step-by-step
-  for cutting a production CouchDB workload over.
 
 ---
 

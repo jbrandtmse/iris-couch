@@ -8,6 +8,10 @@
 an endpoint whose status transitions (for example from `supported` to
 `supported with caveat`) must have its matrix row updated in the same commit
 as the code change.
+**Canonical deviation source:** the per-endpoint `Caveat / Pointer`
+entries below link into [`deviations.md`](deviations.md), which is the
+single named list of every operator-observable difference between
+IRISCouch and CouchDB 3.x per PRD NFR-M4.
 
 ---
 
