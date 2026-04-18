@@ -2559,3 +2559,24 @@ release frequency; a release ships when the conformance suite
 is green, customer zero is unharmed, and the committed scope
 for that milestone is complete. A release does not ship just
 because time has passed.
+
+**NFR-M9 — Python-Optional Compilation.** IRISCouch ObjectScript
+classes MUST compile and the IRISCouch ZPM package MUST install
+on any IRIS 2024.1+ instance regardless of embedded Python
+availability. Shipped `.cls` files MUST NOT contain
+`[Language = python]` methods; Python integration (when / if
+present) MUST ship as ZPM `<FileCopy>` resources with `irispip`
+documented as an operator-executed prerequisite, never invoked
+from a ZPM install hook. Verified by a release-gate CI job that
+runs `zpm install iris-couch` on a Python-less IRIS Community
+image (when that CI image becomes available — tracked in
+`deferred-work.md` under Story 12.4-resumption prerequisites;
+until the CI image lands, manual verification on a Python-less
+IRIS instance is the release gate). The corresponding code-review
+rules live in `.claude/rules/iris-objectscript-basics.md` under
+**Python Integration Distribution Rules**. Cited origin: Epic 12
+retrospective (2026-04-17), Action Items #6–#10 — Story 12.4's
+Python JSRuntime deferral exposed that a `[Language = python]`
+method in any shipped class is a latent install-break for every
+IRIS customer without embedded Python, and named this NFR as the
+single highest-value finding of the retro.

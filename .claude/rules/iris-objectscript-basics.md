@@ -123,6 +123,68 @@
    - Maintain backward compatibility with mock implementations as fallbacks
    - CRITICAL: ##class(%SYS.Python).IsAvailable() does NOT exist. To check for Python, you must first attempt to load it by importing a library (e.g., `do ##class(%SYS.Python).Import("sys")`), and *then* check the status with `##class(%SYS.Python).GetPythonVersion()`. The `GetPythonVersion()` method only detects if Python has *already been loaded*; it does not load Python itself.
 
+## Python Integration Distribution Rules (added 2026-04-18, Story 13.0 from Epic 12 retro AI #6)
+
+**Release gate.** These rules govern what ships to adopters. They are
+enforced at code review time: any PR that violates them is blocked until
+the violation is corrected. See **PRD NFR-M9 — Python-Optional Compilation**
+for the PRD-level invariant these rules implement.
+
+Cited reason: Epic 12 retrospective Action Items #6–#9 + NFR-M9
+(2026-04-17). Story 12.4 (Python JSRuntime backend) deferral exposed that
+a `[Language = python]` method in any shipped `.cls` file is a latent
+install-break on every IRIS instance without embedded Python — an entire
+class of customers (those whose IRIS build excludes Python, or whose
+deploy pipeline has not configured `PythonRuntimeLibrary`) would see
+`zpm install iris-couch` fail at compile time. This rule prevents that
+ship-breaking pattern from re-entering the codebase when Story 12.4
+resumes or when any future story is tempted to reach for
+`[Language = python]`.
+
+The four invariants:
+
+1. **Zero `[Language = python]` methods in any shipped `.cls` file under
+   `src/IRISCouch/`.** A reviewer sees this line and the PR is blocked.
+   If a story genuinely needs Python, the story itself must be restructured
+   to host the Python code as a ZPM-distributed resource (invariant 2), not
+   embedded in a class. This applies to shipped classes only; debug /
+   probe / scratch classes in an ignored path may temporarily use
+   `[Language = python]` during local exploration, but must never be
+   committed.
+
+2. **Python bridges ship as ZPM `<FileCopy>` resources, never embedded in
+   a class.** If Epic 12+ introduces a Python bridge (for example,
+   `jsruntime.py` for a Python-backed JSRuntime implementation), the
+   bridge is a standalone `.py` file under the ZPM module tree, declared
+   in `module.xml` as a `<FileCopy>` resource copied to a known install
+   location at package install time. The ObjectScript side calls into the
+   bridge via `$ZF(-100)` or `%SYS.Python.Import` against the installed
+   file path; the bridge's source does not live inside a `.cls`.
+
+3. **`irispip install <package>` is documented as an operator-executed
+   prerequisite, never invoked from a ZPM install hook.** If a Python
+   bridge depends on third-party packages (e.g. `requests`, `pyjwt`),
+   those packages are documented in the README / install guide as
+   operator-run `irispip install` commands the operator performs once
+   per IRIS instance. A ZPM install hook that attempts
+   `do ##class(%SYS.Python).Run("irispip install ...")` is forbidden —
+   it breaks on Python-less IRIS, it requires network access at install
+   time on air-gapped hosts, and it silently upgrades packages the
+   operator did not consent to install.
+
+4. **`zpm install iris-couch` must succeed on an IRIS instance regardless
+   of embedded Python availability.** Enforced by a release-gate CI job
+   that runs `zpm install iris-couch` on a Python-less IRIS Community
+   image (when that CI image becomes available — tracked in
+   `deferred-work.md` under the Story 12.4-resumption prerequisites).
+   Until the CI image lands, manual verification on a Python-less IRIS
+   instance is the release gate.
+
+If a future story violates any of these invariants, the reviewer's
+checklist item is: "Does this PR introduce `[Language = python]` to a
+shipped class? Does it embed a `.py` bridge? Does it invoke `irispip` from
+a ZPM hook?" Any yes blocks the PR.
+
 ## Namespace Switching in REST Handlers
    - **CRITICAL**: Never use `New $NAMESPACE` in REST dispatch handler classes (classes extending `%Atelier.REST` or called from Dispatch UrlMap routes)
    - `New $NAMESPACE` + `Set $NAMESPACE = "%SYS"` makes classes from the original namespace (e.g., `ExecuteMCPv2.Utils`) invisible in catch blocks, causing `<CLASS DOES NOT EXIST>` crashes on any error path

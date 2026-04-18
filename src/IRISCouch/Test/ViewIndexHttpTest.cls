@@ -154,8 +154,13 @@ Method TestViewDefinitionChangeDropsIndex()
 
 /// <p>After 3 queries against the index, each call finishes in single-digit
 /// ms (far below the 80+ ms subprocess cold-start cost). Indirect proof
-/// that the index replaced per-query map execution.</p>
-Method TestPooledSubprocessReducesLatency()
+/// that the incremental view index replaced per-query map execution. The
+/// subprocess pool is still a shim under Story 12.5 (Story 12.5b tracks
+/// true long-lived pooling) — this test measures <b>warm-index</b>
+/// latency, not a pooled subprocess. Renamed 2026-04-18 (Story 13.0
+/// cleanup) from <code>TestPooledSubprocessReducesLatency</code> to
+/// reflect what is actually being measured.</p>
+Method TestWarmIndexReducesLatency()
 {
     If ..SkipIfNoSandbox() Quit
     Set tDDoc = "{""views"":{""byid"":{""map"":""function(doc){emit(doc._id,1);}""}}}"

@@ -11,8 +11,12 @@
 /// amortises the cost across the subprocess's lifetime.</p>
 ///
 /// <h3>Storage</h3>
-/// <p>Pool state lives in the process-private global
-/// <code>^||IRISCouchJsRuntimePool</code>. Entries:</p>
+/// <p><b>Planned for Story 12.5b — shim today.</b> The process-private
+/// global <code>^||IRISCouchJsRuntimePool</code> is reserved for the
+/// future LIFO-stack layout below, but no entries are written in the
+/// current shim (<method>Acquire</method> always spawns a fresh Pipe; see
+/// the "Current limitation" note further down). When 12.5b lands the real
+/// async pool, entries will take the form:</p>
 /// <ul>
 /// <li><code>^||IRISCouchJsRuntimePool("count") = N</code> — current
 ///     pool size.</li>

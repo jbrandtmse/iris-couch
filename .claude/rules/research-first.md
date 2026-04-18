@@ -69,6 +69,48 @@ captures:
    - Stories touching any other backend surface must cite either the
      CouchDB 3.x source under `sources/couchdb/` or an InterSystems doc
      page, not just a Perplexity search summary.
+4. **Pre-flight dev-environment capability check (added 2026-04-18, Story
+   13.0 from Epic 12 retro AI #1).** When a story's core capability depends
+   on a runtime primitive that the current dev host may or may not provide
+   (embedded Python via `%SYS.Python.Import`, an `irispip`-installed Python
+   package, a subprocess toolchain like Node/Deno via `$ZF(-100)`, a
+   specific filesystem path, or an external CLI), the Task 0 output **must**
+   include the verbatim terminal output of a probe that exercises that
+   primitive on the current dev host **before** the AC block is authored.
+   If the probe fails or the primitive is unavailable, the story creator
+   **must** escalate to the user for a defer/drop decision **before**
+   writing 300+ lines of spec. The cited failure mode: Story 12.4 (Python
+   JSRuntime backend) was specced, context-filled, and the dev agent was
+   dispatched before anyone verified that `%SYS.Python.Import("sys")`
+   succeeded on the dev host — it did not, and the entire story was
+   deferred. The probe forms:
+   - **Embedded Python:** `iris session IRIS -U <ns> "##class(%SYS.Python).Import(\"sys\")"` — or the MCP equivalent `iris_execute_command`. A failure looks like `ERROR: <OBJECT DISPATCH> ... Failed to Load Python ... Check CPF parameters:[PythonRuntimeLibrary,PythonRuntimeLibraryVersion]`.
+   - **`$ZF(-100)` subprocess:** `Set tSC = $ZF(-100, "/SHELL", "cmd", "/c", "echo hello")` then `zw tSC` — success is `tSC=0`.
+   - **External CLI / `irispip`:** probe the exact invocation the story would use (`irispip install --target <dir> <pkg>` dry-run, `node --version`, etc.) and capture the exit status.
+   - **HTTP endpoint:** the `curl` probe from item 1 already covers this
+     case; the new item 4 only adds probes for non-HTTP primitives.
+
+   The probe output belongs in the story's **Task 0** section alongside the
+   `curl` output from item 1, not as a separate phase — a single Task 0 that
+   captures every pre-flight check the story depends on.
+
+5. **Operator-facing state must ride the commit (added 2026-04-18, Story
+   13.0 from Epic 12 retro AI #2).** When a story is deferred, scope-cut,
+   or ships a known operator-observable limitation, `README.md` **must** be
+   updated **in the same commit** as the sprint-status flip or scope-cut
+   commit, naming the deferred backend, the cut feature, or the new
+   operator prerequisite. Internal refactors, test renames, and
+   implementation-detail changes do **not** require README updates — this
+   rule applies to operator-observable state only. The cited failure mode:
+   Story 12.2's view-query-parameter scope cut (`group`, `group_level`,
+   `startkey`, `endkey`, `limit`, `skip` all deferred to a future 12.2a)
+   was documented in the story file, in `deferred-work.md`, and in the
+   commit message — but **not** in the README. Operators reading the README
+   had no way to see that those parameters were not yet supported; the gap
+   was only caught when Josh surfaced it during the Epic 12 retrospective
+   discussion. If in doubt about whether a change is operator-observable,
+   update the README — false positives (an extra README paragraph) cost
+   nothing; false negatives (silent scope cuts) erode operator trust.
 
 This rule supersedes the ad-hoc "read the manual" prep tasks the Epic 11
 retro dropped — the citation lives inside each story's Dev Notes where the

@@ -1,5 +1,44 @@
 # Epic Development Cycle Log
 
+## Epic 13: Documentation & Working Examples
+
+### 2026-04-18T00:00:00Z — Cycle started
+- **Scope:** Epic 13, Stories 13.0 (deferred cleanup, to be created) + 13.1, 13.2, 13.3 (backlog)
+- **Invocation:** `/epic-dev-cycle Epic 13`
+- **Sprint status at kickoff:** Epic 12 `in-progress` (retrospective done), 13.1/13.2/13.3 `backlog`, 13.0 not yet in sprint-status
+- **Preconditions verified:** `sprint-status.yaml` current, `deferred-work.md` present, `epic-12-retro-2026-04-17.md` present with 10 action items
+
+### 2026-04-18T00:10:00Z — Phase 0: Sprint Planning
+- Sprint-status.yaml verified current — all Epic 13 stories (13.1/13.2/13.3) tracked as backlog; no story files yet
+- `last_updated` bumped to 2026-04-18 with note "Epic 13 cycle begins, Story 13.0 pending creation"
+- No issues surfaced — all 14 epics, 60+ stories tracked
+
+### 2026-04-18T00:15:00Z — Phase 0.5: Retrospective Review & Story 13.0 prep
+- Read Epic 12 retrospective (`epic-12-retro-2026-04-17.md`, 194 lines): 10 action items identified
+- Read `deferred-work.md` open items: HIGH=0, MED=8 open (4 Epic-12 carry-forwards scoped to 12.5a/b/c + 12.2, 3 Epic-10 UI gaps, 1 infra), LOW~60+ across epics 1-12
+- **Triage decision (codified in Story 13.0):**
+  - INCLUDE: Action Item #1 (pre-flight env check rule), #2 (README-same-commit rule), #6 (zero `[Language = python]` compile-rule), #10 (PRD NFR addition)
+  - INCLUDE as new Story 13.x creation: Action Item #5 / #9 (Python-less IRIS CI image + release gate)
+  - DEFER with named trigger: Action Items #7, #8 (Story 12.4 resumption prerequisites)
+  - OUT-OF-SCOPE: Action Items #3 (goes into Story 13.1 spec directly), #4 (goes into Story 13.2 spec directly)
+  - LOW triage: walk `deferred-work.md` LOW list, resolve quick wins, keep-deferred with revisit triggers for rest (pattern from Story 12.0)
+
+### 2026-04-18T00:30:00Z — Story 13.0 created
+- **Story file:** `_bmad-output/implementation-artifacts/13-0-epic-12-deferred-cleanup.md` (6 ACs, 7 tasks + Task 0 pre-flight)
+- **Sprint status:** `13-0-epic-12-deferred-cleanup: ready-for-dev`; `epic-13: in-progress`
+- **Scope:** markdown + rules edits (research-first.md x2, iris-objectscript-basics.md x1, prd.md x1) + 21 LOW triage + deferred-work.md maintenance. No ObjectScript/Angular feature work; Task 5 may produce small code deletes/rename on dev judgment.
+- **Next:** spawn `dev-13-0` agent via Agent tool with bypassPermissions mode
+
+### 2026-04-18T01:00:00Z — Story 13.0 dev complete
+- **Agent:** `dev-13-0` (general-purpose, bypassPermissions); total 1084925ms; 87 tool uses
+- **Dev output — Task 0 probe (a) Python:** `ERROR: <OBJECT DISPATCH> 230 ... Failed to Load Python: Check CPF PythonRuntimeLibrary` (expected — self-application of new rule succeeded)
+- **Dev output — Task 0 probe (b) `$ZF(-100)`:** `tSC=0` (success)
+- **Dev output — Task 0 probe (c) `/_session`:** 200 OK with auth envelope
+- **Triage outcome:** 3 resolved (`Pool.cls` docstring, `EncodeKeyForSort` dead-code in `Storage/ViewIndex.cls`, `TestPooledSubprocessReducesLatency` rename), 18 kept-deferred with named triggers, 0 escalated — matches Story 12.0 healthy envelope
+- **Files modified:** 6 rule/docs/status files + 3 ObjectScript classes (Pool.cls, Storage/ViewIndex.cls, Test/ViewIndexHttpTest.cls) — all compiled clean (102ms)
+- **Tests:** `ViewIndexTest` 8/8 and `ViewIndexHttpTest` 7/7 green post-change (including renamed test)
+- **Status:** Story 13.0 review → spawn `cr-13-0` code review
+
 ## Epic 11: Admin UI - Design Documents & Security Views
 
 ### 2026-04-17T00:00:00Z — Story 11.5: Admin UI Static Hosting & Access Control

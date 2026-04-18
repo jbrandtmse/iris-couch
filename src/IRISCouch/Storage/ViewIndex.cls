@@ -78,11 +78,10 @@ ClassMethod EncodeKeyForSort(pKey) As %String
         }
         Quit ..#KEYOBJECTPREFIX _ ":" _ pKey.%ToJSON()
     }
-    ; Scalar distinctions.
-    If (pKey = 1) && ($Get(pKey) = 1) && ('$Listvalid(pKey)) {
-        ; Note: cannot reliably distinguish 1 from true in ObjectScript unless
-        ; the caller passed a type hint. Fall through to numeric for safety.
-    }
+    ; Scalar distinctions. A bool/integer sentinel lived here previously
+    ; (Story 12.5 Task 1) but ObjectScript cannot reliably distinguish 1
+    ; from true without a caller-supplied type hint, so the block was dead
+    ; code and has been removed (Story 13.0 cleanup 2026-04-18).
     If (pKey = +pKey) && (pKey '= "") {
         ; Numeric: pad integer portion so lexical sort = numeric sort.
         ; Negative numbers are not correctly collated here (CouchDB rarely
