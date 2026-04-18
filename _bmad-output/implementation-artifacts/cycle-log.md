@@ -39,6 +39,35 @@
 - **Tests:** `ViewIndexTest` 8/8 and `ViewIndexHttpTest` 7/7 green post-change (including renamed test)
 - **Status:** Story 13.0 review → spawn `cr-13-0` code review
 
+### 2026-04-18T01:15:00Z — Story 13.0 code review complete
+- **Agent:** `cr-13-0` (general-purpose, bypassPermissions); 332741ms; 33 tool uses
+- **Findings:** 0 CRITICAL, 0 HIGH, 1 MEDIUM auto-resolved, 2 LOW dismissed as below-noise-floor
+- **MED auto-resolved:** `research-first.md` numbered list was broken by an interposed paragraph between items 3 and 4 — fixed by relocating the "This rule supersedes..." concluding paragraph to after item 5, restoring unbroken 1→2→3→4→5 rendering
+- **All 6 ACs verified satisfied:** research-first.md items 4+5 present, iris-objectscript-basics.md Python Distribution Rules subsection present, PRD NFR-M9 cross-referenced, triage 3/18/0 matches Story 12.0 envelope, 12.4-resumption section added
+- **Code change validation:** Pool.cls docstring preserved class shape; ViewIndex.cls dead-code removal preserves semantics (remaining numeric/string branches cover all scalar cases); ViewIndexHttpTest rename clean (no executable code references old name)
+
+### 2026-04-18T01:20:00Z — Story 13.0 committed
+- **Commit:** `d745f94` — `feat(epic-13): Story 13.0 - Epic 12 Deferred Cleanup`
+- **10 files, 569 insertions, 40 deletions**
+- **Pushed:** `origin/main` (25241f1..d745f94)
+- **Sprint status:** `13-0-epic-12-deferred-cleanup: review → done`
+
+### 2026-04-18T01:30:00Z — Story 13.1 created
+- **Story file:** `_bmad-output/implementation-artifacts/13-1-getting-started-guide-and-compatibility-matrix.md` (7 ACs, 5 tasks + Task 0 pre-flight probe)
+- **Sprint status:** `13-1-getting-started-guide-and-compatibility-matrix: ready-for-dev`
+- **Scope:** `documentation/getting-started.md` + `documentation/compatibility-matrix.md` + `README.md` updates (Documentation section, Roadmap bumps, JSRuntime Requirements subsection). Zero new code. Epic 12 retro AI #3 (compatibility-matrix JSRuntime state embed) + AI #2 (README-same-commit self-application) built into ACs.
+- **Next:** spawn `dev-13-1` agent
+
+### 2026-04-18T02:15:00Z — Story 13.1 dev complete
+- **Agent:** `dev-13-1` (general-purpose, bypassPermissions); 749327ms; 55 tool uses
+- **Files created:** `documentation/getting-started.md` (657 lines), `documentation/compatibility-matrix.md` (363 lines, 98 endpoint rows)
+- **Compatibility matrix status counts:** 56 supported / 18 supported-with-caveat / 11 501-in-default-config / 13 out-of-scope — dev chose three-rows-per-endpoint format for JSRuntime-aware rows (None / Subprocess / Python-deferred) to make the Python non-ship visually distinct from "caveat"
+- **Config-key correction:** story spec used hypothetical `JSRUNTIMEBACKEND` / `NODEPATH`; actual shipping code uses `JSRUNTIME` / `JSRUNTIMESUBPROCESSPATH` (verified against `src/IRISCouch/Config.cls` and existing `documentation/js-runtime.md`) — dev substituted actual keys into all new docs
+- **Task 0 probe substitutions:** actual welcome envelope returns `version:"0.1.0"` with no `features` field (not the speculative `3.3.3`/`features:[...]` lead pre-authored); dev substituted verbatim dev-host output and logged the version deviation in the matrix `GET /` row as supported-with-caveat
+- **Matrix-verification bugs discovered:** none — no new deferred-work entries
+- **README edits:** Epic 12 row → `5/5 + 12.4 deferred | ~850 | — | Done`; Epic 13 row → `2/3 | — | — | In Progress`; new `## Documentation` section between Distribution and JS Runtime Requirements
+- **Status:** Story 13.1 review → spawn `cr-13-1` code review
+
 ## Epic 11: Admin UI - Design Documents & Security Views
 
 ### 2026-04-17T00:00:00Z — Story 11.5: Admin UI Static Hosting & Access Control

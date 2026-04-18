@@ -35,9 +35,9 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-18 (Story 13.0 review; epic-13 in-progress)
-last_story_completed: 12-5-incremental-view-indexing-caching-and-sandbox-safety
-last_story_reviewed: 12-5-incremental-view-indexing-caching-and-sandbox-safety
+last_updated: 2026-04-18 (Story 13.1 review)
+last_story_completed: 13-0-epic-12-deferred-cleanup
+last_story_reviewed: 13-0-epic-12-deferred-cleanup
 project: iris-couch
 project_key: NOKEY
 tracking_system: file-system
@@ -157,8 +157,8 @@ development_status:
 
   # Epic 13: Documentation & Working Examples
   epic-13: in-progress
-  13-0-epic-12-deferred-cleanup: review
-  13-1-getting-started-guide-and-compatibility-matrix: backlog
+  13-0-epic-12-deferred-cleanup: done
+  13-1-getting-started-guide-and-compatibility-matrix: review
   13-2-deviation-log-migration-playbook-and-troubleshooting-runbook: backlog
   13-3-working-code-examples: backlog
   epic-13-retrospective: optional

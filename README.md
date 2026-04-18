@@ -55,10 +55,10 @@ See the [PRD § Project Scoping & Phased Development Strategy](_bmad-output/plan
 | 9 | Observability & Audit Trail | 4/4 | 497 | — | Done |
 | 10 | Admin UI — Core Experience | 8/8 | 497 | 422 | Done |
 | 11 | Admin UI — Design Docs, Security & Hosting | 6/6 | 507 | 678 | Done |
-| 12 | Pluggable JavaScript Runtime | 3/5 + 12.4 deferred | 699 | — | In Progress |
-| 13 | Documentation & Working Examples | 0/3 | — | — | Backlog |
+| 12 | Pluggable JavaScript Runtime | 5/5 + 12.4 deferred | ~850 | — | Done |
+| 13 | Documentation & Working Examples | 2/3 | — | — | In Progress |
 
-**Progress:** 11/13 epics complete + Epic 12 at 60% — 699 backend ObjectScript assertions + 678 Angular UI specs passing, 0 failures, 0 regressions across 11+ consecutive epics. Story 12.4 (Python JSRuntime backend) is deferred to a future milestone pending a Python-enabled IRIS image; see [JavaScript Runtime Requirements](#javascript-runtime-requirements) for the operator-facing implication.
+**Progress:** 12/13 epics complete + Epic 13 in progress (13.0 Epic-12-deferred cleanup + 13.1 Getting Started guide & Compatibility Matrix shipped; 13.2 + 13.3 remaining) — ~850 backend ObjectScript assertions + 678 Angular UI specs passing, 0 failures, 0 regressions across 12+ consecutive epics. Story 12.4 (Python JSRuntime backend) is deferred to a future milestone pending a Python-enabled IRIS image; see [JavaScript Runtime Requirements](#javascript-runtime-requirements) for the operator-facing implication. Adopters: start at the [Getting Started guide](documentation/getting-started.md) and the [Compatibility Matrix](documentation/compatibility-matrix.md).
 
 ### Milestone Beta — Customer Zero Complete
 
@@ -82,6 +82,16 @@ InterSystems' own IRIS DocDB feature exposes a proprietary `/api/docdb/v1` REST 
 - **Target package manager:** ZPM / IPM (`zpm "install iris-couch"`) — planned for α
 - **Compatibility anchor:** Apache CouchDB 3.3.3 through β; CouchDB 3.5.x added at γ
 - **Smoke-tested clients (planned):** PouchDB 9.x, Apache CouchDB replicator, `nano` 10.x, `@cloudant/cloudant` 5.x, Fauxton
+
+## Documentation
+
+Operator- and adopter-facing documentation lives under `documentation/`:
+
+- **[Getting Started Guide](documentation/getting-started.md)** — fresh IRIS to a working PouchDB replication in under one hour. Install, topology options (reverse-proxy or direct mount), create-a-database, write-a-document, browser + Node PouchDB snippets, JSRuntime configuration, troubleshooting.
+- **[Compatibility Matrix](documentation/compatibility-matrix.md)** — every CouchDB 3.x HTTP endpoint grouped by family, each marked `supported` / `supported with caveat` / `501 in default config` / `out of scope with reason` with a named verification method (HTTP integration test, manual `curl` probe, replicator parity test). JSRuntime-aware endpoints (views, validate, filters) document all three backend states (`None` / `Subprocess` / `Python-deferred`).
+- **[JSRuntime Backends](documentation/js-runtime.md)** — detailed semantics for the pluggable JavaScript runtime: Subprocess entry script, sandbox flags, timeout enforcement, pool API, known limitations.
+
+The planning-artifact links at the top of this README (PRD, Product Brief, Technical Research) remain the canonical product documentation; the `documentation/` tree adds adopter- and operator-facing guides on top.
 
 ## JavaScript Runtime Requirements
 
