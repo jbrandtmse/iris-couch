@@ -1,0 +1,15 @@
+Fixture: <path>/fixtures/test.png (987 bytes, SHA-256 b8534a5c61126b1b077ef7889860820b0b2bf200ffa79aeaaea780ae8076ca88)
+Step 1: PUT /attachment-upload-example
+{"ok":true}
+Step 2: PUT /attachment-upload-example/image-doc (parent document)
+{"id":"image-doc","ok":true}
+Step 3: PUT /attachment-upload-example/image-doc/test.png?rev=1-<hash> (attach the PNG)
+{"id":"image-doc","ok":true}
+Step 4: GET /attachment-upload-example/image-doc/test.png (download the attachment)
+{"status":200,"content_type":"image/png","content_length":987,"sha256":"b8534a5c61126b1b077ef7889860820b0b2bf200ffa79aeaaea780ae8076ca88"}
+Step 5: Assert SHA-256 round-trip
+{"round_trip":"OK","bytes":987}
+Step 6: GET /attachment-upload-example/image-doc (confirm rev bumped + attachment stub)
+{"_rev":"2-<hash>","has_attachment":true,"content_type":"image/png","length":987,"stub":true}
+Step 7: DELETE /attachment-upload-example
+{"ok":true}

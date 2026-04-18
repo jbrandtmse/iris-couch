@@ -1,0 +1,12 @@
+Step 1: PUT /mango-query-example
+{"ok":true}
+Step 2: Seed 10 documents with status + created_at
+Seeded 10 documents
+Step 3: POST /mango-query-example/_index (status, created_at)
+{"result":"created","id":"_design/<hash>","name":"status-created"}
+Step 4: POST /mango-query-example/_find selector={status:$eq active, created_at:$gt 2026-01-01}
+{"docs":[{"status":"active","created_at":"2026-06-01T10:00:00Z","_id":"doc-001"},{"status":"active","created_at":"2026-06-02T10:00:00Z","_id":"doc-002"},{"status":"active","created_at":"2026-06-03T10:00:00Z","_id":"doc-003"},{"status":"active","created_at":"2026-06-07T10:00:00Z","_id":"doc-009"},{"status":"active","created_at":"2026-06-08T10:00:00Z","_id":"doc-010"}],"bookmark":"nil","execution_stats":{"total_keys_examined":10,"total_docs_examined":10,"results_returned":5,"execution_time_ms":<ms>}}
+Step 5: POST /mango-query-example/_explain (confirm index used, not full-scan)
+{"dbname":"mango-query-example","index":{"ddoc":"_design/<hash>","name":"status-created","type":"json","def":{"fields":[{"status":"asc"},{"created_at":"asc"}]}},"selector":{"$and":[{"status":{"$eq":"active"}},{"created_at":{"$gt":"2026-01-01"}}]},"opts":{"use_index":[],"bookmark":"nil","limit":25,"skip":0,"sort":{},"fields":"all_fields","r":1,"conflicts":false,"execution_stats":false},"limit":25,"skip":0,"fields":"all_fields","index_candidates":[{"index":{"ddoc":"_design/<hash>","name":"status-created","type":"json","def":{"fields":[{"status":"asc"},{"created_at":"asc"}]}},"analysis":{"usable":true,"reasons":[],"ranking":1,"covering":null}},{"index":{"ddoc":null,"name":"_all_docs","type":"special","def":{"fields":[{"_id":"asc"}]}},"analysis":{"usable":true,"reasons":[{"name":"unfavored_type"}],"ranking":0,"covering":null}}]}
+Step 6: DELETE /mango-query-example
+{"ok":true}

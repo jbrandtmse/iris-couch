@@ -98,6 +98,39 @@
 - **README edits:** Epic 13 Roadmap row → `3/3 | — | — | In Progress` (13.3 still pending); Documentation section expanded with 3 new entries
 - **Status:** Story 13.2 review → spawn `cr-13-2` code review
 
+### 2026-04-18T04:15:00Z — Story 13.2 code review complete
+- **Agent:** `cr-13-2` (general-purpose, bypassPermissions); 608260ms; 98 tool uses
+- **Findings:** 0 CRITICAL, **3 HIGH auto-resolved**, 1 MEDIUM auto-resolved, 1 LOW dismissed (size overrun), 1 INFO flagged (pre-existing gap, OOS)
+- **HIGH auto-resolved:** (1) `GET /_metrics` → actual route is `/_prometheus` per Router.cls (3 uses corrected); (2) `GET /_node/_local/_config/jsruntime` endpoint doesn't exist — compat-matrix lists it OOS — replaced with `##class(IRISCouch.Config).Get(...)` terminal commands (4 uses); (3) `zwrite ^IRISCouch.Audit(<seq>)` — global doesn't exist, audit events go to IRIS `%SYS.Audit` via `$System.Security.Audit("IRISCouch", ...)` — replaced with Management Portal navigation (3 uses)
+- **MED auto-resolved:** Checkpoint doc pattern `_local/_replicator_checkpoint_<session_id>` was invented; CouchDB spec uses `_local/{replication-id}` (hash of source/target/selector) — corrected in Symptoms/Diagnostic/Resolution; also fixed `subprocess_spawn_failed` → actual envelope `subprocess_error`
+- **NFR-M4 assessment: SATISFIED** — 14 deviations cover all operator-observable differences; filter spot-check on 3 EXCLUDED items (Pool shim 12.5b, UI delete trigger, CI infra) all pass correctly
+- **All 4 ACs verified after auto-resolution.** 5 JSRuntime sub-scenarios (AC #4) all present and diagnostically runnable
+
+### 2026-04-18T04:25:00Z — Story 13.2 committed
+- **Commit:** `d8267bc` — `feat(epic-13): Story 13.2 - Deviation Log, Migration Playbook & Troubleshooting Runbook`
+- **9 files, 2230 insertions, 10 deletions**
+- **Pushed:** `origin/main` (0a849f8..d8267bc)
+- **Sprint status:** `13-2-deviation-log-migration-playbook-and-troubleshooting-runbook: review → done`
+
+### 2026-04-18T04:30:00Z — Story 13.3 created
+- **Story file:** `_bmad-output/implementation-artifacts/13-3-working-code-examples.md` (7 ACs, 10 tasks + Task 0 probe/audit)
+- **Sprint status:** `13-3-working-code-examples: ready-for-dev`
+- **Scope:** 6 examples under `examples/` (hello-document, pouchdb-sync, replicate-from-couchdb, mango-query, attachment-upload, jsruntime-subprocess-node) + `run-all.sh/ps1` harness + CI wiring decision (Option A extend workflows vs Option B defer with trigger) + cross-references to 3 docs + README Roadmap bump to Epic 13 Done. Language policy: curl-based (hello-doc, replicate, mango) + Node-based (pouchdb-sync, attachment, jsruntime-subprocess).
+- **Dependencies verified:** `documentation/couchjs/couchjs-entry.js` present (7 files); `.github/workflows/ui-smoke.yml` exists but no examples CI yet
+- **Next:** spawn `dev-13-3` agent — Epic 13 final story
+
+### 2026-04-18T05:15:00Z — Story 13.3 dev complete
+- **Agent:** `dev-13-3` (general-purpose, bypassPermissions); 1488003ms; 157 tool uses
+- **Files created:** 27 under `examples/` tree — 6 example subdirectories + shared harness (`run-all.sh/ps1`) + root README + PNG fixture (987 bytes)
+- **Dev-host smoke:** 5 pass + 1 skip (`replicate-from-couchdb` skipped because no CouchDB reachable on dev host; skip-path verified). 0 failures.
+- **CI wiring decision: Option B (deferred).** `.github/workflows/ui-smoke.yml` already sits unrun pending self-hosted runner (Story 11.0 precedent); adding a second unrun workflow would not improve enforcement. New deferred-work entry names trigger "before α/β tagging gate"
+- **In-the-wild bugs surfaced (2 — both escalated):**
+  - **HIGH — trailing-slash routing:** `PUT /{db}/` returns 404 instead of creating DB (CouchDB 3.x accepts both). Broke PouchDB default construction. Worked around in example via `{ skip_setup: true }`; escalated to deferred-work for 2-line Router.cls fix
+  - **MED — matrix lie on view query params:** `group`/`group_level`/`startkey`/`endkey`/`limit`/`skip` listed as "supported (12.2)" but silently ignored in `QueryEngine.Query`/`ViewHandler.ExtractQueryParams`. **Corrected matrix in same commit per NFR-I3**; example restructured to avoid unsupported params
+- **Matrix cross-ref strategy:** Option B (new header section mapping examples→endpoint families) rather than per-row Example column (cheaper for 123 rows)
+- **Sprint status:** `13-3-working-code-examples: ready-for-dev → review`; new field `last_story_submitted_for_review`
+- **Status:** Story 13.3 review → spawn `cr-13-3` code review
+
 ## Epic 11: Admin UI - Design Documents & Security Views
 
 ### 2026-04-17T00:00:00Z — Story 11.5: Admin UI Static Hosting & Access Control

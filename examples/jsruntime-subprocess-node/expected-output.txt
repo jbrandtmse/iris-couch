@@ -1,0 +1,19 @@
+Probe: verify JSRUNTIME=Subprocess is active
+PROBE OK: JSRUNTIME=Subprocess and views execute successfully.
+  couchjs entry script path: <path>
+
+Step 1: PUT /jsruntime-subprocess-example
+{"ok":true}
+Step 2: Seed 5 documents with a `type` field
+{"seeded":5}
+Step 3: PUT _design/examples with map + built-in _count reduce
+{"id":"_design/examples","ok":true}
+
+Step 4: GET /_view/by-type?reduce=false (map emissions from JS subprocess)
+{"total_rows":5,"offset":0,"rows":[{"id":"doc-2","key":"even","value":1},{"id":"doc-4","key":"even","value":1},{"id":"doc-1","key":"odd","value":1},{"id":"doc-3","key":"odd","value":1},{"id":"doc-5","key":"odd","value":1}]}
+
+Step 5: GET /_view/by-type (default: _count reduce, ungrouped)
+{"rows":[{"key":null,"value":5}]}
+
+Step 6: DELETE /jsruntime-subprocess-example
+{"ok":true}

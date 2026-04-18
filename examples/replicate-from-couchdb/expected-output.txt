@@ -1,0 +1,14 @@
+Step 1: Seed source CouchDB at http://localhost:5984/replicate-source with 5 sample docs
+Source /replicate-source doc_count=5
+Step 2: Create target database on IRISCouch
+{"ok":true}
+Step 3: POST /_replicate on IRISCouch (source=apache-couchdb, target=iris-couch)
+{"ok":true,"history":[<history>],"replication_id_version":<n>,"session_id":"<uuid>","source_last_seq":<seq>}
+Step 4: Confirm doc_count parity
+Target /replicate-target doc_count=5
+PARITY OK
+Step 5: Spot-check one replicated document
+{"_id":"src-doc-003","_rev":"1-<hash>","origin":"apache-couchdb","n":3}
+Step 6: Cleanup (drop both source and target)
+{"ok":true}
+{"ok":true}

@@ -20,3 +20,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Working examples (Story 13.3) — local Node dependencies + PouchDB state
+examples/**/node_modules/
+examples/**/.local-pouchdb-*
+examples/**/package-lock.json
+examples/_logs/

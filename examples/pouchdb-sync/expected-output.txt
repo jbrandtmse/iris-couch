@@ -1,0 +1,14 @@
+Step 1: PUT 5 documents into the local PouchDB
+{"seeded":5,"ids":["local-001","local-002","local-003","local-004","local-005"]}
+Step 2: sync() local -> remote
+{"push_docs_written":5,"pull_docs_written":0}
+Step 3: GET remote /_all_docs (expect 5 from the push)
+{"total_rows":5,"row_ids":["local-001","local-002","local-003","local-004","local-005"]}
+Step 4: Write one doc directly to IRISCouch via fetch (remote-origin)
+{"id":"remote-001","ok":true}
+Step 5: sync() again (pull the remote-origin doc into local PouchDB)
+{"push_docs_written":0,"pull_docs_written":1}
+Step 6: Local PouchDB now has 6 docs (5 local + 1 pulled)
+{"total_rows":6,"row_ids":["local-001","local-002","local-003","local-004","local-005","remote-001"]}
+Step 7: Cleanup (drop remote and local)
+{"cleanup":"ok"}

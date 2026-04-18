@@ -600,9 +600,14 @@ not a feature gate.
   incident classes (replication lag, checkpoint corruption, stuck
   conflicts, attachment stream failures, JS sandbox errors) with
   Symptoms / Diagnostic / Resolution / Prevention for each.
-- **Working code examples (Story 13.3 — coming soon).** Six ready-to-run
-  integrations covering PouchDB browser/Node, the Apache CouchDB replicator,
-  `nano`, `@cloudant/cloudant`, and Fauxton against IRISCouch.
+- **[Working code examples](../examples/README.md).** Six ready-to-run
+  integrations: `hello-document` (curl CRUD roundtrip), `pouchdb-sync`
+  (bidirectional sync with observable convergence), `replicate-from-couchdb`
+  (the runnable template for [Migration Playbook Phase 3](migration.md)),
+  `mango-query` (declarative `_index` / `_find` / `_explain`),
+  `attachment-upload` (binary SHA-256 round-trip), `jsruntime-subprocess-node`
+  (JavaScript views via Subprocess backend). Run any one individually or use
+  `examples/run-all.sh` to run them all.
 
 ---
 

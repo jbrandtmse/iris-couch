@@ -1,0 +1,14 @@
+Step 1: PUT /hello-document-example
+{"ok":true}
+Step 2: PUT /hello-document-example/greeting (initial body)
+{"ok":true,"id":"greeting","rev":"1-<hash>"}
+Step 3: GET /hello-document-example/greeting
+{"_id":"greeting","_rev":"1-<hash>","message":"hello, iris-couch","lang":"en"}
+Step 4: PUT /hello-document-example/greeting?rev=1-<hash> (update)
+{"ok":true,"id":"greeting","rev":"2-<hash>"}
+Step 5: DELETE /hello-document-example/greeting?rev=2-<hash>
+{"ok":true,"id":"greeting","rev":"3-<hash>"}
+Step 6: GET /hello-document-example/greeting (expect 404)
+HTTP 404
+Step 7: DELETE /hello-document-example
+{"ok":true}

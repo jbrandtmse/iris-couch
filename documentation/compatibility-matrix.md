@@ -15,6 +15,24 @@ IRISCouch and CouchDB 3.x per PRD NFR-M4.
 
 ---
 
+## Runnable examples mapped to endpoint families (Story 13.3)
+
+Six runnable examples live under [`examples/`](../examples/README.md). Each
+exercises a specific endpoint family end-to-end against a live IRISCouch
+instance; if a row below is marked `supported` but the relevant example
+fails on your host, that's a bug report. Map from example to endpoints:
+
+| Example | Endpoints exercised |
+|---------|---------------------|
+| [`hello-document/`](../examples/hello-document/README.md) | `PUT /{db}`, `PUT /{db}/{docid}`, `GET /{db}/{docid}`, `DELETE /{db}/{docid}?rev=...`, `DELETE /{db}` |
+| [`pouchdb-sync/`](../examples/pouchdb-sync/README.md) | `PUT /{db}`, `POST /{db}/_bulk_docs`, `POST /{db}/_revs_diff`, `GET /{db}/_changes`, `GET|PUT /{db}/_local/{id}`, `GET /{db}/_all_docs` (via PouchDB `sync()`) |
+| [`replicate-from-couchdb/`](../examples/replicate-from-couchdb/README.md) | `POST /_replicate`, `GET /{db}`, `PUT /{db}`, `DELETE /{db}` |
+| [`mango-query/`](../examples/mango-query/README.md) | `POST /{db}/_index`, `POST /{db}/_find` (with `execution_stats`), `POST /{db}/_explain` |
+| [`attachment-upload/`](../examples/attachment-upload/README.md) | `PUT /{db}/{docid}`, `PUT /{db}/{docid}/{attname}?rev=...`, `GET /{db}/{docid}/{attname}`, `GET /{db}/{docid}` (attachment stub) |
+| [`jsruntime-subprocess-node/`](../examples/jsruntime-subprocess-node/README.md) | `PUT /{db}/_design/{ddoc}`, `GET /{db}/_design/{ddoc}/_view/{view}` under `JSRUNTIME=Subprocess` |
+
+---
+
 ## How to read a row
 
 | Column | Meaning |
@@ -102,6 +120,7 @@ Source: `sources/couchdb/src/docs/src/api/database/`
 | `/{db}` | GET | supported | Returns info envelope with `db_name`, `doc_count`, `doc_del_count`, `update_seq`, `sizes`, `cluster:{q:1,n:1,w:1,r:1}`, `instance_start_time:"0"`. Cluster values are constants for a single-node server. | `DatabaseHttpTest.TestDatabaseInfoHttp` |
 | `/{db}` | PUT | supported | Creates database; `partitioned` query param is accepted but ignored (IRISCouch does not partition). | `DatabaseHttpTest.TestCreateDatabaseHttp`, `DatabaseHttpTest.TestCreateDatabaseAlreadyExistsHttp` |
 | `/{db}` | DELETE | supported | Drops database and all globals. Irreversible; no soft-delete. | `DatabaseHttpTest.TestDeleteDatabaseHttp`, `DatabaseHttpTest.TestDeleteDatabaseNotFoundHttp` |
+| `/{db}/` (trailing slash) | PUT, GET, HEAD | supported with caveat | **Dev-host-discovered 2026-04-18 during Story 13.3.** Current Router UrlMap does not match the trailing-slash variant, so `PUT /{db}/` and `GET /{db}/` both return 404. CouchDB 3.x accepts both trailing-slash and no-trailing-slash forms. PouchDB's default remote-handle construction calls `PUT /{db}/` for auto-create. **Workaround for adopters today:** create the database with `PUT /{db}` (no trailing slash) first, then pass `{ skip_setup: true }` to the PouchDB constructor so it does not probe — see [`examples/pouchdb-sync/`](../examples/pouchdb-sync/README.md). **Fix path:** a one-line addition of `/:db/` routes to Router UrlMap, tracked in [deferred-work.md § Story 13.3 HIGH](../_bmad-output/implementation-artifacts/deferred-work.md). | Dev-host smoke verified 2026-04-18 via `curl -u _system:SYS -X PUT 'http://localhost:52773/iris-couch/test/'` → 404. |
 | `/{db}` | POST | supported | Create-document without explicit ID; server generates UUID. | `DocumentHttpTest.TestPostDocument` |
 | `/{db}/_all_docs` | GET, POST | supported | Keys: `limit`, `skip`, `startkey`, `endkey`, `key`, `keys`, `include_docs`, `descending`, `inclusive_end`. Tested across all parameters. | `AllDocsHttpTest.TestAllDocsPostKeysHttp`, `AllDocsHttpTest.TestAllDocsKeyRangeHttp`, `AllDocsHttpTest.TestAllDocsLimitSkipHttp`, `AllDocsHttpTest.TestAllDocsIncludeDocsHttp` |
 | `/{db}/_all_docs/queries` | POST | out of scope with reason | CouchDB 3.x multi-query `_all_docs` surface (one request, multiple key-range queries). Not yet implemented; individual `_all_docs` requests work. | N/A |
@@ -195,11 +214,11 @@ unknown params and the silent-ignore keeps the happy path working.
 |-----------|-------------------|------------------|
 | `reduce` | supported | Defaults to true when a reduce function is defined. |
 | `include_docs` | supported | Fetches full document alongside each key/value row. |
-| `group` | supported | Story 12.2 shipped. |
-| `group_level=N` | supported | Story 12.2 shipped. |
-| `startkey`, `endkey` | supported | Story 12.2 shipped. JSON encoding required. |
-| `limit` | supported | Story 12.2 shipped. |
-| `skip` | supported | Story 12.2 shipped. |
+| `group` | silently ignored (Story 12.2a) | Grouped reduce not yet implemented. Current behaviour with `group=true` is identical to ungrouped reduce. Dev-host-discovered 2026-04-18 during Story 13.3 example development; corrects a prior matrix entry that said "supported". |
+| `group_level=N` | silently ignored (Story 12.2a) | Same as `group`. |
+| `startkey`, `endkey` | silently ignored (Story 12.2a) | Range filtering on emitted keys. Workaround: filter client-side. Dev-host-discovered 2026-04-18. |
+| `limit` | silently ignored (Story 12.2a) | Returns full result set. Paginate client-side. Dev-host-discovered 2026-04-18. |
+| `skip` | silently ignored (Story 12.2a) | Returns full result set. Dev-host-discovered 2026-04-18. |
 | `descending` | silently ignored (Story 12.2a) | Will return full unreversed result set. See [deferred-work.md Story 12.2](../_bmad-output/implementation-artifacts/deferred-work.md#deferred-from-story-12-2-implementation-2026-04-17). |
 | `inclusive_end` | silently ignored (Story 12.2a) | Always inclusive. |
 | `startkey_docid`, `endkey_docid` | silently ignored (Story 12.2a) | Range-tiebreaker on duplicate keys; Story 12.2a. |
