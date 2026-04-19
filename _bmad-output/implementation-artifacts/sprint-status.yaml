@@ -35,9 +35,9 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-18 (Story 13.4 review-ready; post-acceptance-pass backlog cleanup)
-last_story_completed: 13-3-working-code-examples
-last_story_reviewed: 13-3-working-code-examples
+last_updated: 2026-04-18 (Epic 13 COMPLETE — Story 13.4 done; commit bd73bd9 pushed)
+last_story_completed: 13-4-deferred-backlog-cleanup-and-trailing-slash-fix
+last_story_reviewed: 13-4-deferred-backlog-cleanup-and-trailing-slash-fix
 project: iris-couch
 project_key: NOKEY
 tracking_system: file-system
@@ -161,7 +161,7 @@ development_status:
   13-1-getting-started-guide-and-compatibility-matrix: done
   13-2-deviation-log-migration-playbook-and-troubleshooting-runbook: done
   13-3-working-code-examples: done
-  13-4-deferred-backlog-cleanup-and-trailing-slash-fix: review
+  13-4-deferred-backlog-cleanup-and-trailing-slash-fix: done
   epic-13-retrospective: done
 
   # Epic 14: Gamma - Streaming Feeds & ECP Clustering
