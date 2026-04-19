@@ -142,10 +142,20 @@ ClassMethod RunValidateHook(pDB As %String, pDocId As %String, pNewBody As %Stri
 ///        <code>"forbidden: &lt;reason&gt;"</code>). Callers MUST check this
 ///        when <code>tNewRev = ""</code> to distinguish a validate rejection
 ///        (401/403/501) from a generic server error (500).
+/// @param pIndexError Output: when an incremental view-index update fails
+///        with a classified cause (e.g. <code>jsruntime_timeout</code>),
+///        callers receive a %DynamicObject with fields
+///        <code>classification</code>, <code>reason</code>, and
+///        <code>durationMs</code>. Story 13.4 Task 4 introduced this channel
+///        so <class>IRISCouch.API.DocumentHandler</class> can emit the
+///        appropriate <code>{"error":"timeout",...}</code> envelope instead
+///        of the generic <code>server_error</code> fallback. Empty/unset when
+///        the failure cause is NOT a classified index error.
 /// @return %String The new revision string on success, empty string on failure
-ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev As %String = "", Output pValidateError As %String = "") As %String
+ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev As %String = "", Output pValidateError As %String = "", Output pIndexError As %DynamicObject = "") As %String
 {
     Set pValidateError = ""
+    Set pIndexError = ""
     Set tNewRev = ""
     Set tInTrans = 0
     Try {
@@ -210,9 +220,21 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
             Do ##class(IRISCouch.Projection.MangoIndex).UpsertForDocument(pDB, pDocId, tBodyObj, tIndexDefs)
         }
         ; 6b. Update view indexes incrementally (Story 12.5 AC #1 — Save path)
+        Set tViewStartMs = $ZHorolog
         Set tViewBodyObj = ##class(%DynamicObject).%FromJSON(pBody)
         Set tVISC = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, tViewBodyObj, tNewRev)
         If $$$ISERR(tVISC) {
+            ; Story 13.4 Task 4: classify jsruntime_timeout so DocumentHandler
+            ; can emit the correct envelope. TROLLBACK unconditionally; set
+            ; pIndexError only when the cause is a classified one.
+            Set tViewElapsedMs = $FNumber(($ZHorolog - tViewStartMs) * 1000, "", 0)
+            Set tErrText = $System.Status.GetErrorText(tVISC)
+            If tErrText [ "jsruntime_timeout" {
+                Set pIndexError = {}
+                Do pIndexError.%Set("classification", "timeout")
+                Do pIndexError.%Set("reason", "subprocess exceeded " _ ##class(IRISCouch.Config).Get("JSRUNTIMETIMEOUT") _ "ms")
+                Do pIndexError.%Set("durationMs", tViewElapsedMs, "number")
+            }
             TROLLBACK  Set tInTrans = 0
             Set tNewRev = ""
             Quit
@@ -245,6 +267,13 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
                 ; reflect it. Matches the MangoIndex re-index pattern above.
                 Set tVISC2 = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, tModified, tNewRev)
                 If $$$ISERR(tVISC2) {
+                    Set tErrText2 = $System.Status.GetErrorText(tVISC2)
+                    If tErrText2 [ "jsruntime_timeout" {
+                        Set pIndexError = {}
+                        Do pIndexError.%Set("classification", "timeout")
+                        Do pIndexError.%Set("reason", "subprocess exceeded " _ ##class(IRISCouch.Config).Get("JSRUNTIMETIMEOUT") _ "ms")
+                        Do pIndexError.%Set("durationMs", 0, "number")
+                    }
                     TROLLBACK  Set tInTrans = 0
                     Set tNewRev = ""
                     Quit
@@ -272,6 +301,13 @@ ClassMethod Save(pDB As %String, pDocId As %String, pBody As %String, pParentRev
                     ; Mirrors the _users rewrite handling above.
                     Set tVISC3 = ##class(IRISCouch.Core.ViewIndexUpdater).UpdateForDoc(pDB, pDocId, tModifiedRep, tNewRev)
                     If $$$ISERR(tVISC3) {
+                        Set tErrText3 = $System.Status.GetErrorText(tVISC3)
+                        If tErrText3 [ "jsruntime_timeout" {
+                            Set pIndexError = {}
+                            Do pIndexError.%Set("classification", "timeout")
+                            Do pIndexError.%Set("reason", "subprocess exceeded " _ ##class(IRISCouch.Config).Get("JSRUNTIMETIMEOUT") _ "ms")
+                            Do pIndexError.%Set("durationMs", 0, "number")
+                        }
                         TROLLBACK  Set tInTrans = 0
                         Set tNewRev = ""
                         Quit

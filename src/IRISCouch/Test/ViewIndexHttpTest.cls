@@ -200,13 +200,20 @@ Method TestRunawayMapFunctionTimesOut()
     ; Writing a data doc triggers ViewIndexUpdater -> map function -> hang.
     ; The write must fail (TROLLBACK) rather than hang the IRIS process.
     Set tBeforeMs = $ZHorolog
-    Set tRev = ##class(IRISCouch.Core.DocumentEngine).Save(..#TESTDB, "victim", "{}")
+    Set tValidateError = ""
+    Set tIndexError = ""
+    Set tRev = ##class(IRISCouch.Core.DocumentEngine).Save(..#TESTDB, "victim", "{}", "", .tValidateError, .tIndexError)
     Set tElapsedMs = ($ZHorolog - tBeforeMs) * 1000
     ; Restore timeout for other tests.
     Do ##class(IRISCouch.Config).Set("JSRUNTIMETIMEOUT", tPriorTimeout)
     Do $$$AssertEquals(tRev, "", "Save rolls back on runaway map")
     ; Wall-clock cap: should take just over timeout + 500 ms overhead.
     Do $$$AssertTrue(tElapsedMs < 10000, "Save failed within 10s (was " _ tElapsedMs _ " ms)")
+    ; Story 13.4 Task 4: pIndexError Output channel must surface the timeout
+    ; classification so DocumentHandler can emit {"error":"timeout",...}.
+    Do $$$AssertTrue($IsObject(tIndexError), "pIndexError populated on timeout failure")
+    Do $$$AssertEquals(tIndexError.%Get("classification"), "timeout", "pIndexError.classification is 'timeout'")
+    Do $$$AssertTrue(tIndexError.%Get("reason") '= "", "pIndexError.reason non-empty")
 }
 
 /// <p>Make an HTTP GET to a view endpoint and capture status + body + headers.</p>

@@ -83,7 +83,14 @@ export class FeatureErrorComponent {
     }
     const mapped = mapError(value);
     this.error = mapped.display;
-    this.statusCode = mapped.statusCode;
+    // Story 13.4 Task 8g: preserve an existing statusCode when the new raw
+    // error does not carry one. Previously, a partial-update that mapped to
+    // a status-less error (e.g., a plain Error rethrown from a local callback)
+    // would overwrite a good HTTP status code with `undefined`, losing the
+    // retry-copy selection.
+    if (mapped.statusCode !== undefined) {
+      this.statusCode = mapped.statusCode;
+    }
   }
 
   @Output() retry = new EventEmitter<void>();

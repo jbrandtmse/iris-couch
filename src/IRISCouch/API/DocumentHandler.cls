@@ -69,14 +69,19 @@ ClassMethod HandlePost(pDB As %String) As %Status
         If tBody.%IsDefined("_attachments") Do tBody.%Remove("_attachments")
         ; Save document — with or without inline attachments
         Set tValidateError = ""
+        Set tIndexError = ""
         If tHasInlineAtts && $IsObject(tAttachments) {
             Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, tDocId, tBody.%ToJSON(), "", tAttachments, .tValidateError)
         } Else {
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tBody.%ToJSON(), "", .tValidateError)
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tBody.%ToJSON(), "", .tValidateError, .tIndexError)
         }
         If tNewRev = "" {
             If tValidateError '= "" {
                 Do ..RenderValidate(tValidateError)
+                Quit
+            }
+            If $IsObject(tIndexError) {
+                Do ..RenderIndexError(tIndexError)
                 Quit
             }
             Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: save error")
@@ -112,6 +117,20 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
         If '##class(IRISCouch.Storage.Database).Exists(pDB) {
             Do ##class(IRISCouch.Util.Error).Render(404, ##class(IRISCouch.Util.Error).#NOTFOUND, "Database does not exist.")
             Quit
+        }
+        ; Story 13.4 Task 8e: reject underscore-prefix doc IDs except reserved
+        ; namespaces. Matches Apache CouchDB behaviour — `_design/...` and
+        ; `_local/...` are the only reserved IDs beginning with underscore;
+        ; everything else in that namespace is reserved for future system
+        ; endpoints. Note: `_design/<name>` and `_local/<name>` arrive via the
+        ; dedicated HandleDesignDocPut / HandleLocalPut wrappers which reassemble
+        ; the composite id — any underscore-prefix id seen here is NOT one of
+        ; those legitimate composites, so we can reject the whole space.
+        If $Extract(pDocId, 1) = "_" {
+            If ($Extract(pDocId, 1, 8) '= "_design/") && ($Extract(pDocId, 1, 7) '= "_local/") {
+                Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "Only reserved document IDs begin with underscore (_design/... or _local/...)")
+                Quit
+            }
         }
         ; Detect multipart/related Content-Type
         Set tContentType = %request.ContentType
@@ -164,7 +183,7 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
                 Set tBody = ##class(%DynamicObject).%FromJSON(tJsonContent)
             } Catch tParseEx {
                 Do ##class(IRISCouch.Util.Error).Render(400, ##class(IRISCouch.Util.Error).#BADREQUEST, "invalid UTF-8 JSON in first MIME part")
-                Quit
+                Return $$$OK
             }
             ; Merge "follows":true and stub entries from JSON _attachments
             If tBody.%IsDefined("_attachments") {
@@ -329,14 +348,19 @@ ClassMethod HandlePut(pDB As %String, pDocId As %String) As %Status
         If tBody.%IsDefined("_attachments") Do tBody.%Remove("_attachments")
         ; Save document — with or without inline attachments
         Set tValidateError = ""
+        Set tIndexError = ""
         If tHasInlineAtts && $IsObject(tAttachments) {
             Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).SaveWithAttachments(pDB, pDocId, tBody.%ToJSON(), tRev, tAttachments, .tValidateError)
         } Else {
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, pDocId, tBody.%ToJSON(), tRev, .tValidateError)
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, pDocId, tBody.%ToJSON(), tRev, .tValidateError, .tIndexError)
         }
         If tNewRev = "" {
             If tValidateError '= "" {
                 Do ..RenderValidate(tValidateError)
+                Quit
+            }
+            If $IsObject(tIndexError) {
+                Do ..RenderIndexError(tIndexError)
                 Quit
             }
             Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: save error")
@@ -735,6 +759,38 @@ ClassMethod RenderValidate(pValidateError As %String)
     ; All other shapes (forbidden / unauthorized / validate_error) go through
     ; the shared validate-error envelope helper.
     Do ##class(IRISCouch.Util.Error).RenderValidateError(tMsg)
+    Quit
+}
+
+/// <p>Render a timeout/index-error envelope per the pIndexError object
+/// produced by <method>IRISCouch.Core.DocumentEngine.Save</method>
+/// (Story 13.4 Task 4).</p>
+/// <p>Emits <code>{"error":"timeout","reason":"&lt;...&gt;"}</code> with HTTP
+/// 500 for <code>classification == "timeout"</code>. The status is 500 (not
+/// 504) because the caller's HTTP transaction completed normally — the
+/// JS-side map function was what ran long. CouchDB's wire contract uses 500
+/// for server-internal aborts of this shape.</p>
+/// @param pIndexError The %DynamicObject populated by Save's pIndexError output
+ClassMethod RenderIndexError(pIndexError As %DynamicObject)
+{
+    Set tClass = ""
+    Set tReason = "view index update failed"
+    If $IsObject(pIndexError) {
+        Set tClass = pIndexError.%Get("classification")
+        Set tRawReason = pIndexError.%Get("reason")
+        If tRawReason '= "" Set tReason = tRawReason
+    }
+    If tClass = "timeout" {
+        Set %response.Status = 500
+        Set %response.ContentType = "application/json"
+        Set tObj = {}
+        Do tObj.%Set("error", "timeout")
+        Do tObj.%Set("reason", tReason)
+        Write tObj.%ToJSON()
+        Quit
+    }
+    ; Fallback — unclassified index error folds to server_error
+    Do ##class(IRISCouch.Util.Error).RenderInternal(##class(IRISCouch.Util.Error).#SERVERERROR, "document: view index update failed")
     Quit
 }
 

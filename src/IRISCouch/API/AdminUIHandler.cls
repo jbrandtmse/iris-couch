@@ -26,7 +26,17 @@ ClassMethod HandleRequest(pPath As %String = "index.html") As %Status
 {
     Set tSC = $$$OK
     Try {
-        ; --- Access control: require IRISCouch_Admin role ---
+        ; --- Access control: require authenticated user with IRISCouch_Admin role (Story 13.4 Task 3) ---
+        ; The default IRIS CSP service ships %Service_CSP carrying %All for DEFAULT_USER,
+        ; so an anonymous browser could previously reach HandleRequest and pass the old
+        ; $Roles-only HasAdminRole check. We must now verify that an actual authenticated
+        ; identity is present BEFORE inspecting the role, and emit 401 (not 403) when
+        ; no identity is present so the browser prompts for credentials.
+        If '..IsAuthenticated() {
+            Do %response.SetHeader("WWW-Authenticate", "Basic realm=""IRISCouch Admin""")
+            Do ##class(IRISCouch.Util.Error).Render(401, "unauthorized", "Authentication required")
+            Quit
+        }
         If '..HasAdminRole() {
             Do ##class(IRISCouch.Util.Error).Render(403, "forbidden", "Admin UI requires IRISCouch_Admin role")
             Quit
@@ -95,19 +105,65 @@ ClassMethod HandleRequest(pPath As %String = "index.html") As %Status
     Quit $$$OK
 }
 
+/// <p>Check if there is an authenticated IRIS user for this request (Story 13.4 Task 3).</p>
+/// <p>The IRIS default-CSP service (<code>%Service_CSP.DEFAULT_USER</code>)
+/// is configured with <code>UnknownUser</code> / <code>%All</code> when the
+/// CSP webapp accepts anonymous access, so a pure <code>$Roles</code> check
+/// or even a <code>$Username</code>-not-empty check silently admits anonymous
+/// browsers (<code>$Username = "UnknownUser"</code> ships with <code>%All</code>).</p>
+/// <p>The Router's <method>OnPreDispatch</method> extracts the real Basic /
+/// Bearer / cookie identity into the process-private <code>%IRISCouchUser</code>
+/// variable. If that variable is empty, no authentication was presented; fall
+/// back to <code>$Username</code> only if it is a genuine IRIS login
+/// (not one of the well-known placeholders <code>UnknownUser</code> /
+/// <code>_PUBLIC</code>).</p>
+/// @return %Boolean 1 if a real authenticated user is in context, 0 otherwise
+ClassMethod IsAuthenticated() As %Boolean
+{
+    ; Primary signal: the Router's auth middleware populated %IRISCouchUser
+    Set tAppUser = $Get(%IRISCouchUser, "")
+    If tAppUser '= "" Quit 1
+    ; Fallback: accept a genuine IRIS login (not an anonymous placeholder)
+    Set tOsUser = $Username
+    If tOsUser = "" Quit 0
+    If tOsUser = "UnknownUser" Quit 0
+    If tOsUser = "_PUBLIC" Quit 0
+    Quit 1
+}
+
 /// <p>Check if the current user has the <code>IRISCouch_Admin</code> role.</p>
-/// <p>Checks both the IRIS <code>$Roles</code> system variable and the
-/// IRISCouch application-level <code>%IRISCouchRoles</code> array.</p>
+/// <p>Story 13.4 Task 3: this method assumes the caller has already verified
+/// <method>IsAuthenticated</method>. The identity precheck lives there, not
+/// here, because callers need to distinguish 401 (no identity) from 403
+/// (authenticated but wrong role) and emit different envelopes.</p>
+/// <p>Role source of truth: the Router's auth middleware populates
+/// <code>%IRISCouchRoles</code> with the roles of the authenticated user
+/// (looked up from <code>Security.Users</code> via
+/// <method>IRISCouch.Auth.Basic.GetUserRoles</method>). Fall back to
+/// <code>$Roles</code> only when <code>%IRISCouchRoles</code> is empty — i.e.,
+/// when a genuine OS-level IRIS login was used without Basic auth.</p>
 /// @return %Boolean 1 if user has admin role, 0 otherwise
 ClassMethod HasAdminRole() As %Boolean
 {
-    ; Check IRIS $Roles (comma-separated list)
-    If $Find("," _ $Roles _ ",", "," _ ..#ADMINROLE _ ",") > 0 {
-        Quit 1
+    ; Primary: check the app-level roles array populated by Router.OnPreDispatch.
+    Set tAppRoles = $Get(%IRISCouchRoles)
+    If $IsObject(tAppRoles) {
+        Set tN = tAppRoles.%Size()
+        Set tI = 0
+        While tI < tN {
+            Set tR = tAppRoles.%Get(tI)
+            If (tR = ..#ADMINROLE) || (tR = "%All") Quit
+            Set tI = tI + 1
+        }
+        If tI < tN Quit 1
     }
-    ; Check %All role (IRIS super-admin)
-    If $Find("," _ $Roles _ ",", ",%All,") > 0 {
-        Quit 1
+    ; Fallback: check IRIS $Roles for a genuine OS-level login. Only trust this
+    ; path when %IRISCouchUser is non-empty (meaning the middleware confirmed an
+    ; identity); otherwise $Roles = "%All" from the CSP DEFAULT_USER and is NOT
+    ; a grant we can rely on.
+    If $Get(%IRISCouchUser, "") '= "" {
+        If $Find("," _ $Roles _ ",", "," _ ..#ADMINROLE _ ",") > 0 Quit 1
+        If $Find("," _ $Roles _ ",", ",%All,") > 0 Quit 1
     }
     Quit 0
 }

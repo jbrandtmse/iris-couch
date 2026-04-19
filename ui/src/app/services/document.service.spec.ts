@@ -47,14 +47,14 @@ describe('DocumentService', () => {
         expect(res.total_rows).toBe(100);
         expect(res.rows.length).toBe(2);
       });
-      const req = httpMock.expectOne('mydb/_all_docs');
+      const req = httpMock.expectOne('/iris-couch/mydb/_all_docs');
       expect(req.request.method).toBe('GET');
       req.flush(mockResponse);
     });
 
     it('should include limit parameter', () => {
       service.listDocuments('mydb', { limit: 25 }).subscribe();
-      const req = httpMock.expectOne('mydb/_all_docs?limit=25');
+      const req = httpMock.expectOne('/iris-couch/mydb/_all_docs?limit=25');
       expect(req.request.method).toBe('GET');
       req.flush(mockResponse);
     });
@@ -79,14 +79,14 @@ describe('DocumentService', () => {
 
     it('should include include_docs parameter', () => {
       service.listDocuments('mydb', { include_docs: false }).subscribe();
-      const req = httpMock.expectOne('mydb/_all_docs?include_docs=false');
+      const req = httpMock.expectOne('/iris-couch/mydb/_all_docs?include_docs=false');
       expect(req.request.method).toBe('GET');
       req.flush(mockResponse);
     });
 
     it('should include descending parameter', () => {
       service.listDocuments('mydb', { descending: true }).subscribe();
-      const req = httpMock.expectOne('mydb/_all_docs?descending=true');
+      const req = httpMock.expectOne('/iris-couch/mydb/_all_docs?descending=true');
       expect(req.request.method).toBe('GET');
       req.flush(mockResponse);
     });
@@ -112,7 +112,7 @@ describe('DocumentService', () => {
     it('should encode database name with special characters', () => {
       service.listDocuments('my/db').subscribe();
       const req = httpMock.expectOne((r) =>
-        r.url.startsWith('my%2Fdb/_all_docs')
+        r.url.startsWith('/iris-couch/my%2Fdb/_all_docs')
       );
       expect(req.request.method).toBe('GET');
       req.flush(mockResponse);
@@ -129,7 +129,7 @@ describe('DocumentService', () => {
       service.listDocuments('mydb').subscribe((res) => {
         expect(res.rows[0].value.deleted).toBeTrue();
       });
-      const req = httpMock.expectOne('mydb/_all_docs');
+      const req = httpMock.expectOne('/iris-couch/mydb/_all_docs');
       req.flush(deletedResponse);
     });
   });
@@ -157,7 +157,7 @@ describe('DocumentService', () => {
       const req = httpMock.expectOne((r) => {
         const url = r.url;
         return (
-          url.startsWith('mydb/_all_docs?') &&
+          url.startsWith('/iris-couch/mydb/_all_docs?') &&
           // startkey="_design/"
           url.includes('startkey=%22_design%2F%22') &&
           // endkey="_design0"
@@ -186,13 +186,13 @@ describe('DocumentService', () => {
       service.listDesignDocs('mydb').subscribe((res) => {
         expect(res.rows.length).toBe(0);
       });
-      const req = httpMock.expectOne((r) => r.url.startsWith('mydb/_all_docs?'));
+      const req = httpMock.expectOne((r) => r.url.startsWith('/iris-couch/mydb/_all_docs?'));
       req.flush(emptyResponse);
     });
 
     it('encodes database name with special characters', () => {
       service.listDesignDocs('my/db').subscribe();
-      const req = httpMock.expectOne((r) => r.url.startsWith('my%2Fdb/_all_docs?'));
+      const req = httpMock.expectOne((r) => r.url.startsWith('/iris-couch/my%2Fdb/_all_docs?'));
       expect(req.request.method).toBe('GET');
       req.flush(mockResponse);
     });
@@ -211,14 +211,14 @@ describe('DocumentService', () => {
         expect(res._id).toBe('doc1');
         expect(res._rev).toBe('1-abc123');
       });
-      const req = httpMock.expectOne('mydb/doc1?conflicts=true');
+      const req = httpMock.expectOne('/iris-couch/mydb/doc1?conflicts=true');
       expect(req.request.method).toBe('GET');
       req.flush(mockDoc);
     });
 
     it('should include rev parameter when specified', () => {
       service.getDocument('mydb', 'doc1', { rev: '2-def456' }).subscribe();
-      const req = httpMock.expectOne('mydb/doc1?conflicts=true&rev=2-def456');
+      const req = httpMock.expectOne('/iris-couch/mydb/doc1?conflicts=true&rev=2-def456');
       expect(req.request.method).toBe('GET');
       req.flush(mockDoc);
     });
@@ -226,7 +226,7 @@ describe('DocumentService', () => {
     it('should encode database name with special characters', () => {
       service.getDocument('my/db', 'doc1').subscribe();
       const req = httpMock.expectOne((r) =>
-        r.url.startsWith('my%2Fdb/doc1') && r.url.includes('conflicts=true')
+        r.url.startsWith('/iris-couch/my%2Fdb/doc1') && r.url.includes('conflicts=true')
       );
       expect(req.request.method).toBe('GET');
       req.flush(mockDoc);
@@ -249,7 +249,7 @@ describe('DocumentService', () => {
       service.getDocument('mydb', 'doc1').subscribe((res) => {
         expect(res._conflicts).toEqual(['2-xyz789', '2-abc000']);
       });
-      const req = httpMock.expectOne('mydb/doc1?conflicts=true');
+      const req = httpMock.expectOne('/iris-couch/mydb/doc1?conflicts=true');
       req.flush(conflictDoc);
     });
 
@@ -269,7 +269,7 @@ describe('DocumentService', () => {
         expect(res._attachments['file.txt'].content_type).toBe('text/plain');
         expect(res._attachments['file.txt'].stub).toBeTrue();
       });
-      const req = httpMock.expectOne('mydb/doc1?conflicts=true');
+      const req = httpMock.expectOne('/iris-couch/mydb/doc1?conflicts=true');
       req.flush(attachDoc);
     });
 
@@ -281,7 +281,7 @@ describe('DocumentService', () => {
           expect(err.status).toBe(404);
         },
       });
-      const req = httpMock.expectOne('mydb/nonexistent?conflicts=true');
+      const req = httpMock.expectOne('/iris-couch/mydb/nonexistent?conflicts=true');
       req.flush(
         { error: 'not_found', reason: 'missing' },
         { status: 404, statusText: 'Object Not Found' }
@@ -325,7 +325,7 @@ describe('DocumentService', () => {
         expect(res.ok).toBeTrue();
         expect(res.id).toBe('newdoc');
       });
-      const req = httpMock.expectOne('mydb/newdoc');
+      const req = httpMock.expectOne('/iris-couch/mydb/newdoc');
       expect(req.request.method).toBe('PUT');
       expect(req.request.body).toEqual({ x: 1 });
       req.flush({ ok: true, id: 'newdoc', rev: '1-abc' });
@@ -333,7 +333,7 @@ describe('DocumentService', () => {
 
     it('appends `?rev=...` for an update', () => {
       service.putDocument('mydb', 'doc1', { y: 2 }, '1-abc').subscribe();
-      const req = httpMock.expectOne('mydb/doc1?rev=1-abc');
+      const req = httpMock.expectOne('/iris-couch/mydb/doc1?rev=1-abc');
       expect(req.request.method).toBe('PUT');
       expect(req.request.body).toEqual({ y: 2 });
       req.flush({ ok: true, id: 'doc1', rev: '2-def' });
@@ -342,7 +342,7 @@ describe('DocumentService', () => {
     it('preserves literal `/` in `_design/<name>` composite IDs', () => {
       service.putDocument('mydb', '_design/myapp', { language: 'javascript' }).subscribe();
       const req = httpMock.expectOne(
-        (r) => r.url === 'mydb/_design/myapp' && !r.url.includes('%2F'),
+        (r) => r.url === '/iris-couch/mydb/_design/myapp' && !r.url.includes('%2F'),
       );
       expect(req.request.method).toBe('PUT');
       req.flush({ ok: true, id: '_design/myapp', rev: '1-abc' });
@@ -350,14 +350,14 @@ describe('DocumentService', () => {
 
     it('appends `?rev=` to a design-doc update URL', () => {
       service.putDocument('mydb', '_design/myapp', { v: 2 }, '1-abc').subscribe();
-      const req = httpMock.expectOne('mydb/_design/myapp?rev=1-abc');
+      const req = httpMock.expectOne('/iris-couch/mydb/_design/myapp?rev=1-abc');
       expect(req.request.method).toBe('PUT');
       req.flush({ ok: true, id: '_design/myapp', rev: '2-def' });
     });
 
     it('encodes db name with special characters', () => {
       service.putDocument('my/db', 'doc1', { x: 1 }).subscribe();
-      const req = httpMock.expectOne('my%2Fdb/doc1');
+      const req = httpMock.expectOne('/iris-couch/my%2Fdb/doc1');
       expect(req.request.method).toBe('PUT');
       req.flush({ ok: true, id: 'doc1', rev: '1-a' });
     });
@@ -367,7 +367,7 @@ describe('DocumentService', () => {
       service.putDocument('mydb', 'doc1', { x: 1 }, '1-bad').subscribe({
         error: (err) => (received = err),
       });
-      const req = httpMock.expectOne('mydb/doc1?rev=1-bad');
+      const req = httpMock.expectOne('/iris-couch/mydb/doc1?rev=1-bad');
       req.flush(
         { error: 'conflict', reason: 'Document update conflict.' },
         { status: 409, statusText: 'Conflict' },
@@ -381,7 +381,7 @@ describe('DocumentService', () => {
       service.deleteDocument('mydb', 'doc1', '1-abc').subscribe((res) => {
         expect(res.ok).toBeTrue();
       });
-      const req = httpMock.expectOne('mydb/doc1?rev=1-abc');
+      const req = httpMock.expectOne('/iris-couch/mydb/doc1?rev=1-abc');
       expect(req.request.method).toBe('DELETE');
       req.flush({ ok: true, id: 'doc1', rev: '2-def' });
     });
@@ -389,7 +389,7 @@ describe('DocumentService', () => {
     it('preserves literal `/` in design-doc IDs', () => {
       service.deleteDocument('mydb', '_design/myapp', '1-abc').subscribe();
       const req = httpMock.expectOne(
-        (r) => r.url === 'mydb/_design/myapp?rev=1-abc' && !r.url.includes('%2F'),
+        (r) => r.url === '/iris-couch/mydb/_design/myapp?rev=1-abc' && !r.url.includes('%2F'),
       );
       expect(req.request.method).toBe('DELETE');
       req.flush({ ok: true, id: '_design/myapp', rev: '2-def' });
@@ -404,7 +404,7 @@ describe('DocumentService', () => {
       service.deleteDocument('mydb', 'doc1', '1-abc').subscribe({
         error: (err) => (received = err),
       });
-      const req = httpMock.expectOne('mydb/doc1?rev=1-abc');
+      const req = httpMock.expectOne('/iris-couch/mydb/doc1?rev=1-abc');
       req.flush(
         { error: 'unauthorized', reason: 'You are not a server admin.' },
         { status: 401, statusText: 'Unauthorized' },
@@ -419,7 +419,7 @@ describe('DocumentService', () => {
     it('getDocument("testdb", "_design/myapp") hits /testdb/_design/myapp', () => {
       service.getDocument('testdb', '_design/myapp').subscribe();
       const req = httpMock.expectOne(
-        (r) => r.url.startsWith('testdb/_design/myapp?') && !r.url.includes('%2F'),
+        (r) => r.url.startsWith('/iris-couch/testdb/_design/myapp?') && !r.url.includes('%2F'),
       );
       expect(req.request.method).toBe('GET');
       req.flush({ _id: '_design/myapp', _rev: '1-abc' });

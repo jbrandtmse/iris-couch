@@ -131,6 +131,45 @@ describe('ErrorDisplayComponent', () => {
     });
   });
 
+  // Story 13.4 Task 8f: add 409 (conflict) and 0 (network error) fixtures so
+  // the ErrorDisplay coverage matches the 5 states called out by the UX spec.
+  describe('with 409 conflict error', () => {
+    beforeEach(() => {
+      host.error = { error: 'conflict', reason: 'Document update conflict.' };
+      host.statusCode = 409;
+      fixture.detectChanges();
+    });
+
+    it('should display 409 badge', () => {
+      const badge = fixture.nativeElement.querySelector('app-badge');
+      expect(badge.textContent.trim()).toBe('409');
+    });
+
+    it('should display conflict error slug', () => {
+      const errorEl = fixture.nativeElement.querySelector('.error-display__error');
+      expect(errorEl.textContent.trim()).toBe('conflict');
+    });
+  });
+
+  describe('with network error (status 0)', () => {
+    beforeEach(() => {
+      host.error = { error: 'network_error', reason: 'Network request failed' };
+      host.statusCode = 0;
+      fixture.detectChanges();
+    });
+
+    it('should render the error envelope even for status 0', () => {
+      const errorEl = fixture.nativeElement.querySelector('.error-display__error');
+      expect(errorEl).toBeTruthy();
+      expect(errorEl.textContent.trim()).toBe('network_error');
+    });
+
+    it('should render the reason text', () => {
+      const reasonEl = fixture.nativeElement.querySelector('.error-display__reason');
+      expect(reasonEl.textContent.trim()).toBe('Network request failed');
+    });
+  });
+
   it('should pass axe-core accessibility checks', async () => {
     await expectNoAxeViolations(fixture.nativeElement);
   });

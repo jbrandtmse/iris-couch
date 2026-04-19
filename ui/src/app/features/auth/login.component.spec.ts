@@ -107,6 +107,19 @@ describe('LoginComponent', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/databases');
   }));
 
+  // Story 13.4 Task 8a: password cleared on successful login before navigation.
+  it('should clear the password field on successful login', fakeAsync(() => {
+    mockAuth.login.and.returnValue(of({ ok: true, name: 'admin', roles: [] }));
+    spyOn(router, 'navigateByUrl');
+
+    component.username = 'admin';
+    component.password = 'secret';
+    component.onSubmit();
+    tick();
+
+    expect(component.password).toBe('');
+  }));
+
   it('should show error on failed login', fakeAsync(() => {
     mockAuth.login.and.returnValue(throwError(() => new HttpErrorResponse({
       status: 401,

@@ -41,11 +41,11 @@ describe('DatabaseListComponent', () => {
 
   function flushDatabases(dbs: Array<{ name: string; docCount: number; updateSeq: string; diskSize: number }>): void {
     const names = dbs.map((d) => d.name);
-    const allDbsReq = httpMock.expectOne('_all_dbs');
+    const allDbsReq = httpMock.expectOne('/iris-couch/_all_dbs');
     allDbsReq.flush(names);
 
     for (const db of dbs) {
-      const infoReq = httpMock.expectOne(db.name);
+      const infoReq = httpMock.expectOne('/iris-couch/' + db.name);
       infoReq.flush({
         db_name: db.name,
         doc_count: db.docCount,
@@ -57,7 +57,7 @@ describe('DatabaseListComponent', () => {
   }
 
   function flushEmptyDatabases(): void {
-    const req = httpMock.expectOne('_all_dbs');
+    const req = httpMock.expectOne('/iris-couch/_all_dbs');
     req.flush([]);
     fixture.detectChanges();
   }
@@ -207,13 +207,13 @@ describe('DatabaseListComponent', () => {
       component.openCreateDialog();
       fixture.detectChanges();
       component.onCreateConfirm('newdb');
-      const req = httpMock.expectOne('newdb');
+      const req = httpMock.expectOne('/iris-couch/newdb');
       expect(req.request.method).toBe('PUT');
       req.flush({ ok: true });
       // Should then reload
-      const reloadReq = httpMock.expectOne('_all_dbs');
+      const reloadReq = httpMock.expectOne('/iris-couch/_all_dbs');
       reloadReq.flush(['newdb']);
-      const infoReq = httpMock.expectOne('newdb');
+      const infoReq = httpMock.expectOne('/iris-couch/newdb');
       infoReq.flush({
         db_name: 'newdb',
         doc_count: 0,
@@ -230,7 +230,7 @@ describe('DatabaseListComponent', () => {
       component.openCreateDialog();
       fixture.detectChanges();
       component.onCreateConfirm('existing');
-      const req = httpMock.expectOne('existing');
+      const req = httpMock.expectOne('/iris-couch/existing');
       req.flush(
         { error: 'file_exists', reason: 'The database could not be created, the file already exists.' },
         { status: 412, statusText: 'Precondition Failed' }
@@ -261,11 +261,11 @@ describe('DatabaseListComponent', () => {
       ]);
       component.openDeleteDialog(component.databases[0]);
       component.onDeleteConfirm();
-      const req = httpMock.expectOne('todelete');
+      const req = httpMock.expectOne('/iris-couch/todelete');
       expect(req.request.method).toBe('DELETE');
       req.flush({ ok: true });
       // Reload
-      const reloadReq = httpMock.expectOne('_all_dbs');
+      const reloadReq = httpMock.expectOne('/iris-couch/_all_dbs');
       reloadReq.flush([]);
       fixture.detectChanges();
       expect(component.showDeleteDialog).toBeFalse();
@@ -314,7 +314,7 @@ describe('DatabaseListComponent', () => {
       fixture.detectChanges();
       flushEmptyDatabases();
       component.loadDatabases();
-      const req = httpMock.expectOne('_all_dbs');
+      const req = httpMock.expectOne('/iris-couch/_all_dbs');
       req.flush([]);
       fixture.detectChanges();
     });
@@ -323,7 +323,7 @@ describe('DatabaseListComponent', () => {
   describe('Error handling', () => {
     it('should show ErrorDisplay on 500 error', () => {
       fixture.detectChanges();
-      const req = httpMock.expectOne('_all_dbs');
+      const req = httpMock.expectOne('/iris-couch/_all_dbs');
       req.flush(
         { error: 'internal_server_error', reason: 'Unknown error' },
         { status: 500, statusText: 'Internal Server Error' }
@@ -337,7 +337,7 @@ describe('DatabaseListComponent', () => {
 
     it('should show network error message when status is 0', () => {
       fixture.detectChanges();
-      const req = httpMock.expectOne('_all_dbs');
+      const req = httpMock.expectOne('/iris-couch/_all_dbs');
       req.error(new ProgressEvent('error'), { status: 0, statusText: '' });
       fixture.detectChanges();
       expect(component.loadError).toBeTruthy();
@@ -349,7 +349,7 @@ describe('DatabaseListComponent', () => {
 
     it('should clear error on successful retry', () => {
       fixture.detectChanges();
-      const req = httpMock.expectOne('_all_dbs');
+      const req = httpMock.expectOne('/iris-couch/_all_dbs');
       req.flush(
         { error: 'internal_server_error', reason: 'fail' },
         { status: 500, statusText: 'Error' }
@@ -358,7 +358,7 @@ describe('DatabaseListComponent', () => {
       expect(component.loadError).toBeTruthy();
 
       component.loadDatabases();
-      const retryReq = httpMock.expectOne('_all_dbs');
+      const retryReq = httpMock.expectOne('/iris-couch/_all_dbs');
       retryReq.flush([]);
       fixture.detectChanges();
       expect(component.loadError).toBeNull();
@@ -366,7 +366,7 @@ describe('DatabaseListComponent', () => {
 
     it('should not show data table when in error state', () => {
       fixture.detectChanges();
-      const req = httpMock.expectOne('_all_dbs');
+      const req = httpMock.expectOne('/iris-couch/_all_dbs');
       req.flush(
         { error: 'internal_server_error', reason: 'Unknown error' },
         { status: 500, statusText: 'Internal Server Error' }
@@ -386,7 +386,7 @@ describe('DatabaseListComponent', () => {
 
     it('should not announce on error', () => {
       fixture.detectChanges();
-      const req = httpMock.expectOne('_all_dbs');
+      const req = httpMock.expectOne('/iris-couch/_all_dbs');
       req.flush(
         { error: 'internal_server_error', reason: 'fail' },
         { status: 500, statusText: 'Error' }
@@ -412,7 +412,7 @@ describe('DatabaseListComponent', () => {
 
   it('should pass axe-core checks with error state', async () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne('_all_dbs');
+    const req = httpMock.expectOne('/iris-couch/_all_dbs');
     req.flush(
       { error: 'internal_server_error', reason: 'Unknown error' },
       { status: 500, statusText: 'Internal Server Error' }

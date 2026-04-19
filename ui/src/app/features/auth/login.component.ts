@@ -197,6 +197,12 @@ export class LoginComponent implements AfterViewInit {
     this.auth.login(this.username, this.password).subscribe({
       next: () => {
         this.submitting = false;
+        // Story 13.4 Task 8a: clear the password field on successful login
+        // BEFORE navigating. Prevents an accidental back-nav from re-rendering
+        // the form with the typed password in a dead input, and matches the
+        // a11y/security expectation that credentials are not retained in the
+        // DOM after a successful authentication.
+        this.password = '';
         const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/databases';
         this.router.navigateByUrl(returnUrl);
       },

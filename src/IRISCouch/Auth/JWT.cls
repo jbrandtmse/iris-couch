@@ -54,11 +54,19 @@ ClassMethod Validate(pAuthHeader As %String, Output pUsername As %String, Output
         If tProvidedSig = "" Quit
         ; Timing-safe comparison of signature bytes
         If '##class(IRISCouch.Auth.Session).ConstantTimeEquals(tProvidedSig, tExpectedSig) Quit
-        ; Check exp claim - must be present and in the future
+        ; Check exp claim - must be present and in the future (with clock-skew tolerance).
+        ; Story 13.4 Task 8b: allow configurable clock skew (default 60s) so slightly
+        ; desynced clock peers don't bounce every otherwise-valid token.
         Set tExp = tPayload.exp
         If tExp = "" Quit
         Set tNow = ..UnixTimestamp()
-        If tExp '>  tNow Quit
+        Set tSkew = +$Get(^IRISCouch.Config("JWTCLOCKSKEWSECS"), 60)
+        If tExp '> (tNow - tSkew) Quit
+        ; Optional nbf (not-before) claim — also tolerate clock skew.
+        Set tNbf = tPayload.nbf
+        If tNbf '= "" {
+            If tNbf > (tNow + tSkew) Quit
+        }
         ; Check iss claim - must match configured issuer
         Set tExpectedIss = ##class(IRISCouch.Config).Get("JWTISSUER")
         Set tActualIss = tPayload.iss

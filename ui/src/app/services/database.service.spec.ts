@@ -32,7 +32,7 @@ describe('DatabaseService', () => {
       service.listDatabases().subscribe((dbs) => {
         expect(dbs).toEqual(mockDbs);
       });
-      const req = httpMock.expectOne('_all_dbs');
+      const req = httpMock.expectOne('/iris-couch/_all_dbs');
       expect(req.request.method).toBe('GET');
       req.flush(mockDbs);
     });
@@ -50,14 +50,14 @@ describe('DatabaseService', () => {
         expect(info.db_name).toBe('mydb');
         expect(info.doc_count).toBe(42);
       });
-      const req = httpMock.expectOne('mydb');
+      const req = httpMock.expectOne('/iris-couch/mydb');
       expect(req.request.method).toBe('GET');
       req.flush(mockInfo);
     });
 
     it('should encode special characters in name', () => {
       service.getDatabaseInfo('my/db').subscribe();
-      const req = httpMock.expectOne('my%2Fdb');
+      const req = httpMock.expectOne('/iris-couch/my%2Fdb');
       expect(req.request.method).toBe('GET');
       req.flush({});
     });
@@ -68,7 +68,7 @@ describe('DatabaseService', () => {
       service.createDatabase('newdb').subscribe((res) => {
         expect(res.ok).toBeTrue();
       });
-      const req = httpMock.expectOne('newdb');
+      const req = httpMock.expectOne('/iris-couch/newdb');
       expect(req.request.method).toBe('PUT');
       req.flush({ ok: true });
     });
@@ -79,7 +79,7 @@ describe('DatabaseService', () => {
       service.deleteDatabase('olddb').subscribe((res) => {
         expect(res.ok).toBeTrue();
       });
-      const req = httpMock.expectOne('olddb');
+      const req = httpMock.expectOne('/iris-couch/olddb');
       expect(req.request.method).toBe('DELETE');
       req.flush({ ok: true });
     });
@@ -93,11 +93,11 @@ describe('DatabaseService', () => {
       });
 
       // First: _all_dbs
-      const allDbsReq = httpMock.expectOne('_all_dbs');
+      const allDbsReq = httpMock.expectOne('/iris-couch/_all_dbs');
       allDbsReq.flush(['db1', 'db2']);
 
       // Then: info for each
-      const db1Req = httpMock.expectOne('db1');
+      const db1Req = httpMock.expectOne('/iris-couch/db1');
       db1Req.flush({
         db_name: 'db1',
         doc_count: 10,
@@ -105,7 +105,7 @@ describe('DatabaseService', () => {
         sizes: { file: 2048, external: 1024, active: 1536 },
       });
 
-      const db2Req = httpMock.expectOne('db2');
+      const db2Req = httpMock.expectOne('/iris-couch/db2');
       db2Req.flush({
         db_name: 'db2',
         doc_count: 5,
@@ -126,7 +126,7 @@ describe('DatabaseService', () => {
       service.listAllWithInfo().subscribe((entries) => {
         result = entries;
       });
-      const req = httpMock.expectOne('_all_dbs');
+      const req = httpMock.expectOne('/iris-couch/_all_dbs');
       req.flush([]);
       expect(result).toEqual([]);
     });

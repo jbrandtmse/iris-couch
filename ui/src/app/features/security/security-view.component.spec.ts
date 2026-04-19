@@ -44,7 +44,7 @@ describe('SecurityViewComponent', () => {
   });
 
   function expectSecurityRequest(db: string) {
-    return httpMock.expectOne(`${db}/_security`);
+    return httpMock.expectOne(`/iris-couch/${db}/_security`);
   }
 
   describe('Successful load (AC #1, AC #3)', () => {
@@ -288,7 +288,7 @@ describe('SecurityViewComponent', () => {
       component.editValue = JSON.stringify(updated);
       component.editValid = true;
       component.onSave();
-      const putReq = httpMock.expectOne('testdb/_security');
+      const putReq = httpMock.expectOne('/iris-couch/testdb/_security');
       expect(putReq.request.method).toBe('PUT');
       expect(putReq.request.body).toEqual(updated);
       putReq.flush({ ok: true });
@@ -307,7 +307,7 @@ describe('SecurityViewComponent', () => {
       component.editValue = '{"admins":{"names":["a"]}}';
       component.editValid = true;
       component.onSave();
-      const putReq = httpMock.expectOne('testdb/_security');
+      const putReq = httpMock.expectOne('/iris-couch/testdb/_security');
       expect(putReq.request.body).toEqual({
         admins: { names: ['a'], roles: [] },
         members: { names: [], roles: [] },
@@ -326,7 +326,7 @@ describe('SecurityViewComponent', () => {
       component.editValid = true;
       component.onSave();
       httpMock
-        .expectOne('testdb/_security')
+        .expectOne('/iris-couch/testdb/_security')
         .flush(
           { error: 'unauthorized', reason: 'You are not a server admin.' },
           { status: 401, statusText: 'Unauthorized' },
@@ -344,7 +344,7 @@ describe('SecurityViewComponent', () => {
       component.editValid = true;
       component.onSave();
       httpMock
-        .expectOne('testdb/_security')
+        .expectOne('/iris-couch/testdb/_security')
         .flush(
           { error: 'internal_server_error', reason: 'boom' },
           { status: 500, statusText: 'Internal Server Error' },

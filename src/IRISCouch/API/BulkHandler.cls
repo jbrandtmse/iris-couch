@@ -190,10 +190,16 @@ ClassMethod HandleBulkDocs(pDB As %String) As %Status
             If tDoc.%IsDefined("_deleted") Do tDoc.%Remove("_deleted")
             ; Save document
             Set tValidateError = ""
-            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tDoc.%ToJSON(), tRev, .tValidateError)
+            Set tIndexError = ""
+            Set tNewRev = ##class(IRISCouch.Core.DocumentEngine).Save(pDB, tDocId, tDoc.%ToJSON(), tRev, .tValidateError, .tIndexError)
             If tNewRev = "" {
                 If tValidateError '= "" {
                     Do tResults.%Push(..BuildValidateErrorEntry(tDocId, tValidateError))
+                } ElseIf $IsObject(tIndexError) && (tIndexError.%Get("classification") = "timeout") {
+                    ; Story 13.4 Task 4: surface per-doc timeout classification.
+                    Set tReason = tIndexError.%Get("reason")
+                    If tReason = "" Set tReason = "subprocess exceeded timeout"
+                    Do tResults.%Push(..BuildErrorEntry(tDocId, "timeout", tReason))
                 } Else {
                     Do tResults.%Push(..BuildErrorEntry(tDocId, "conflict", "Document update conflict."))
                 }

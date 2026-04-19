@@ -24,7 +24,7 @@ describe('RevisionsService', () => {
     service.getRevisionTree('mydb', 'doc1').subscribe((r) => (result = r));
 
     const req = http.expectOne(
-      'mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
+      '/iris-couch/mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
     );
     expect(req.request.method).toBe('GET');
     req.flush({
@@ -48,7 +48,7 @@ describe('RevisionsService', () => {
     service.getRevisionTree('mydb', 'doc1').subscribe((r) => (result = r));
 
     http.expectOne(
-      'mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
+      '/iris-couch/mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
     ).flush({
       _id: 'doc1',
       _rev: '3-c',
@@ -79,7 +79,7 @@ describe('RevisionsService', () => {
     service.getRevisionTree('mydb', 'doc1').subscribe((r) => (result = r));
 
     http.expectOne(
-      'mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
+      '/iris-couch/mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
     ).flush({
       _id: 'doc1',
       _rev: '2-winner',
@@ -92,7 +92,7 @@ describe('RevisionsService', () => {
     });
 
     const branchReq = http.expectOne(
-      'mydb/doc1?rev=2-conflict&revs_info=true',
+      '/iris-couch/mydb/doc1?rev=2-conflict&revs_info=true',
     );
     branchReq.flush({
       _id: 'doc1',
@@ -117,7 +117,7 @@ describe('RevisionsService', () => {
     service.getRevisionTree('mydb', 'doc1').subscribe((r) => (result = r));
 
     http.expectOne(
-      'mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
+      '/iris-couch/mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
     ).flush({
       _id: 'doc1',
       _rev: '2-winner',
@@ -158,7 +158,7 @@ describe('RevisionsService', () => {
     service.getRevisionTree('mydb', 'doc1').subscribe((r) => (result = r));
 
     http.expectOne(
-      'mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
+      '/iris-couch/mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
     ).flush({
       _id: 'doc1',
       _rev: '2-winner',
@@ -170,7 +170,7 @@ describe('RevisionsService', () => {
       _deleted_conflicts: ['2-dead'],
     });
 
-    const branchReq = http.expectOne('mydb/doc1?rev=2-dead&revs_info=true');
+    const branchReq = http.expectOne('/iris-couch/mydb/doc1?rev=2-dead&revs_info=true');
     branchReq.flush({
       _id: 'doc1',
       _rev: '2-dead',
@@ -194,7 +194,7 @@ describe('RevisionsService', () => {
     });
 
     http.expectOne(
-      'mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
+      '/iris-couch/mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
     ).flush(
       { error: 'unauthorized', reason: 'You must be logged in.' },
       { status: 401, statusText: 'Unauthorized' },
@@ -215,7 +215,7 @@ describe('RevisionsService', () => {
     });
 
     http.expectOne(
-      'mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
+      '/iris-couch/mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
     ).flush({
       _id: 'doc1',
       _rev: '2-winner',
@@ -223,7 +223,7 @@ describe('RevisionsService', () => {
       _conflicts: ['2-c1'],
       _deleted_conflicts: [],
     });
-    http.expectOne('mydb/doc1?rev=2-c1&revs_info=true').flush(
+    http.expectOne('/iris-couch/mydb/doc1?rev=2-c1&revs_info=true').flush(
       { error: 'server_error', reason: 'boom' },
       { status: 500, statusText: 'Server Error' },
     );
@@ -238,7 +238,7 @@ describe('RevisionsService', () => {
     service.getRevisionTree('mydb', 'doc1').subscribe((r) => (result = r));
 
     http.expectOne(
-      'mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
+      '/iris-couch/mydb/doc1?revs_info=true&conflicts=true&deleted_conflicts=true',
     ).flush({
       _id: 'doc1',
       _rev: '2-winner',
@@ -247,7 +247,7 @@ describe('RevisionsService', () => {
       _deleted_conflicts: ['2-dead'],
     });
     // Backend returns 404 for ?rev=<deleted-leaf>; service should tolerate.
-    http.expectOne('mydb/doc1?rev=2-dead&revs_info=true').flush(
+    http.expectOne('/iris-couch/mydb/doc1?rev=2-dead&revs_info=true').flush(
       { error: 'not_found', reason: 'deleted' },
       { status: 404, statusText: 'Not Found' },
     );
@@ -264,7 +264,7 @@ describe('RevisionsService', () => {
     let result: RevisionTreeResult | undefined;
     service.getRevisionTree('mydb', '_design/myapp').subscribe((r) => (result = r));
     const req = http.expectOne(
-      'mydb/_design/myapp?revs_info=true&conflicts=true&deleted_conflicts=true',
+      '/iris-couch/mydb/_design/myapp?revs_info=true&conflicts=true&deleted_conflicts=true',
     );
     // The literal "/" is preserved (not %2F) so the wire URL matches
     // the CouchDB convention.

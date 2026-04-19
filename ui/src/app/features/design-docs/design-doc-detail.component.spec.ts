@@ -46,7 +46,7 @@ describe('DesignDocDetailComponent', () => {
   function expectGetRequest(db: string, composite: string) {
     return httpMock.expectOne(
       (r) =>
-        r.url.startsWith(`${db}/${composite}`) &&
+        r.url.startsWith(`/iris-couch/${db}/${composite}`) &&
         !r.url.includes('%2F') &&
         r.url.includes('conflicts=true'),
     );
@@ -281,7 +281,7 @@ describe('DesignDocDetailComponent', () => {
       component.editValid = true;
       component.onSave();
       const putReq = httpMock.expectOne(
-        (r) => r.url === 'testdb/_design/myapp?rev=1-abc' && r.method === 'PUT',
+        (r) => r.url === '/iris-couch/testdb/_design/myapp?rev=1-abc' && r.method === 'PUT',
       );
       expect(putReq.request.body).toEqual({
         language: 'javascript',
@@ -309,7 +309,7 @@ describe('DesignDocDetailComponent', () => {
       component.editValid = true;
       component.onSave();
       httpMock
-        .expectOne((r) => r.url === 'testdb/_design/myapp?rev=1-abc' && r.method === 'PUT')
+        .expectOne((r) => r.url === '/iris-couch/testdb/_design/myapp?rev=1-abc' && r.method === 'PUT')
         .flush(
           { error: 'conflict', reason: 'Document update conflict.' },
           { status: 409, statusText: 'Conflict' },
@@ -394,7 +394,7 @@ describe('DesignDocDetailComponent', () => {
       fixture.detectChanges();
       component.onDeleteConfirmed();
       const req = httpMock.expectOne(
-        (r) => r.url === 'testdb/_design/myapp?rev=1-abc' && r.method === 'DELETE',
+        (r) => r.url === '/iris-couch/testdb/_design/myapp?rev=1-abc' && r.method === 'DELETE',
       );
       req.flush({ ok: true, id: '_design/myapp', rev: '2-def' });
       fixture.detectChanges();
@@ -409,7 +409,7 @@ describe('DesignDocDetailComponent', () => {
       component.onDeleteConfirmed();
       httpMock
         .expectOne(
-          (r) => r.url === 'testdb/_design/myapp?rev=1-abc' && r.method === 'DELETE',
+          (r) => r.url === '/iris-couch/testdb/_design/myapp?rev=1-abc' && r.method === 'DELETE',
         )
         .flush(
           { error: 'forbidden', reason: 'You may not delete this design document.' },

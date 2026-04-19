@@ -179,7 +179,10 @@ ClassMethod BuildCheckpointDoc(pRepId As %String, pSessionId As %String, pSource
     Do tDoc.%Set("_id", "_local/" _ pRepId)
     Do tDoc.%Set("replication_id_version", 3, "number")
     Do tDoc.%Set("session_id", pSessionId)
-    Do tDoc.%Set("source_last_seq", pSourceLastSeq, "number")
+    ; Story 13.4 Task 8c: serialize source_last_seq as a string per CouchDB 2.x+
+    ; convention. The changes-feed `last_seq` is already a string in this codebase;
+    ; checkpoint docs were inconsistent with that.
+    Do tDoc.%Set("source_last_seq", ""_pSourceLastSeq)
     If '$IsObject(pHistory) {
         Set pHistory = []
     }

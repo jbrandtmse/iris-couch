@@ -43,13 +43,13 @@ describe('AuthService', () => {
       expect(res.name).toBe('admin');
     });
 
-    const loginReq = httpMock.expectOne('_session');
+    const loginReq = httpMock.expectOne('/iris-couch/_session');
     expect(loginReq.request.method).toBe('POST');
     expect(loginReq.request.body).toEqual({ name: 'admin', password: 'secret' });
     loginReq.flush({ ok: true, name: 'admin', roles: ['_admin'] } as LoginResponse);
 
     // Login triggers a getSession call
-    const sessionReq = httpMock.expectOne('_session');
+    const sessionReq = httpMock.expectOne('/iris-couch/_session');
     expect(sessionReq.request.method).toBe('GET');
     sessionReq.flush({
       ok: true,
@@ -59,7 +59,7 @@ describe('AuthService', () => {
 
   it('should logout via DELETE /_session', () => {
     service.logout().subscribe();
-    const req = httpMock.expectOne('_session');
+    const req = httpMock.expectOne('/iris-couch/_session');
     expect(req.request.method).toBe('DELETE');
     req.flush({ ok: true });
   });
@@ -67,16 +67,16 @@ describe('AuthService', () => {
   it('should clear session on logout', async () => {
     // First, simulate a login
     service.login('admin', 'pass').subscribe();
-    httpMock.expectOne({ method: 'POST', url: '_session' }).flush({
+    httpMock.expectOne({ method: 'POST', url: '/iris-couch/_session' }).flush({
       ok: true, name: 'admin', roles: [],
     });
-    httpMock.expectOne({ method: 'GET', url: '_session' }).flush({
+    httpMock.expectOne({ method: 'GET', url: '/iris-couch/_session' }).flush({
       ok: true, userCtx: { name: 'admin', roles: [] },
     });
 
     // Now logout
     service.logout().subscribe();
-    httpMock.expectOne({ method: 'DELETE', url: '_session' }).flush({ ok: true });
+    httpMock.expectOne({ method: 'DELETE', url: '/iris-couch/_session' }).flush({ ok: true });
 
     const isAuth = await firstValueFrom(service.isAuthenticated$);
     expect(isAuth).toBeFalse();
@@ -88,7 +88,7 @@ describe('AuthService', () => {
       expect(session.userCtx.name).toBe('admin');
     });
 
-    const req = httpMock.expectOne('_session');
+    const req = httpMock.expectOne('/iris-couch/_session');
     expect(req.request.method).toBe('GET');
     req.flush({
       ok: true,
@@ -98,7 +98,7 @@ describe('AuthService', () => {
 
   it('should handle checkSession failure gracefully', async () => {
     service.checkSession().subscribe();
-    const req = httpMock.expectOne('_session');
+    const req = httpMock.expectOne('/iris-couch/_session');
     req.error(new ProgressEvent('Network error'));
 
     const isAuth = await firstValueFrom(service.isAuthenticated$);
@@ -108,7 +108,7 @@ describe('AuthService', () => {
   it('should clear local state with clearSession()', async () => {
     // Simulate authenticated state
     service.checkSession().subscribe();
-    httpMock.expectOne('_session').flush({
+    httpMock.expectOne('/iris-couch/_session').flush({
       ok: true,
       userCtx: { name: 'admin', roles: ['_admin'] },
     });

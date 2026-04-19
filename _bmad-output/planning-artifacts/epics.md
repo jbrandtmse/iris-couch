@@ -2324,6 +2324,50 @@ So that I can learn IRISCouch patterns by running real code.
 **When** CI runs
 **Then** all six examples compile and execute successfully -- a broken example blocks the release
 
+### Story 13.4: Deferred Backlog Cleanup & Trailing-Slash Fix
+
+As an operator about to tag the α release,
+I want the open HIGH-severity trailing-slash routing bug, the medium-severity backlog surfaced during the 2026-04-18 acceptance pass, and a targeted sweep of low-hanging LOW deferrals closed before Epic 13 ships,
+So that adopter-visible silent failures (PouchDB sync breakage, RBAC bypass, timeout error misclassification, double-envelope responses) are off the release-gate list and the deferred-work backlog reflects a genuinely α-ready state rather than a pending-bugs state.
+
+**Acceptance Criteria:**
+
+**Given** the trailing-slash HIGH deferral (`PUT /{db}/`, `GET /{db}/`, `HEAD /{db}/` return 404)
+**When** `src/IRISCouch/API/Router.cls` processes any request
+**Then** an `OnPreDispatch` intercept strips one trailing `/` from non-root request paths before UrlMap matching, so `PUT /iris-couch/mydb/` and `PUT /iris-couch/mydb` are routed identically. Validation: a new Test class exercises `PUT /{db}/`, `GET /{db}/`, `HEAD /{db}/`, `PUT /{db}/`  followed by `PUT /{db}/{docid}/` (deeper trailing slash) and confirms 201/200/200/201 rather than 404.
+
+**Given** adopters who prefer an edge-level 301 redirect
+**When** they read `documentation/migration.md`
+**Then** a new subsection documents both Apache (`RewriteRule ^/iris-couch/(.+)/$ /iris-couch/$1 [L,NC]`) and nginx (`rewrite ^/(.+)/$ /$1 permanent;`) reverse-proxy examples as optional complements to the internal OnPreDispatch fix.
+
+**Given** the Story 11.5 RBAC bypass HIGH (acceptance pass: `/_utils/` returns 200 unauthenticated because `%Service_CSP.DEFAULT_USER` carries `%All`)
+**When** `AdminUIHandler.HasAdminRole()` evaluates the authenticated identity
+**Then** the check also requires `$Username` to be a non-empty authenticated user and NOT `UnknownUser` / `_PUBLIC`, so an unauthenticated request receives 401 instead of 200 even when the `%All` role is present on the CSP default user.
+
+**Given** the Epic 12 timeout error-classification MED (acceptance pass: runaway map returns `server_error/save error` instead of AC-specified `timeout` envelope)
+**When** `DocumentEngine.Save` transacts a write whose underlying view-index update throws `jsruntime_timeout`
+**Then** an `Output pIndexError` parameter paralleling the existing `pValidateError` channel carries the classified error up to `DocumentHandler`, which emits the correct `{"error":"timeout","reason":"..."}` envelope with HTTP 500. TROLLBACK semantics (no document persisted) remain unchanged.
+
+**Given** the 405-vs-404 MED (acceptance pass: `POST /_uuids`, `POST /_all_dbs` return 404 via `POST /:db` fallthrough)
+**When** a non-GET method hits a server-level system endpoint
+**Then** explicit method-guard routes return 405 `method_not_allowed` with the correct `Allow` header, matching the existing `POST /` → 405 behaviour.
+
+**Given** the remaining double-envelope sites at DocumentHandler:167 (multipart) and ReplicationHandler:82,169 (same Quit-in-nested-Catch pattern fixed in other handlers during the acceptance pass)
+**When** invalid multipart or invalid replication request JSON is received
+**Then** a single envelope is emitted, matching the fix pattern already applied to DocumentHandler:40,247,457 and AllDocsHandler:191.
+
+**Given** the UI spec-suite MED (acceptance pass: 40-60 `httpMock.expectOne()` assertions still use bare relative URLs post-CouchApiService fix)
+**When** `ng test --watch=false` runs
+**Then** every spec passes green; all affected `expectOne()` / `expectNone()` / `match()` calls use the `/iris-couch/...` absolute URL shape consistent with the production CouchApiService `resolve()` behaviour.
+
+**Given** the 8 LOW quick-win sweep targets
+**When** each is addressed
+**Then** (a) the login form password field clears on successful authentication, (b) JWT `exp` check tolerates 60 seconds of clock skew, (c) `Checkpoint.BuildCheckpointDoc` types `source_last_seq` as a string per CouchDB 2.x convention, (d) AdminUIHandler's 403 forbidden envelope says `IRISCouch_Admin` not `%IRISCouch_Admin`, (e) `HandlePut` rejects document IDs with `_` prefix except the reserved `_design/` and `_local/` namespaces, (f) ErrorDisplay component test suite adds 409 and network-error fixtures (reaching the spec-required 5 examples), (g) `FeatureError` `rawError` setter preserves `statusCode`, (h) deferred-work.md Story 10.4 "no UI trigger for DB delete" is marked RESOLVED (verified present by 2026-04-18 UI acceptance pass).
+
+**Given** NFR-M2 (docs updated in same commit as code change) and NFR-I3 (compat matrix updated on every release)
+**When** Story 13.4 ships
+**Then** `documentation/deviations.md` strikes the entries newly made obsolete by the fixes (trailing-slash, RBAC-bypass), `documentation/compatibility-matrix.md` verification-column references for affected endpoints are re-checked against still-valid test methods, `documentation/troubleshooting.md` removes any diagnostic step rendered obsolete by the fixes, and the `README.md` Roadmap Epic 13 row flips from `3/3 + 13.0 | Done` to `3/3 + 13.0 + 13.4 | Done` with a one-line progress-prose acknowledgement.
+
 ## Epic 14: Gamma - Streaming Feeds & ECP Clustering
 
 Clients can subscribe to continuous and eventsource change feeds; operators can deploy IRISCouch across ECP distributed-cache clusters for high availability.

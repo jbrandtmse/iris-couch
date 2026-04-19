@@ -17,13 +17,27 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Routes>
   <!-- Metrics endpoint (Story 9.1) -->
   <Route Url="/_prometheus" Method="GET" Call="HandlePrometheus" />
+  <!-- Story 13.4 Task 5: explicit method-guard routes for server-level system endpoints
+       MUST appear BEFORE the /:db catch-all routes so %CSP.REST's in-order evaluation
+       returns 405 Method Not Allowed before falling through to HandleDatabaseCreate
+       (the "phantom _all_dbs DB" bug). -->
+  <Route Url="/_prometheus" Method="POST" Call="Handle405Prometheus" />
+  <Route Url="/_prometheus" Method="PUT" Call="Handle405Prometheus" />
+  <Route Url="/_prometheus" Method="DELETE" Call="Handle405Prometheus" />
   <!-- Session authentication endpoints (Story 7.1) -->
   <Route Url="/_session" Method="POST" Call="HandleSessionPost" />
   <Route Url="/_session" Method="GET" Call="HandleSessionGet" />
   <Route Url="/_session" Method="DELETE" Call="HandleSessionDelete" />
+  <Route Url="/_session" Method="PUT" Call="Handle405Session" />
   <!-- Server-level endpoints (Story 1.2, 1.3) -->
   <Route Url="/_uuids" Method="GET" Call="HandleUUIDs" />
+  <Route Url="/_uuids" Method="POST" Call="Handle405Uuids" />
+  <Route Url="/_uuids" Method="PUT" Call="Handle405Uuids" />
+  <Route Url="/_uuids" Method="DELETE" Call="Handle405Uuids" />
   <Route Url="/_all_dbs" Method="GET" Call="HandleAllDbs" />
+  <Route Url="/_all_dbs" Method="POST" Call="Handle405AllDbs" />
+  <Route Url="/_all_dbs" Method="PUT" Call="Handle405AllDbs" />
+  <Route Url="/_all_dbs" Method="DELETE" Call="Handle405AllDbs" />
   <!-- Database sub-resource endpoints - MUST be BEFORE /:db routes (Story 2.3) -->
   <Route Url="/:db/_revs_limit" Method="GET" Call="HandleRevsLimitGet" />
   <Route Url="/:db/_revs_limit" Method="PUT" Call="HandleRevsLimitPut" />
@@ -56,6 +70,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db" Method="PUT" Call="HandleDatabaseCreate" />
   <Route Url="/:db" Method="DELETE" Call="HandleDatabaseDelete" />
   <Route Url="/:db" Method="GET" Call="HandleDatabaseInfo" />
+  <Route Url="/:db" Method="HEAD" Call="HandleDatabaseInfo" />
   <!-- Design document endpoints - MUST be BEFORE attachment routes so /:db/_design/:name
        routes to the document handler, not to the attachment handler with docid="_design"
        (Story 11.3 Task 0 — fixes deferred-work backend bug from Story 11.1) -->
@@ -85,6 +100,9 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/:db/:docid" Method="DELETE" Call="HandleDocumentDelete" />
   <!-- Welcome endpoint (catch-all for GET /) -->
   <Route Url="/" Method="GET" Call="HandleWelcome" />
+  <Route Url="/" Method="POST" Call="Handle405Root" />
+  <Route Url="/" Method="PUT" Call="Handle405Root" />
+  <Route Url="/" Method="DELETE" Call="Handle405Root" />
 </Routes>
 }
 
@@ -489,6 +507,20 @@ ClassMethod RecordRequestMetrics() [ Private ]
 ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue As %Boolean) As %Status
 {
     Set pContinue = 1
+    ; --- Story 13.4 Task 1: trailing-slash normalization ---
+    ; If the URL ends in "/" and is NOT the bare root "/", strip the trailing
+    ; slash and re-dispatch against the normalized URL. %CSP.REST's DispatchMap
+    ; matches /:db against /:db but NOT against /:db/ (empty final segment),
+    ; so without this intercept PUT /{db}/, GET /{db}/, PUT /{db}/{docid}/ etc.
+    ; all return 404 despite being valid CouchDB requests. Pattern mirrors the
+    ; /_utils/ intercept below: set pContinue = 0, call DispatchRequest
+    ; manually with the rewritten URL, return $$$OK.
+    If (pUrl '= "/") && ($Extract(pUrl, $Length(pUrl)) = "/") {
+        Set tStripped = $Extract(pUrl, 1, $Length(pUrl) - 1)
+        Set pContinue = 0
+        $$$ThrowOnError(..DispatchRequest(tStripped, pMethod))
+        Quit $$$OK
+    }
     Set %IRISCouchUser = ""
     Set %IRISCouchRoles = []
     Set %IRISCouchAuthMethod = ""
@@ -677,6 +709,53 @@ ClassMethod ReportHttpStatusCode(pHttpStatus, pSC As %Status = {$$$OK}) As %Stat
 ClassMethod Http405(pSupportedVerbs As %String) As %Status
 {
     Do ##class(IRISCouch.Util.Error).Render405(pSupportedVerbs)
+    Quit $$$OK
+}
+
+/// <p>405 Method Not Allowed for /_uuids non-GET verbs (Story 13.4 Task 5).</p>
+/// <p>Without this explicit guard, POST/PUT/DELETE to /_uuids fell through to
+/// %CSP.REST's generic 404 handler, which confused clients that expected 405.</p>
+ClassMethod Handle405Uuids() As %Status
+{
+    Do ##class(IRISCouch.Util.Error).Render405("GET")
+    Do ..RecordRequestMetrics()
+    Quit $$$OK
+}
+
+/// <p>405 Method Not Allowed for /_all_dbs non-GET verbs (Story 13.4 Task 5).</p>
+/// <p>CRITICAL: without this guard, PUT /_all_dbs previously fell through to
+/// the /:db PUT route and silently created a phantom database named
+/// "_all_dbs" (verified during Story 13.4 Task 0 probe). The method-guard
+/// route MUST match before /:db in the UrlMap.</p>
+ClassMethod Handle405AllDbs() As %Status
+{
+    Do ##class(IRISCouch.Util.Error).Render405("GET")
+    Do ..RecordRequestMetrics()
+    Quit $$$OK
+}
+
+/// <p>405 Method Not Allowed for /_session PUT / HEAD (Story 13.4 Task 5).</p>
+/// <p>Supported: GET (session info), POST (login), DELETE (logout).</p>
+ClassMethod Handle405Session() As %Status
+{
+    Do ##class(IRISCouch.Util.Error).Render405("GET, POST, DELETE")
+    Do ..RecordRequestMetrics()
+    Quit $$$OK
+}
+
+/// <p>405 Method Not Allowed for /_prometheus non-GET verbs (Story 13.4 Task 5).</p>
+ClassMethod Handle405Prometheus() As %Status
+{
+    Do ##class(IRISCouch.Util.Error).Render405("GET")
+    Do ..RecordRequestMetrics()
+    Quit $$$OK
+}
+
+/// <p>405 Method Not Allowed for / non-GET verbs (Story 13.4 Task 5).</p>
+ClassMethod Handle405Root() As %Status
+{
+    Do ##class(IRISCouch.Util.Error).Render405("GET")
+    Do ..RecordRequestMetrics()
     Quit $$$OK
 }
 

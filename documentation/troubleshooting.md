@@ -461,6 +461,12 @@ Then restart IRIS or force config reload, and re-test the view query.
 - View queries return
   `{"error":"jsruntime_timeout","reason":"subprocess exceeded 5000ms"}`
   (or the configured `JSRUNTIMETIMEOUT`).
+- **Document writes** return
+  `{"error":"timeout","reason":"subprocess exceeded Nms"}` with HTTP 500
+  when a runaway `validate_doc_update` or view-index map function hits
+  the timeout (Story 13.4 classification fix — prior releases folded this
+  case to the generic `{"error":"server_error","reason":"document: save error"}`
+  envelope, hiding the timeout cause from clients).
 - View queries hang for far longer than `JSRUNTIMETIMEOUT` claims,
   eventually producing a vague CSP Gateway error rather than a
   timeout envelope.

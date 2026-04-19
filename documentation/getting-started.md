@@ -283,6 +283,44 @@ Admin UI is accessible both ways: with the reverse proxy, browse to
 credentials; the UI requires the `IRISCouch_Admin` role, which the
 installer grants automatically to the installing user.
 
+### Edge-level trailing-slash normalization (optional)
+
+IRISCouch's `IRISCouch.API.Router.OnPreDispatch` normalizes trailing-slash
+requests transparently: `PUT /{db}/`, `GET /{db}/`, `PUT /{db}/{docid}/`, etc.
+all route identically to their no-slash counterparts (Story 13.4). Clients
+get `200`/`201` on the first request without any redirect hop. This is the
+primary fix and requires no reverse-proxy config.
+
+Operators who ALSO want clients to learn the canonical (no-slash) URL — for
+SEO, cache efficiency, or external-CDN hits — can add an edge-level 301
+redirect on top of the internal fix. The two layers compose: the edge rule
+catches traffic the proxy sees, the internal fix catches traffic that
+bypassed the proxy (e.g., direct-mount clients).
+
+#### nginx
+
+```nginx
+# Add inside the server{} block for iriscouch.local:
+rewrite ^/iris-couch/(.+)/$ /iris-couch/$1 permanent;
+```
+
+(If you're using Option A's "proxy everything to `/iris-couch/`" config,
+substitute `^/(.+)/$` — rewrite happens before the proxy_pass.)
+
+#### Apache
+
+```apache
+# Add inside the <VirtualHost> for iriscouch.local:
+RewriteEngine On
+RewriteRule ^/iris-couch/(.+)/$ /iris-couch/$1 [L,NC,R=301]
+```
+
+**Tradeoff:** the internal normalization is transparent (`200` on the first
+request, URL unchanged in the browser); the edge-level rule is a `301` that
+teaches clients the canonical URL but costs an extra round-trip on the first
+hit. Pick based on whether your clients benefit from learning the canonical
+form (most adopters do not — the internal fix is enough).
+
 ---
 
 ## Create a database

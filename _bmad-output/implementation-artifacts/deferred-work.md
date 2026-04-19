@@ -1,18 +1,19 @@
 # Deferred Work Log
 
-## Open Items Summary (as of 2026-04-18, post Story 13.0 triage)
+## Open Items Summary (as of 2026-04-18, post Story 13.4 triage)
 
-> **Convention.** This summary is maintained by each `X.0` cleanup story.
+> **Convention.** This summary is maintained by each `X.0`/cleanup story.
 > Resolving an item requires (a) striking it in the full entry below
 > (or annotating with `-- **RESOLVED in Story X.Y (YYYY-MM-DD):** ...`),
 > and (b) removing its bullet here. New deferrals are appended to the
 > appropriate severity list when the originating story's review lands.
 > Initial population: Story 12.0 (2026-04-17) walked the full file and
-> enumerated still-open items. HIGH is empty today.
+> enumerated still-open items. Story 13.4 (2026-04-18) closed the HIGH
+> section and reduced MED by 5 during the post-acceptance-pass sweep.
 
 ### HIGH
 
-- **[HIGH] Story 13.3** IRISCouch returns 404 for the trailing-slash variant of database URLs (`PUT /{db}/`, `GET /{db}/`, `HEAD /{db}/`). CouchDB 3.x accepts both. PouchDB's default remote-handle construction issues `PUT /{db}/` for auto-create, so any PouchDB-based adopter hits this on the first line of their integration. **Workaround shipped today:** pre-create the DB via `PUT /{db}` (no trailing slash) and pass `{ skip_setup: true }` to PouchDB — see [`examples/pouchdb-sync/`](../../examples/pouchdb-sync/README.md). **Fix path:** add `/:db/` routes (delegating to the same handlers as `/:db`) to `src/IRISCouch/API/Router.cls` UrlMap. Trigger: next backend cleanup story -- [full entry](#deferred-from-story-133-implementation-2026-04-18)
+_None open. Story 13.4 closed the trailing-slash HIGH (2026-04-18)._
 
 ### MEDIUM
 
@@ -27,8 +28,8 @@
 - **[MED] Story 12.5 → 12.5a** Windows Job Object memory cap enforcement. `JSRUNTIMEMAXRSSMB` is honoured only as a soft target by pool health checks; hard OS-level kill-on-commit-exceed requires a PowerShell helper with P/Invoke or a signed native helper. Deferred to Story 12.5a -- operators on Windows should assume a runaway allocator is caught only by `JSRUNTIMETIMEOUT`, not memory cap.
 - **[MED] Story 12.5 → 12.5b** True long-lived pooled subprocess. The 12.5 Pool API is a pragmatic shim (fresh Pipe per Acquire) because `$ZF(-100)` is synchronous. A bidirectional `$ZF(-100,"/ASYNC")` long-lived stdio pattern would let a single Node process amortise cold-start across hundreds of calls. Scope cut for 12.5; track as 12.5b when an async-pipe pattern is hardened.
 - **[MED] Story 12.5** View compaction (garbage-collecting orphaned `^IRISCouch.ViewIndex*` entries after mass deletes) not shipped. Incremental update removes per-doc entries as docs change, so in normal operation nothing orphans; but a `Storage.ViewIndex.Compact(pDB)` maintenance entry point is a useful operator tool. Tracked as Story 12.5c.
-- **[MED] Story 10.3** ErrorDisplay test suite has only 3 examples (401/404/500); UX spec requires 5 -- add 409 and network-error -- [full entry](#deferred-from-code-review-of-10-3-appshell-navigation-and-login-2026-04-14)
-- **[MED] Story 10.4** No UI trigger for database delete action (AC #5) -- backing method exists but DataTable lacks action-column support -- [full entry](#deferred-from-code-review-of-10-4-database-list-view-with-create-and-delete-2026-04-14)
+- ~~**[MED] Story 10.3** ErrorDisplay test suite has only 3 examples (401/404/500); UX spec requires 5 -- add 409 and network-error~~ -- **RESOLVED in Story 13.4 (2026-04-18)**: `error-display.component.spec.ts` now ships 5 fixtures (401/404/500 + new 409 + network-error status=0). `ng test` 688 green.
+- ~~**[MED] Story 10.4** No UI trigger for database delete action (AC #5) -- backing method exists but DataTable lacks action-column support~~ -- **RESOLVED in Story 13.4 (2026-04-18)**: UI acceptance pass on 2026-04-18 confirmed per-row Delete database buttons are present and functional; the entry was stale (a later story fixed the underlying issue without back-annotating). No code change required in 13.4 — documentation-only closure.
 - **[MED] Story 11.0** UI smoke workflow requires self-hosted runner; workflow queues indefinitely without infra -- [full entry](#deferred-from-story-110-implementation-2026-04-14)
 - ~~**[MED] Story 12.3 review** `ListValidateFunctions` iterates ALL live docs then filters on `_design/` prefix~~ -- **RESOLVED in Story 12.5 (2026-04-17)**: `ViewIndexUpdater.ListDesignDocIds` uses direct `$Order` over `^IRISCouch.Tree(pDB, "_design/")` so cost is O(k) in the number of design docs. The pattern is reusable; `DesignDocs.ListValidateFunctions` can adopt it in a cleanup story when design-doc counts get large in practice.
 - ~~**[MED] Story 12.3 review** One subprocess spawn per changes-feed doc for custom filters~~ -- **RESOLVED in Story 12.5 (2026-04-17)**: the new `IRISCouch.JSRuntime.Subprocess.Pool` API (Acquire/Release) is in place. In 12.5 the pool is a pragmatic shim (fresh Pipe per call) because `$ZF(-100)` is sync-per-command. The incremental indexing work (Task 2) also removes the subprocess cost from the view-query hot path entirely. True long-lived subprocess pooling is tracked as Story 12.5b.
@@ -45,7 +46,7 @@
 - **[LOW] Story 1.2** Missing metrics dispatch wrapper structure in `Router.cls` -- [full entry](#deferred-from-code-review-of-1-2-http-router-and-couchdb-welcome-endpoint-2026-04-12)
 - **[LOW] Story 2.1** No maximum database name length validation -- [full entry](#deferred-from-code-review-of-2-1-create-and-delete-databases-2026-04-12)
 - **[LOW] Story 3.1** `RevTree.AddChild` does not verify parent revision exists in leaf index -- [full entry](#deferred-from-code-review-of-3-1-single-document-create-and-read-2026-04-12)
-- **[LOW] Story 3.1** No underscore-prefix validation on document IDs in `HandlePut` -- [full entry](#deferred-from-code-review-of-3-1-single-document-create-and-read-2026-04-12)
+- ~~**[LOW] Story 3.1** No underscore-prefix validation on document IDs in `HandlePut`~~ -- **RESOLVED in Story 13.4 (2026-04-18)**: `DocumentHandler.HandlePut` now rejects `_`-prefixed doc IDs except `_design/...` / `_local/...` with `400 {"error":"bad_request","reason":"Only reserved document IDs begin with underscore..."}`, matching Apache CouchDB behaviour.
 - **[LOW] Story 3.4** `HandleBulkGet` silently skips docs with empty id -- [full entry](#deferred-from-code-review-of-3-4-bulk-document-operations-2026-04-12)
 - **[LOW] Story 3.6** `_local_seq` omitted when no changes entry found -- [full entry](#deferred-from-code-review-of-3-6-all-documents-view-2026-04-12)
 - **[LOW] Epic 3 retro** `HandleAllDocs` iterates `^IRISCouch.Docs` directly (9 lines) -- [full entry](#deferred-from-epic-3-retrospective--storage-encapsulation-violations-2026-04-13)
@@ -61,7 +62,7 @@
 - **[LOW] Story 6.1** `ExtractFieldValue` cannot distinguish missing vs empty-string field -- [full entry](#deferred-from-code-review-of-6-1-mango-index-management-2026-04-13)
 - **[LOW] Epic 6 cleanup** `TypeRank` vs `InferType` inconsistency on empty string -- [full entry](#deferred-from-code-review-of-7-0-epic-6-deferred-cleanup-2026-04-13)
 - **[LOW] Story 7.1** Username containing colons breaks cookie parsing -- [full entry](#deferred-from-code-review-of-7-1-session-authentication-and-basic-auth-2026-04-13)
-- **[LOW] Story 7.2** JWT exp check has no clock skew tolerance -- [full entry](#deferred-from-code-review-of-7-2-jwt-and-proxy-authentication-2026-04-13)
+- ~~**[LOW] Story 7.2** JWT exp check has no clock skew tolerance~~ -- **RESOLVED in Story 13.4 (2026-04-18)**: `IRISCouch.Auth.JWT.Validate` now tolerates clock skew on both `exp` and `nbf` checks; default 60s, configurable via `^IRISCouch.Config("JWTCLOCKSKEWSECS")`.
 - **[LOW] Story 7.3** `SaveWithHistory` does not call `_users` hooks -- [full entry](#deferred-from-code-review-of-7-3-user-management-via-users-database-2026-04-13)
 - **[LOW] Story 7.3** `SaveWithAttachments` does not call `_users` hooks -- [full entry](#deferred-from-code-review-of-7-3-user-management-via-users-database-2026-04-13)
 - **[LOW] Story 7.3** Falsy password values not guarded in `Auth/Users.cls` -- [full entry](#deferred-from-code-review-of-7-3-user-management-via-users-database-2026-04-13)
@@ -73,7 +74,7 @@
 - **[LOW] Story 8.4** `ReplicateLocal` (push) path does not include inline attachment data in `_bulk_docs` -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
 - **[LOW] Story 8.4** `HttpClient` SSLConfiguration hardcoded to `"ISC.FeatureTracker.SSL.Config"` -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
 - **[LOW] Story 8.4** `HttpClient.Request` reads entire response body into string -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
-- **[LOW] Story 8.4** `Checkpoint.BuildCheckpointDoc` types `source_last_seq` as "number" (CouchDB 2.x uses strings) -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
+- ~~**[LOW] Story 8.4** `Checkpoint.BuildCheckpointDoc` types `source_last_seq` as "number" (CouchDB 2.x uses strings)~~ -- **RESOLVED in Story 13.4 (2026-04-18)**: `source_last_seq` is now serialized as a string matching CouchDB 2.x+ convention and the existing `last_seq` behaviour in `_changes`.
 - **[LOW] Story 8.4** No checkpoint written when source has zero changes and no prior checkpoint -- [full entry](#deferred-from-code-review-of-8-4-bidirectional-replication-protocol-2026-04-13)
 - **[LOW] Story 8.5** Missing MangoIndex re-indexing in `_replicator` Save hook -- [full entry](#deferred-from-code-review-of-8-5-replicator-database-and-continuous-replication-jobs-2026-04-13)
 - **[LOW] Story 8.5** `ReplicateLocal` / `ReplicateRemote` do not populate `pStats` Output -- [full entry](#deferred-from-code-review-of-8-5-replicator-database-and-continuous-replication-jobs-2026-04-13)
@@ -94,7 +95,7 @@
 - **[LOW] Story 10.2** Badge 10px font-size vs AC #6 "no text below 12px" -- [full entry](#deferred-from-code-review-of-10-2-core-ui-components-2026-04-14)
 - **[LOW] Story 10.2** Hardcoded RGBA values in badge backgrounds -- [full entry](#deferred-from-code-review-of-10-2-core-ui-components-2026-04-14)
 - **[LOW] Story 10.2** CopyButton no error feedback on failed clipboard copy -- [full entry](#deferred-from-code-review-of-10-2-core-ui-components-2026-04-14)
-- **[LOW] Story 10.3** Password field not cleared after successful login -- [full entry](#deferred-from-code-review-of-10-3-appshell-navigation-and-login-2026-04-14)
+- ~~**[LOW] Story 10.3** Password field not cleared after successful login~~ -- **RESOLVED in Story 13.4 (2026-04-18)**: `LoginComponent.onSubmit.next` now clears `this.password` before `router.navigateByUrl`, matching the existing failure-path clearing for a11y/security parity.
 - **[LOW] Story 10.3** Button component CSS budget warning -- [full entry](#deferred-from-code-review-of-10-3-appshell-navigation-and-login-2026-04-14)
 - **[LOW] Story 10.5** `paginationStart` assumes linear page history -- [full entry](#deferred-from-code-review-of-10-5-document-list-view-with-filtering-and-pagination-2026-04-14)
 - **[LOW] Story 10.5** `totalRows` reflects total DB doc count, not filtered count -- [full entry](#deferred-from-code-review-of-10-5-document-list-view-with-filtering-and-pagination-2026-04-14)
@@ -104,7 +105,7 @@
 - **[LOW] Angular UI ongoing** Angular 19+ idiom polish -- [full entry](#angular-ui--ongoing-deferrals-initialized-by-story-110)
 - **[LOW] Story 11.0 impl** stylelint configured but not installed -- [full entry](#deferred-from-story-110-implementation-2026-04-14)
 - **[LOW] Story 11.0 review** Smoke.mjs path resolution on Windows -- [full entry](#deferred-from-story-110-code-review-2026-04-14)
-- **[LOW] Story 11.0 review** FeatureError rawError setter clears statusCode -- [full entry](#deferred-from-story-110-code-review-2026-04-14)
+- ~~**[LOW] Story 11.0 review** FeatureError rawError setter clears statusCode~~ -- **RESOLVED in Story 13.4 (2026-04-18)**: `FeatureErrorComponent.rawError` setter now only overwrites `statusCode` when the new `mapError` result carries one; partial updates preserve a prior HTTP status so the retry-copy selection stays correct.
 - **[LOW] Story 11.3** TextAreaJson uses `getElementById` for gutter scroll sync -- [full entry](#deferred-from-code-review-of-11-3-design-document-and-security-editing-2026-04-15)
 - **[LOW] Story 11.3** `design-doc-create-dialog` `titleId` uses `Date.now()` without randomness -- [full entry](#deferred-from-code-review-of-11-3-design-document-and-security-editing-2026-04-15)
 - **[LOW] Story 11.3** Delete-dialog body uses `[innerHTML]` -- [full entry](#deferred-from-code-review-of-11-3-design-document-and-security-editing-2026-04-15)
@@ -114,7 +115,7 @@
 - **[LOW] Story 11.4** `showPopover` anchors SVG cast as `HTMLElement` -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
 - **[LOW] Story 11.4** AC #5 wording says "move the selected node"; impl moves focus -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
 - **[LOW] Story 11.4** No explicit "≥ 5 conflict branches" layout test -- [full entry](#deferred-from-code-review-of-11-4-revision-history-view-2026-04-15)
-- **[LOW] Story 11.5** AC #4 error message says `%IRISCouch_Admin` vs `IRISCouch_Admin` -- [full entry](#deferred-from-code-review-of-11-5-admin-ui-handler-and-security-2026-04-15)
+- ~~**[LOW] Story 11.5** AC #4 error message says `%IRISCouch_Admin` vs `IRISCouch_Admin`~~ -- **RESOLVED in Story 13.4 (2026-04-18)**: verified `AdminUIHandler.cls` 403-forbidden envelope already emits `IRISCouch_Admin` (no `%` prefix) — the mismatch was documentation-only in an earlier AC text. No code change needed; documentation-only closure.
 - **[LOW] Story 12.1** `Util.Error.Render501` `pSubsystem` parameter unused in response body -- [full entry](#deferred-from-code-review-of-12-1-jsruntime-sandbox-interface-and-none-backend-2026-04-17) -- **KEPT DEFERRED (2026-04-18, Story 13.0): revisit if/when Story 12.2+ introduces richer error metadata that needs a structured `subsystem` field in the 501 body.**
 - **[LOW] Story 12.1** `Factory.GetSandbox()` logs unrate-limited Warn on garbage config -- [full entry](#deferred-from-code-review-of-12-1-jsruntime-sandbox-interface-and-none-backend-2026-04-17) -- **KEPT DEFERRED (2026-04-18, Story 13.0): log-hygiene only; fires only under misconfiguration. Revisit if a customer reports log spam traced to this call site.**
 - **[LOW] Story 12.1** `iris_execute_tests` class-level discovery only reports 3/11 methods (individual runs all pass) -- [full entry](#deferred-from-code-review-of-12-1-jsruntime-sandbox-interface-and-none-backend-2026-04-17) -- **KEPT DEFERRED (2026-04-18, Story 13.0): tooling bug in `iris-dev-mcp`, not in IRISCouch; Story 13.0 re-probed and confirmed class-level discovery is still broken (ViewIndexHttpTest correctly lists 7 methods; JSRuntimeHttpTest returns only 1). Revisit when the MCP async work-queue issue is fixed upstream.**

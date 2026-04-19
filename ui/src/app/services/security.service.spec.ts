@@ -30,14 +30,14 @@ describe('SecurityService', () => {
   describe('getSecurity URL', () => {
     it('GETs /{db}/_security with the database name URI-encoded', () => {
       service.getSecurity('my db').subscribe();
-      const req = httpMock.expectOne('my%20db/_security');
+      const req = httpMock.expectOne('/iris-couch/my%20db/_security');
       expect(req.request.method).toBe('GET');
       req.flush(DEFAULT_SECURITY);
     });
 
     it('passes through simple db names without extra encoding', () => {
       service.getSecurity('testdb').subscribe();
-      const req = httpMock.expectOne('testdb/_security');
+      const req = httpMock.expectOne('/iris-couch/testdb/_security');
       expect(req.request.method).toBe('GET');
       req.flush(DEFAULT_SECURITY);
     });
@@ -53,7 +53,7 @@ describe('SecurityService', () => {
         expect(sec).toEqual(populated);
         done();
       });
-      httpMock.expectOne('testdb/_security').flush(populated);
+      httpMock.expectOne('/iris-couch/testdb/_security').flush(populated);
     });
 
     it('normalizes an empty object `{}` to the full default shape', (done) => {
@@ -61,7 +61,7 @@ describe('SecurityService', () => {
         expect(sec).toEqual(DEFAULT_SECURITY);
         done();
       });
-      httpMock.expectOne('testdb/_security').flush({});
+      httpMock.expectOne('/iris-couch/testdb/_security').flush({});
     });
 
     it('fills missing admins/members with empty defaults', (done) => {
@@ -70,7 +70,7 @@ describe('SecurityService', () => {
         expect(sec.members).toEqual({ names: [], roles: [] });
         done();
       });
-      httpMock.expectOne('testdb/_security').flush({ admins: { names: ['alice'] } });
+      httpMock.expectOne('/iris-couch/testdb/_security').flush({ admins: { names: ['alice'] } });
     });
 
     it('fills missing nested arrays with empty arrays', (done) => {
@@ -80,7 +80,7 @@ describe('SecurityService', () => {
         done();
       });
       httpMock
-        .expectOne('testdb/_security')
+        .expectOne('/iris-couch/testdb/_security')
         .flush({ admins: { names: ['a'] }, members: { roles: ['r'] } });
     });
 
@@ -93,7 +93,7 @@ describe('SecurityService', () => {
         },
       });
       httpMock
-        .expectOne('testdb/_security')
+        .expectOne('/iris-couch/testdb/_security')
         .flush(
           { error: 'internal_server_error', reason: 'boom' },
           { status: 500, statusText: 'Internal Server Error' },
@@ -112,7 +112,7 @@ describe('SecurityService', () => {
       service.setSecurity('testdb', sec).subscribe((res) => {
         expect(res.ok).toBeTrue();
       });
-      const req = httpMock.expectOne('testdb/_security');
+      const req = httpMock.expectOne('/iris-couch/testdb/_security');
       expect(req.request.method).toBe('PUT');
       expect(req.request.body).toEqual(sec);
       req.flush({ ok: true });
@@ -120,7 +120,7 @@ describe('SecurityService', () => {
 
     it('encodes db name with special characters', () => {
       service.setSecurity('my db', sec).subscribe();
-      const req = httpMock.expectOne('my%20db/_security');
+      const req = httpMock.expectOne('/iris-couch/my%20db/_security');
       expect(req.request.method).toBe('PUT');
       req.flush({ ok: true });
     });
@@ -134,7 +134,7 @@ describe('SecurityService', () => {
         },
       });
       httpMock
-        .expectOne('testdb/_security')
+        .expectOne('/iris-couch/testdb/_security')
         .flush(
           { error: 'unauthorized', reason: 'You are not a server admin.' },
           { status: 401, statusText: 'Unauthorized' },
@@ -150,7 +150,7 @@ describe('SecurityService', () => {
         },
       });
       httpMock
-        .expectOne('testdb/_security')
+        .expectOne('/iris-couch/testdb/_security')
         .flush(
           { error: 'internal_server_error', reason: 'boom' },
           { status: 500, statusText: 'Internal Server Error' },

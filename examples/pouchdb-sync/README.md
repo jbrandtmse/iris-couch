@@ -67,30 +67,25 @@ needed — PouchDB's sync internals don't emit rev strings in the summary,
 and the `_all_docs` row ids are the deterministic ones we seeded. The
 `push_docs_written` / `pull_docs_written` counts are stable across runs.
 
-## Known IRISCouch interop note
+## PouchDB `skip_setup: true` — now a best-practice, not a workaround
 
-IRISCouch's current Router UrlMap does not match the trailing-slash variant
-of database URLs: `PUT /{db}/` and `GET /{db}/` both return 404, whereas
-`PUT /{db}` (no trailing slash) succeeds. PouchDB, when you construct a
-remote `new PouchDB(url)`, probes the database by issuing
-`PUT /{db}/` (with a trailing slash) and treats a non-success response as
-"database does not exist, and I can't create it" — which is how this example
-initially failed.
+Story 13.4 (2026-04-18) closed the trailing-slash routing bug:
+`IRISCouch.API.Router.OnPreDispatch` now strips a single trailing slash
+from non-root URLs before the UrlMap matches, so `PUT /{db}/`,
+`GET /{db}/`, and `PUT /{db}/{docid}/` all route identically to their
+no-slash counterparts. PouchDB's default-constructor probe (`PUT /{db}/`)
+therefore succeeds without any workaround against α/β-releases or newer.
 
-**Workaround used in `run.mjs`:** pass `{ skip_setup: true }` to the PouchDB
-constructor. This tells PouchDB to skip the probe and assume the database
-already exists — which is true because we created it explicitly with a
-direct `PUT /{db}` (no trailing slash) beforehand. This is a standard
-PouchDB option and not specific to IRISCouch; it is also the recommended
-pattern for production use even against Apache CouchDB, because it avoids
-a superfluous round-trip on every handle construction.
+We keep `{ skip_setup: true }` in `run.mjs` anyway because it is a
+standard PouchDB production best-practice — it saves a superfluous
+round-trip on every remote-handle construction, regardless of server.
+Apache CouchDB's documentation recommends the same pattern. Drop the flag
+only if you explicitly want PouchDB's auto-create behaviour.
 
-**Tracked as:** `deferred-work.md` → **[HIGH] Story 13.3** IRISCouch
-returns 404 for `PUT /{db}/` and `GET /{db}/` (trailing-slash variants of
-the database-level endpoints). The fix is a one-line addition of two
-`/:db/` routes to the Router UrlMap, delegating to the same handlers as
-`/:db`. Deferred to a backend cleanup story; the workaround for adopters
-today is `skip_setup: true`.
+**Historical note:** the trailing-slash bug was tracked as
+`deferred-work.md` → [HIGH] Story 13.3 and RESOLVED in Story 13.4
+(2026-04-18). Adopters on pre-α snapshots that hit `ERR missing 404` from
+PouchDB's probe should upgrade to a build that includes Story 13.4.
 
 ## Cross-references
 
@@ -102,8 +97,9 @@ today is `skip_setup: true`.
 
 ## Troubleshooting
 
-- **`ERR missing 404`** — you hit the trailing-slash bug above without the
-  `skip_setup: true` workaround. Check you copied the full `run.mjs`.
+- **`ERR missing 404`** — you're on a pre-Story-13.4 snapshot that still
+  has the trailing-slash bug. Upgrade to α/β or keep `{ skip_setup: true }`
+  in the PouchDB constructor.
 - **`Cannot find package 'pouchdb'`** — run `npm install pouchdb` in this
   directory, or set `NODE_PATH` to point at a global install.
 - **`ECONNREFUSED`** — IRIS is not running, or is on a non-default port.

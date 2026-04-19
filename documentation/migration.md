@@ -132,7 +132,10 @@ curl http://target.example.com:52773/iris-couch/
 
 Follow [Getting Started § Install](getting-started.md) for the full
 version of this phase, including the reverse-proxy / direct-mount
-topology decision.
+topology decision, and [Getting Started § Edge-level trailing-slash
+normalization](getting-started.md#edge-level-trailing-slash-normalization-optional)
+for the optional 301-redirect edge rule (nginx / Apache) that complements
+IRISCouch's transparent internal trailing-slash fix (Story 13.4).
 
 **Success signal:** `GET /iris-couch/` returns the welcome envelope;
 `/iris-couch/_utils/` loads the admin UI; the installing user sees

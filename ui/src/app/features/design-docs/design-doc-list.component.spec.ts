@@ -49,7 +49,7 @@ describe('DesignDocListComponent', () => {
   function expectListRequest() {
     return httpMock.expectOne(
       (r) =>
-        r.url.startsWith('testdb/_all_docs') &&
+        r.url.startsWith('/iris-couch/testdb/_all_docs') &&
         r.url.includes('startkey=%22_design%2F%22') &&
         r.url.includes('endkey=%22_design0%22'),
     );
@@ -300,7 +300,7 @@ describe('DesignDocListComponent', () => {
       fixture.detectChanges();
       component.onCreateConfirmed({ name: 'newapp', body: { language: 'javascript', views: {} } });
       const putReq = httpMock.expectOne(
-        (r) => r.url === 'testdb/_design/newapp' && r.method === 'PUT',
+        (r) => r.url === '/iris-couch/testdb/_design/newapp' && r.method === 'PUT',
       );
       expect(putReq.request.body).toEqual({ language: 'javascript', views: {} });
       putReq.flush({ ok: true, id: '_design/newapp', rev: '1-abc' });
@@ -321,7 +321,7 @@ describe('DesignDocListComponent', () => {
       fixture.detectChanges();
       component.onCreateConfirmed({ name: 'dup', body: {} });
       httpMock
-        .expectOne((r) => r.url === 'testdb/_design/dup' && r.method === 'PUT')
+        .expectOne((r) => r.url === '/iris-couch/testdb/_design/dup' && r.method === 'PUT')
         .flush(
           { error: 'conflict', reason: 'Document update conflict.' },
           { status: 409, statusText: 'Conflict' },
